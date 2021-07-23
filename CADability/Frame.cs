@@ -424,6 +424,9 @@ namespace CADability
             }
             set
             {
+                if (activeView == value)
+                    return;
+
                 activeView = value;
                 canvas.ShowView(activeView);
                 SetViewProperties();
