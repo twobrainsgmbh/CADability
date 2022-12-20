@@ -18,6 +18,7 @@ using Point = System.Drawing.Point;
 using netDxf.Tables;
 using System.Text;
 using System.IO;
+using System.Diagnostics;
 
 namespace CADability.DXF
 {
@@ -1111,45 +1112,33 @@ namespace CADability.DXF
                 {
                     if (indices[0] != indices[1] && indices[1] != indices[2])
                     {
-                        try
-                        {
-                            Plane pln = new Plane(vertices[indices[0]], vertices[indices[1]], vertices[indices[2]]);
-                            PlaneSurface surf = new PlaneSurface(pln);
-                            Border bdr = new Border(new GeoPoint2D[] { new GeoPoint2D(0.0, 0.0), pln.Project(vertices[indices[1]]), pln.Project(vertices[indices[2]]) });
-                            SimpleShape ss = new SimpleShape(bdr);
-                            Face fc = Face.MakeFace(surf, ss);
-                            faces.Add(fc);
-                        }
-                        catch { };
+                        Plane pln = new Plane(vertices[indices[0]], vertices[indices[1]], vertices[indices[2]]);
+                        PlaneSurface surf = new PlaneSurface(pln);
+                        Border bdr = new Border(new GeoPoint2D[] { new GeoPoint2D(0.0, 0.0), pln.Project(vertices[indices[1]]), pln.Project(vertices[indices[2]]) });
+                        SimpleShape ss = new SimpleShape(bdr);
+                        Face fc = Face.MakeFace(surf, ss);
+                        faces.Add(fc);
                     }
                 }
                 else
                 {
                     if (indices[0] != indices[1] && indices[1] != indices[2])
                     {
-                        try
-                        {
-                            Plane pln = new Plane(vertices[indices[0]], vertices[indices[1]], vertices[indices[2]]);
-                            PlaneSurface surf = new PlaneSurface(pln);
-                            Border bdr = new Border(new GeoPoint2D[] { new GeoPoint2D(0.0, 0.0), pln.Project(vertices[indices[1]]), pln.Project(vertices[indices[2]]) });
-                            SimpleShape ss = new SimpleShape(bdr);
-                            Face fc = Face.MakeFace(surf, ss);
-                            faces.Add(fc);
-                        }
-                        catch { };
+                        Plane pln = new Plane(vertices[indices[0]], vertices[indices[1]], vertices[indices[2]]);
+                        PlaneSurface surf = new PlaneSurface(pln);
+                        Border bdr = new Border(new GeoPoint2D[] { new GeoPoint2D(0.0, 0.0), pln.Project(vertices[indices[1]]), pln.Project(vertices[indices[2]]) });
+                        SimpleShape ss = new SimpleShape(bdr);
+                        Face fc = Face.MakeFace(surf, ss);
+                        faces.Add(fc);
                     }
                     if (indices[2] != indices[3] && indices[3] != indices[0])
                     {
-                        try
-                        {
-                            Plane pln = new Plane(vertices[indices[2]], vertices[indices[3]], vertices[indices[0]]);
-                            PlaneSurface surf = new PlaneSurface(pln);
-                            Border bdr = new Border(new GeoPoint2D[] { new GeoPoint2D(0.0, 0.0), pln.Project(vertices[indices[3]]), pln.Project(vertices[indices[0]]) });
-                            SimpleShape ss = new SimpleShape(bdr);
-                            Face fc = Face.MakeFace(surf, ss);
-                            faces.Add(fc);
-                        }
-                        catch { };
+                        Plane pln = new Plane(vertices[indices[2]], vertices[indices[3]], vertices[indices[0]]);
+                        PlaneSurface surf = new PlaneSurface(pln);
+                        Border bdr = new Border(new GeoPoint2D[] { new GeoPoint2D(0.0, 0.0), pln.Project(vertices[indices[3]]), pln.Project(vertices[indices[0]]) });
+                        SimpleShape ss = new SimpleShape(bdr);
+                        Face fc = Face.MakeFace(surf, ss);
+                        faces.Add(fc);
                     }
                 }
             }
