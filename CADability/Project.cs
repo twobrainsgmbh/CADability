@@ -1,4 +1,4 @@
-﻿using CADability.Attribute;
+using CADability.Attribute;
 using CADability.GeoObject;
 using CADability.Shapes;
 using CADability.Substitutes;
@@ -2393,13 +2393,13 @@ namespace CADability
             filterList = data.GetPropertyOrDefault<FilterList>("FilterList");
             animatedViews = data.GetPropertyOrDefault<List<AnimatedView>>("AnimatedViews");
             activeViewName = data.GetPropertyOrDefault<string>("ActiveViewName");
-            printDocument = new PrintDocument();
-            try
-            {
-                printDocument.DefaultPageSettings = data.GetPropertyOrDefault<PageSettings>("DefaultPageSettings");
-            }
-            catch { }
-            data.RegisterForSerializationDoneCallback(this);
+            // printDocument = new PrintDocument();
+            //try
+            //{
+            //    printDocument.DefaultPageSettings = data.GetPropertyOrDefault<PageSettings>("DefaultPageSettings");
+            //}
+            //catch { }
+            //data.RegisterForSerializationDoneCallback(this);
         }
         void IJsonSerializeDone.SerializationDone()
         {
