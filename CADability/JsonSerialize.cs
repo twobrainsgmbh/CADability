@@ -1,4 +1,4 @@
-﻿using CADability.GeoObject;
+using CADability.GeoObject;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -722,7 +722,7 @@ namespace CADability
         }
         public bool IsWriting
         {
-            get { return outStream!=null; }   
+            get { return outStream!=null; }
         }
         private SerializationInfo SerializationInfoFromJsonData(JsonDict data, Type tp, List<object> entities, HashSet<ulong> underConstruction)
         {
@@ -735,7 +735,8 @@ namespace CADability
                     ulong index = (ulong)data[key];
                     if (entities[(int)index] is JsonDict) CreateEntity(entities, (ulong)data[key], underConstruction);
                     object created = entities[(int)index];
-                    si.AddValue(key, created, created.GetType());
+					if (created != null)
+						si.AddValue(key, created, created.GetType());
                 }
                 else if (data[key] is JsonDict && (data[key] as JsonDict).Count == 2 && (data[key] as JsonDict).ContainsKey("$Type") && (data[key] as JsonDict).ContainsKey("$Value"))
                 {   // this is a typed generated from ISerialize
@@ -1194,7 +1195,7 @@ namespace CADability
 
             if (verbose) (this as IJsonWriteData).AddProperty("$Index(Debug)", objectCount);
             if (val is IDictionary ht && !(val is IJsonSerialize))
-            {   // a hashtable or some other kind of dictionary is serialized as 
+            {   // a hashtable or some other kind of dictionary is serialized as
                 val = new JSonDictionary(ht, val.GetType());
             }
             if (val is System.Drawing.Color)
@@ -1345,7 +1346,7 @@ namespace CADability
                 (value as IJsonSerialize).GetObjectData(this);
                 EndObject();
             }
-            //else if (value is Hashtable) // 
+            //else if (value is Hashtable) //
             //{
             //    BeginObject();
             //    WriteProperty("$Type");
@@ -1457,7 +1458,7 @@ namespace CADability
                 return;
             }
             if (value is IDictionary ht && !(value is IJsonSerialize))
-            {   // a hashtable or some other kind of dictionary is serialized as 
+            {   // a hashtable or some other kind of dictionary is serialized as
                 value = new JSonDictionary(ht, value.GetType());
             }
             if (value is System.Drawing.Color)
@@ -1625,7 +1626,7 @@ namespace CADability
         {
             data.AddProperty("$OriginalType", originalType.FullName);
             // we need to restore the types of keys and values when reading. Maybe they are the same for all items
-            // then we create properties "$KeyType" and "$ValueType". 
+            // then we create properties "$KeyType" and "$ValueType".
             Type keyType = null;
             Type valType = null;
             bool firstItem = true;
@@ -1795,7 +1796,7 @@ namespace CADability
     //internal class JSonList: List<object>, IJsonSerialize, IJsonConvert
     //{
     //    Type originalType;
-    //    public JSonList(IList lst, Type originalType) 
+    //    public JSonList(IList lst, Type originalType)
     //    {
     //        foreach (var item in lst)
     //        {
@@ -1808,7 +1809,7 @@ namespace CADability
     //    {
     //        data.AddProperty("$OriginalType", originalType.FullName);
     //        // we need to restore the types of keys and values when reading. Maybe they are the same for all items
-    //        // then we create properties "$KeyType" and "$ValueType". 
+    //        // then we create properties "$KeyType" and "$ValueType".
     //        Type elementType = null;
     //        bool sameType = true;
     //        foreach (object item in this)
