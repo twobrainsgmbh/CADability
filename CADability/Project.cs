@@ -1,4 +1,4 @@
-﻿using CADability.Attribute;
+using CADability.Attribute;
 using CADability.GeoObject;
 using CADability.Shapes;
 using CADability.Substitutes;
@@ -670,7 +670,7 @@ namespace CADability
             //            {
             //                Frame.ActiveView = (modelViews[0] as ModelViewDescription).modelView; // den muss es geben
             //            }
-            //        }                                        
+            //        }
             //        if (ViewChangedEvent != null) ViewChangedEvent(this, null);
             //        break;
             //    }
@@ -744,7 +744,7 @@ namespace CADability
             return layouts.Count - 1;
         }
         /// <summary>
-        /// Renames the 
+        /// Renames the
         /// </summary>
         /// <param name="l"></param>
         /// <param name="newName"></param>
@@ -813,7 +813,7 @@ namespace CADability
                 Projection pr = new Projection(Projection.StandardProjection.FromTop);
                 Model m = models[activeModelIndex] as Model;
                 BoundingRect ext = m.Extent.GetExtent(pr);
-                // wir können hier nicht auf den echten 2d extent zurückgreifen, da der 
+                // wir können hier nicht auf den echten 2d extent zurückgreifen, da der
                 // die triangulierung benutzt.
                 // BoundingRect ext = m.GetExtent(pr);
                 double f = 1.0;
@@ -986,7 +986,7 @@ namespace CADability
         }
         /// <summary>
         /// Überprüft, ob Daten verändert wurden (IsModified) und fordert ggf. den Anwender auf
-        /// das Projekt zu speichern. 
+        /// das Projekt zu speichern.
         /// </summary>
         /// <returns>false, wenn Abbrechen gedrückt wurde, true sonst (speichern oder verwerfen)</returns>
         public virtual bool SaveModified()
@@ -1193,7 +1193,7 @@ namespace CADability
         }
         /// <summary>
         /// Export the project in one of the following formats:
-        /// dxf, dwg, iges, step, vrml, stl, sat and xt (sat and xt must be licensed seperately) 
+        /// dxf, dwg, iges, step, vrml, stl, sat and xt (sat and xt must be licensed seperately)
         /// </summary>
         /// <param name="fileName">Path and filename for the generated output file</param>
         /// <param name="format">Format, one of the strings: dxf, dwg, iges, step, vrml, stl, sat, xt </param>
@@ -1275,7 +1275,7 @@ namespace CADability
                 System.Diagnostics.Trace.WriteLine("BindToType: " + assemblyName + ", " + typeName);
                 // Diese Zeilen dienen dazu alte CONDOR Dateien lesbar zu machen.
                 // evtl. machen sie Schwierigkeiten, wenn Objekte von anderen Modulen
-                // deserialisiert werden sollen. Dann müsste man weiter unten es wieder 
+                // deserialisiert werden sollen. Dann müsste man weiter unten es wieder
                 // rausnehmen (CondorSerializationBinder)
                 if (typeName.StartsWith("Condor."))
                 {
@@ -1410,12 +1410,12 @@ namespace CADability
         /* Serialisierung als JSON Objekt:
          * Man kann das ISerializable Interface und den Konstruktor mit SerializationInfo info, StreamingContext context dazu verwenden, alle bestehenden
          * Daten aus den Objekten zu speichern bzw. restaurieren. Siehe LaserParameter.cs: ReadISerializabelFromXml und SaveISerializabelToXml.
-         * Dabei ist noch kein ObjectGraph verwirklicht. 
+         * Dabei ist noch kein ObjectGraph verwirklicht.
          * Implementierung des ObjectGraph: Alle Objekte kommen in ein Dictionary<object,int> und bekommen zwei zusätzliche Eigenschaften:
          * JSON_Type: der Typname und JSON_Id: der Index
          * Wenn ein Objekt serialisiert wird, dann wird unterschieden, ob wir uns im Root befinden, oder nicht:
          * Im Root werden die beiden Eigenschaften JSON_Type und JSON_Id und alle weiteren Eigenschaften geschrieben,
-         * nicht im root wird nur die JSON_Id geschrieben. 
+         * nicht im root wird nur die JSON_Id geschrieben.
          * Das Lesen ist schwierig, wenn es einen Zyklus gibt: Im Konstruktor wird schon auf den Type gecastet, d.h. das Objekt muss schon da sein.
          * Aber man kann ja kein leeres Objekt erzeugen
          */
@@ -1516,7 +1516,7 @@ namespace CADability
             // wenn hier was schiefgeht ist es schwer zu debuggen. In alle
             // Konstruktoren mit (SerializationInfo info, StreamingContext context)
             // müsste ein Writeln, damit man weiß, wo es aussteigt.
-            // ACHTUNG: Verändern eines Namespaces in dem sich die zu serialisierenden 
+            // ACHTUNG: Verändern eines Namespaces in dem sich die zu serialisierenden
             // Objekte befinden macht das Einlesen unmöglich. Dazu müsste man "SerializationBinder"
             // überschreiben und eine entsprechende tabelle benutzen.
         }
@@ -1563,7 +1563,7 @@ namespace CADability
                 //FileName = dlg.FileName;
             }
             Project res = null;
-            using (FileStream stream = File.Open(FileName, FileMode.Open, System.IO.FileAccess.Read))
+            using (Stream stream = File.Open(FileName, FileMode.Open, System.IO.FileAccess.Read))
             {
                 int firstByte = stream.ReadByte();
                 stream.Seek(0, SeekOrigin.Begin);
@@ -1589,7 +1589,7 @@ namespace CADability
                 //    pf.Float(100);
                 //}
                 //ReadProgress.ShowProgressDelegate showProgressDelegate = new ReadProgress.ShowProgressDelegate(progress.ShowProgress);
-                // ReadProgress funktioniert noch nicht perfekt. 
+                // ReadProgress funktioniert noch nicht perfekt.
                 try
                 {
                     //if (pf != null) pf.Start();
@@ -1615,7 +1615,7 @@ namespace CADability
                         {
                             string path = ThisAssembly.Location.Substring(0, lastSlash);
                             lastSlash = path.LastIndexOf('\\');
-                            //if (lastSlash >= 0) // das geht noch ein level zurück, wir erwarten die Anwendung im selben Verzeichnis wie CADability 
+                            //if (lastSlash >= 0) // das geht noch ein level zurück, wir erwarten die Anwendung im selben Verzeichnis wie CADability
                             //{
                             //    path = path.Substring(0, lastSlash);
                             //}
@@ -1648,7 +1648,7 @@ namespace CADability
                 return res;
             }
         }
-        private static Project ReadFromJson(FileStream stream)
+        private static Project ReadFromJson(Stream stream)
         {
             JsonSerialize js = new JsonSerialize();
             Project res = js.FromStream(stream) as Project;
@@ -1716,7 +1716,7 @@ namespace CADability
                             programFilesPath = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
                         }
 
-                        //converter = @"C:\Program Files\ODA\ODAFileConverter_title 21.3.0\ODAFileConverter.exe";                        
+                        //converter = @"C:\Program Files\ODA\ODAFileConverter_title 21.3.0\ODAFileConverter.exe";
                         string odaFolder = System.IO.Path.Combine(programFilesPath, "ODA");
                         if (Directory.Exists(odaFolder))
                         {
@@ -1750,7 +1750,7 @@ namespace CADability
                         process.StartInfo.FileName = converter;
                         process.StartInfo.Arguments = "\"" + folderOrg + "\" " + "\"" + folderConverted + "\" " + "ACAD2000 DXF 0 0";
                         process.Start();
-                        process.WaitForExit();// Waits here for the process to exit.                    
+                        process.WaitForExit();// Waits here for the process to exit.
                         if (!isInSetting && process.ExitCode == 0) Settings.GlobalSettings.SetValue("DwgDxfConverter", converter);
                     }
                 }
@@ -1883,7 +1883,7 @@ namespace CADability
         #region IShowPropertyImpl Overrides
         private IShowProperty[] ShowProperties; // die Anzeige wird hier lokal gehalten, um die TabIndizes setzen zu können
         /// <summary>
-        /// Overrides <see cref="IShowPropertyImpl.EntryType"/>, 
+        /// Overrides <see cref="IShowPropertyImpl.EntryType"/>,
         /// returns <see cref="ShowPropertyEntryType.GroupTitle"/>.
         /// </summary>
         public override ShowPropertyEntryType EntryType
@@ -1894,7 +1894,7 @@ namespace CADability
             }
         }
         /// <summary>
-        /// Overrides <see cref="IShowPropertyImpl.SubEntriesCount"/>, 
+        /// Overrides <see cref="IShowPropertyImpl.SubEntriesCount"/>,
         /// returns the number of subentries in this property view.
         /// </summary>
         public override int SubEntriesCount
@@ -1905,7 +1905,7 @@ namespace CADability
             }
         }
         /// <summary>
-        /// Overrides <see cref="IShowPropertyImpl.SubEntries"/>, 
+        /// Overrides <see cref="IShowPropertyImpl.SubEntries"/>,
         /// returns the subentries in this property view.
         /// </summary>
         public override IShowProperty[] SubEntries
