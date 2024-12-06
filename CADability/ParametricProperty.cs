@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using CADability;
+using System.Xml.Linq;
 using CADability.GeoObject;
 using CADability.UserInterface;
 
@@ -365,4 +367,128 @@ namespace CADability
         }
 #endif
     }
+
+    internal class ParametricRadiusProperty : ParametricProperty, IJsonSerialize
+    {
+        private List<Face> facesToModify; // the faces with the radius to modify
+        private List<object> affectedObjects; // faces which are affected by this parametric
+        private bool useDiameter; // the proerty refers to the diameter, not to the radius
+
+        public ParametricRadiusProperty(string name, IEnumerable<Face> facesToModify, bool useDiameter, IEnumerable<object> affectedObjects) : base(name)
+        {
+            this.facesToModify = new List<Face>(facesToModify);
+            this.affectedObjects = new List<object>(affectedObjects);
+            this.useDiameter = useDiameter;
+            Value = (this.facesToModify[0].Surface as ISurfaceWithRadius).Radius;
+            if (useDiameter) { Value *= 2; }
+        }
+
+        public override ParametricProperty Clone(Dictionary<Face, Face> clonedFaces, Dictionary<Edge, Edge> clonedEdges, Dictionary<Vertex, Vertex> clonedVertices)
+        {
+            List<object> affectedObjectsCloned = new List<object>();
+            List<Face> facesToModifyCloned = new List<Face>();
+            for (int i = 0; i < facesToModify.Count; i++)
+            {
+                if (clonedFaces.TryGetValue(facesToModify[i], out Face clone)) facesToModifyCloned.Add(clone);
+            }
+            for (int i = 0; i < affectedObjects.Count; i++)
+            {
+                if (affectedObjects[i] is Face face && clonedFaces.TryGetValue(face, out Face clonedFace)) affectedObjectsCloned.Add(clonedFace);
+                if (affectedObjects[i] is Edge edge && clonedEdges.TryGetValue(edge, out Edge clonedEdge)) affectedObjectsCloned.Add(clonedEdge);
+                if (affectedObjects[i] is Vertex vtx && clonedVertices.TryGetValue(vtx, out Vertex clonedVertex)) affectedObjectsCloned.Add(clonedVertex);
+            }
+            return new ParametricRadiusProperty(Name, facesToModifyCloned, useDiameter, affectedObjects);
+        }
+        public override void Modify(ModOp m)
+        {   // there is nothing to do, all referred objects like facesToMove or fromHere are part of the shell and already modified
+            // with fromHere and toHere as GeoPoints we need to modify these points along with the modification of the Shell containing this parametric
+        }
+        private double currentValue;
+        public override double Value
+        {
+            get
+            {
+                double r = (facesToModify[0].Surface as ISurfaceWithRadius).Radius;
+                if (useDiameter) return r * 2;
+                else return r;
+            }
+            set
+            {
+                currentValue = value;
+            }
+        }
+        public override void Execute(Parametric parametric)
+        {
+            double r = currentValue;
+            if (useDiameter) r /= 2.0;
+            parametric.ModifyRadius(facesToModify, r);
+            parametric.Apply(); // the result may be inconsistent, but maybe further parametric operations make it consistent again
+        }
+
+        public override GeoObjectList GetFeedback(Projection projection)
+        {
+            double r = (facesToModify[0].Surface as ISurfaceWithRadius).Radius;
+            GeoPoint2D cnt2d = facesToModify[0].Area.GetExtent().GetCenter();
+            SurfaceHelper.MinMaxCurvature(facesToModify[0].Surface, cnt2d, out ICurve minCurvature, out ICurve maxCurvature);
+            if (minCurvature is Ellipse elli)
+            {
+                if (useDiameter)
+                {
+                    return projection.MakeArrow(elli.StartPoint, elli.PointAt(0.5), projection.ProjectionPlane, Projection.ArrowMode.twoArrows);
+                }
+                else
+                {
+                    return projection.MakeArrow(elli.Center, elli.StartPoint, projection.ProjectionPlane, Projection.ArrowMode.circleArrow);
+                }
+            }
+            return null;
+        }
+        protected ParametricRadiusProperty() : base("") { } // empty constructor for Json
+        public override void GetObjectData(IJsonWriteData data)
+        {
+            base.GetObjectData(data);
+
+            data.AddProperty("FacesToModify", facesToModify);
+            data.AddProperty("UseDiameter", useDiameter);
+        }
+
+        public override void SetObjectData(IJsonReadData data)
+        {
+            base.SetObjectData(data);
+            facesToModify = data.GetProperty<List<Face>>("FacesToModify");
+            useDiameter = data.GetProperty<bool>("UseDiameter");
+        }
+
+        public override object GetAnchor()
+        {
+            return GeoPoint.Origin;
+        }
+
+        public override IEnumerable<object> GetAffectedObjects()
+        {
+            return affectedObjects;
+        }
+
+#if DEBUG
+        public DebuggerContainer DebugAffected
+        {
+            get
+            {
+
+                DebuggerContainer dc = new DebuggerContainer();
+                if (affectedObjects != null)
+                {
+                    foreach (var obj in affectedObjects)
+                    {
+                        if (obj is Edge edge) dc.Add(edge.Curve3D as IGeoObject, edge.GetHashCode());
+                        if (obj is Vertex vtx) dc.Add(vtx.Position, System.Drawing.Color.Red, vtx.GetHashCode());
+                        if (obj is Face face) dc.Add(face, face.GetHashCode());
+                    }
+                }
+                return dc;
+            }
+        }
+#endif
+    }
 }
+

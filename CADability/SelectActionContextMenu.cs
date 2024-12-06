@@ -172,7 +172,8 @@ namespace CADability
                     };
                     MenuWithHandler positionFeature = new MenuWithHandler("MenuId.Feature.Position");
                     MenuWithHandler nameFeature = new MenuWithHandler("MenuId.Feature.Name");
-                    mh.SubMenus = new MenuWithHandler[] { positionFeature, nameFeature };
+                    MenuWithHandler removeFeature = new MenuWithHandler("MenuId.Feature.Remove");
+                    mh.SubMenus = new MenuWithHandler[] { positionFeature, nameFeature, removeFeature };
                     // this is very rudimentary. We have to provide a version of ParametricsDistanceAction, where you can select from and to object. Only axis is implemented
                     Shell shell = featureI[0].Owner as Shell;
                     GeoObjectList fa = shell.FeatureAxis;
@@ -241,7 +242,11 @@ namespace CADability
                         currentMenuSelection.AddRange(featureI.ToArray());
                         currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
                     };
-
+                    removeFeature.OnCommand = (menuId) =>
+                    {
+                        shell.RemoveFeature(featureI);
+                        return true;
+                    };
                     cm.Add(mh);
                 }
             }

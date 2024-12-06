@@ -888,6 +888,7 @@ namespace CADability
             {
                 this.curveOnPrimaryFace = primaryFace.Surface.GetProjectedCurve(curve3d, 0.0);
                 if (!forwardOnPrimaryFace) this.curveOnPrimaryFace.Reverse();
+                if (primaryFace.Surface.IsUPeriodic || primaryFace.Surface.IsVPeriodic) SurfaceHelper.AdjustPeriodic(primaryFace.Surface, primaryFace.Domain, this.curveOnPrimaryFace);
             }
             else
             {

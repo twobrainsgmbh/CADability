@@ -19,6 +19,7 @@ namespace CADability
         private bool useRadius;
         private bool isFillet;
         private string parametricsName;
+        private ParametricRadiusProperty parametricProperty;
 
         public ParametricsRadius(Face[] facesWithRadius, IFrame frame, bool useRadius)
         {
@@ -94,7 +95,7 @@ namespace CADability
             }
 
             SeparatorInput separator = new SeparatorInput("Parametrics.Cylinder.AssociateParametric");
-            base.SetInput(separator);
+            actionInputs.Add(separator);
             StringInput nameInput = new StringInput("Parametrics.Cylinder.ParametricsName");
             nameInput.SetStringEvent += NameInput_SetStringEvent;
             nameInput.GetStringEvent += NameInput_GetStringEvent;
@@ -142,6 +143,8 @@ namespace CADability
                         Shell sh = pm.Result();
                         ActiveObject = sh;
                         validResult = true;
+                        pm.GetDictionaries(out Dictionary<Face, Face> faceDict, out Dictionary<Edge, Edge> edgeDict, out Dictionary<Vertex, Vertex> vertexDict);
+                        parametricProperty = new ParametricRadiusProperty("", Extensions.LookUp(facesWithRadius, faceDict), diameter, pm.GetAffectedObjects());
                         return true;
                     }
                     else
@@ -182,6 +185,11 @@ namespace CADability
                         owner.Remove(sld);
                         Solid replacement = Solid.MakeSolid(ActiveObject as Shell);
                         owner.Add(replacement);
+                        if (!string.IsNullOrEmpty(parametricsName) && parametricProperty != null)
+                        {
+                            parametricProperty.Name = parametricsName;
+                            replacement.Shells[0].AddParametricProperty(parametricProperty);
+                        }
                     }
                     else
                     {

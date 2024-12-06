@@ -1779,6 +1779,14 @@ namespace CADability.GeoObject
         }
         public static Shell[] SewFaces(Face[] faces, bool edgesArUnambiguous = false)
         {
+#if DEBUG
+            for (int i = 0; i < faces.Length; i++)
+            {
+                bool ok = faces[i].CheckConsistency();
+                if (!ok)
+                { }
+            }
+#endif
             // isolate all faces from other faces by making all edges open edges (only PrimaryFace is set)
             for (int i = 0; i < faces.Length; i++)
             {
@@ -1799,6 +1807,14 @@ namespace CADability.GeoObject
                     }
                 }
             }
+#if DEBUG
+            for (int i = 0; i < faces.Length; i++)
+            {
+                bool ok = faces[i].CheckConsistency();
+                if (!ok)
+                { }
+            }
+#endif
             // make all the vertices to only know the edges of faces (from parameter)
             for (int i = 0; i < faces.Length; i++)
             {
@@ -2436,7 +2452,11 @@ namespace CADability.GeoObject
                 SurfaceOfLinearExtrusion le = new SurfaceOfLinearExtrusion(curve, extrusion, 0.0, 1.0);
                 res.Surface = le;
             }
-            res.area = new SimpleShape(Border.MakeRectangle(0, 1, 0, 1)); // Area wird ja nacher neu gemacht, aber der Zugriff auf Surface geht sonst nicht
+            ICurve2D pcurve = res.Surface.GetProjectedCurve(curve, 0.0);
+            BoundingRect ext = pcurve.GetExtent(); // this is important for cylindrical (periodic) surfaces to set the domain
+            if (ext.Width == 0.0) { ext.Left = 0.0; ext.Right = 1.0; }
+            if (ext.Height==0.0) { ext.Bottom = 0.0; ext.Top = 1.0; }
+            res.area = new SimpleShape(Border.MakeRectangle(ext));
             Edge[] edges = new Edge[4];
             if (edge0 == null)
             {
