@@ -864,18 +864,23 @@ namespace CADability.GeoObject
             for (int i = 0; i < faces.Length; ++i)
             {
                 faces[i].Owner = this;
+                faces[i].InvalidateSecondaryData();
             }
             edges = null;
         }
-        public void SetFaces(Shell sh, Face[] faces)
+        public void CopyAll(Shell toCopyFrom)
         {   // nur wg. undo
-            if (sh != this) return;
-            this.faces = faces.Clone() as Face[]; // shallow copy
-            for (int i = 0; i < faces.Length; ++i)
+            using (new Changing(this, "CopyAll", this.Clone(new Dictionary<Edge, Edge>())))
             {
-                faces[i].Owner = this;
+                this.faces = toCopyFrom.faces;
+                for (int i = 0; i < faces.Length; ++i)
+                {
+                    faces[i].Owner = this;
+                    faces[i].InvalidateSecondaryData();
+                }
+                this.edges = toCopyFrom.edges;
+                parametricProperties = toCopyFrom.parametricProperties;
             }
-            edges = null;
         }
         public void MakeRegularSurfaces(double maxError)
         {
@@ -1511,7 +1516,7 @@ namespace CADability.GeoObject
             List<Face> created = new List<Face>();
             foreach (Set<Face> faces in connected)
             {
-                List<Face> fccon = FindCommonSurfaceFaces(faces, null, this.GetExtent(0.0), new Set<Type>(), precision);
+                List<Face> fccon = CombineCommonSurfaceFaces(faces, null, this.GetExtent(0.0), new Set<Type>(), precision);
                 created.AddRange(fccon);
             }
 #if DEBUG
@@ -1610,7 +1615,16 @@ namespace CADability.GeoObject
                 return rect.Contains(p);
             }
         }
-        private List<Face> FindCommonSurfaceFaces(Set<Face> faces, Set<Face> subsetForTest, BoundingCube extent, Set<Type> dontCheck, double precision)
+        /// <summary>
+        /// This method is called with a Shell consisting of triangle only. As imported from a STL file or similar.
+        /// </summary>
+        /// <param name="faces"></param>
+        /// <param name="subsetForTest"></param>
+        /// <param name="extent"></param>
+        /// <param name="dontCheck"></param>
+        /// <param name="precision"></param>
+        /// <returns></returns>
+        private List<Face> CombineCommonSurfaceFaces(Set<Face> faces, Set<Face> subsetForTest, BoundingCube extent, Set<Type> dontCheck, double precision)
         {
             if (dontCheck == null) dontCheck = new Set<Type>(); // empty set
             if (subsetForTest == null) subsetForTest = faces; // use all faces for the test
@@ -1827,7 +1841,7 @@ namespace CADability.GeoObject
                     while (faces.Count > 0)
                     {
                         Set<Face> facesSubSet = CollectFaces(faces.GetAny(), faces, 10.0 / 180 * Math.PI);
-                        res.AddRange(FindCommonSurfaceFaces(facesSubSet, null, extent, dontCheck, precision));
+                        res.AddRange(CombineCommonSurfaceFaces(facesSubSet, null, extent, dontCheck, precision));
                     }
                     return res;
                 }
@@ -2131,9 +2145,9 @@ namespace CADability.GeoObject
                     }
                     if (biggestConnected.Count > 3)
                     {
-                        List<Face> created = FindCommonSurfaceFaces(faces, biggestConnected, extent, dontCheck, precision);
+                        List<Face> created = CombineCommonSurfaceFaces(faces, biggestConnected, extent, dontCheck, precision);
                         res.AddRange(created);
-                        if (faces.Count > 2) res.AddRange(FindCommonSurfaceFaces(faces, biggestConnected, extent, dontCheck, precision));
+                        if (faces.Count > 2) res.AddRange(CombineCommonSurfaceFaces(faces, biggestConnected, extent, dontCheck, precision));
                         return res;
                     }
                     intv *= 2; // search for less similar
@@ -2923,6 +2937,136 @@ namespace CADability.GeoObject
                 return open.ToArray();
             }
         }
+        public bool RemoveFeature(List<Face> facesToRemove)
+        {
+            HashSet<Face> shellFaces = new HashSet<Face>(faces);
+            shellFaces.ExceptWith(facesToRemove);
+            HashSet<Face> removedFaces = new HashSet<Face>(facesToRemove);
+#if DEBUG
+            DebuggerContainer dc1 = new DebuggerContainer();
+            foreach (Face face in shellFaces)
+            {
+                dc1.Add(face);
+            }
+            DebuggerContainer dc2 = new DebuggerContainer();
+            foreach (Face face in removedFaces)
+            {
+                dc2.Add(face);
+            }
+#endif
+            HashSet<Edge> connectingEdges = new HashSet<Edge>(); // all edges, that connect the remaining shell with the feature to remove
+            foreach (Edge edge in Edges)
+            {
+                if ((removedFaces.Contains(edge.PrimaryFace) && shellFaces.Contains(edge.SecondaryFace)) ||
+                    (removedFaces.Contains(edge.SecondaryFace) && shellFaces.Contains(edge.PrimaryFace)))
+                {
+                    connectingEdges.Add(edge);
+                }
+            }
+            // sort the connecting edges into loops, which connect the feature and the shell
+            List<List<Edge>> loops = new List<List<Edge>>();
+            while (connectingEdges.Any())
+            {
+                Edge startWith = connectingEdges.First();
+                Face onShell = startWith.PrimaryFace;
+                if (removedFaces.Contains(onShell)) { onShell = startWith.SecondaryFace; }
+                Vertex startVertex = startWith.StartVertex(onShell);
+                Vertex currentVertex = startWith.EndVertex(onShell);
+                List<Edge> loop = new List<Edge>();
+                loop.Add(startWith);
+                connectingEdges.Remove(startWith);
+                while (currentVertex != startVertex)
+                {
+                    List<Edge> nextEdges = currentVertex.ConditionalEdges(delegate (Edge e)
+                    {
+                        return connectingEdges.Contains(e);
+                    });
+                    if (nextEdges.Count != 1) return false; // there must be exactely one edge for the loop
+                    Edge nextEdge = nextEdges[0];
+                    loop.Add(nextEdge);
+                    connectingEdges.Remove(nextEdge);
+                    onShell = nextEdge.PrimaryFace;
+                    if (removedFaces.Contains(onShell)) { onShell = nextEdge.SecondaryFace; }
+                    currentVertex = nextEdge.EndVertex(onShell);
+                }
+                loops.Add(loop);
+            }
+#if DEBUG
+            DebuggerContainer dc0 = new DebuggerContainer();
+            for (int i = 0; i < loops.Count; i++)
+            {
+                for (int j = 0; j < loops[i].Count; j++)
+                {
+                    dc0.Add(loops[i][j].Curve3D as IGeoObject);
+                }
+            }
+#endif
+            for (int i = 0; i < loops.Count; i++)
+            {
+                for (int j = 0; j < loops[i].Count; j++)
+                {
+                    Edge edg = loops[i][j];
+                    Face onShell = edg.PrimaryFace;
+                    if (removedFaces.Contains(onShell)) { onShell = edg.SecondaryFace; }
+                    // GeoVector n = onShell.Surface.GetNormal(edg.Curve2D(onShell).PointAt(0.5));
+                    bool fwd = edg.Forward(onShell);
+                }
+            }
+            // the easy case is when each loop is only on a single face of the shell, or maybe on two faces, which are split because of periodic surface
+            // then we need to check whether the loop is a hole on this face
+            bool canRemove = true;
+            Face[] loopsOnFaces = new Face[loops.Count];
+            for (int i = 0; i < loops.Count; i++)
+            {
+                Face faceOfLoop = null;
+                bool singleFace = true;
+                for (int j = 0; j < loops[i].Count; j++)
+                {
+                    Edge edg = loops[i][j];
+                    Face onShell = edg.PrimaryFace;
+                    if (removedFaces.Contains(onShell)) { onShell = edg.SecondaryFace; }
+                    if (faceOfLoop == null) { faceOfLoop = onShell; }
+                    else if (faceOfLoop != onShell) { singleFace = false; break; }
+                }
+                if (singleFace) { loopsOnFaces[i] = faceOfLoop; }
+                else { canRemove = false; }
+            }
+            if (!canRemove) return false;
+            // 
+            int[] holeIndices = new int[loops.Count];
+            int holesFound = 0;
+            for (int i = 0; i < loops.Count; i++)
+            {
+                Face toTest = loopsOnFaces[i];
+                // is this loop a hole on face toTest?
+                holeIndices[i] = -1;
+                for (int j = 0; j < toTest.HoleCount; ++j)
+                {
+                    HashSet<Edge> holeEdges = new HashSet<Edge>(toTest.HoleEdges(j));
+                    HashSet<Edge> loopEdges = new HashSet<Edge>(loops[i]);
+                    if (loopEdges.SetEquals(holeEdges))
+                    {
+                        holeIndices[i] = j;
+                        ++holesFound;
+                        break;
+                    }
+                }
+            }
+            using (new Changing(this, "CopyAll", this.Clone(new Dictionary<Edge, Edge>())))
+            {
+                if (holesFound == loops.Count)
+                {
+                    for (int i = 0; i < loops.Count; i++)
+                    {
+                        loopsOnFaces[i].RemoveHole(holeIndices[i]);
+                    }
+                }
+                this.SetFaces(shellFaces.ToArray());
+                bool ok = this.CheckConsistency();
+            }
+            return false;
+        }
+
         /// <summary>
         /// Close all open edges by adding new faces
         /// </summary>
@@ -5464,7 +5608,7 @@ namespace CADability.GeoObject
                     foreach (Edge edge in edges)
                     {
                         ModOp2D firstToSecond;
-                        if (edge.SecondaryFace != null && edge.PrimaryFace.Surface!=null && edge.SecondaryFace.Surface != null &&
+                        if (edge.SecondaryFace != null && edge.PrimaryFace.Surface != null && edge.SecondaryFace.Surface != null &&
                             edge.SecondaryFace.Surface.SameGeometry(edge.SecondaryFace.GetUVBounds(), edge.PrimaryFace.Surface, edge.PrimaryFace.GetUVBounds(), precision, out firstToSecond) &&
                             edge.PrimaryFace != edge.SecondaryFace && firstToSecond.Determinant > 0) // firstToSecond.IsIsogonal: non periodic surfaces or spheres with different axis are not implemented yet
                         {

@@ -3718,6 +3718,30 @@ namespace CADability.GeoObject
             }
         }
 
+        public void RemoveHole(int holeIndex)
+        {
+            using (new Changing(this))
+            {
+                List<Edge[]> resultingHoles = new List<Edge[]>();
+                HashSet<Vertex> resultingVertices = new HashSet<Vertex>(vertices);
+                for (int i = 0; i < holes.Length; i++)
+                {
+                    if (i != holeIndex) resultingHoles.Add(holes[i]);
+                    else
+                    {
+                        for (int j = 0; j < holes[i].Length; j++)
+                        {
+                            resultingVertices.Remove(holes[i][j].Vertex1);
+                            resultingVertices.Remove(holes[i][j].Vertex2);
+                        }
+                    }
+                }
+                holes = resultingHoles.ToArray();
+                vertices = resultingVertices.ToArray();
+                InvalidateSecondaryData();
+            }
+        }
+
         internal void RemoveEdge(Edge edge, bool mayHaveDifferntVertices = false)
         {
             if (!mayHaveDifferntVertices && edge.Vertex1 != edge.Vertex2) return;
