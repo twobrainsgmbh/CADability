@@ -8,6 +8,7 @@ using CADability.UserInterface;
 using System;
 using System.Collections.Generic;
 using Wintellect.PowerCollections;
+using MathNet.Numerics.LinearAlgebra.Factorization;
 #if WEBASSEMBLY
 using CADability.WebDrawing;
 #else
@@ -2344,7 +2345,7 @@ namespace CADability.GeoObject
                 }
                 GeoPoint2D c2d = new GeoPoint2D((umax + umin) / 2, (vmax + vmin) / 2);
                 GeoPoint c3d = PointAt(c2d);
-                Line centerNormal = Line.TwoPoints(c3d, c3d + res.GetExtent().Size * 0.1*GetNormal(c2d));
+                Line centerNormal = Line.TwoPoints(c3d, c3d + res.GetExtent().Size * 0.1 * GetNormal(c2d));
                 res.Add(centerNormal);
                 return res;
             }
@@ -5276,7 +5277,7 @@ namespace CADability.GeoObject
                                             if (tp >= 0 && tp <= 1) ++inside;
                                             tp = oarc.PositionOf(tarc.EndPoint);
                                             if (tp >= 0 && tp <= 1) ++inside;
-                                            if (inside>=2) dscs.Add(new DualSurfaceCurve(c3d, this, tc2d, other, oc2d));
+                                            if (inside >= 2) dscs.Add(new DualSurfaceCurve(c3d, this, tc2d, other, oc2d));
                                             // else: did choose wrong part of arc, no common intersection curve
                                         }
                                     }
@@ -14803,6 +14804,67 @@ namespace CADability.GeoObject
                 double um = (umin + umax) / 2;
                 while (Math.Abs(u - um) > Math.Abs(u - surface.UPeriod - um)) u -= surface.UPeriod;
                 while (Math.Abs(u - um) > Math.Abs(u + surface.UPeriod - um)) u += surface.UPeriod;
+            }
+        }
+
+        public static void MinMaxCurvature(ISurface surface, GeoPoint2D uv, out ICurve minCurvature, out ICurve maxCurvature)
+        {   // to be tested
+            surface.Derivation2At(uv, out GeoPoint location, out GeoVector du, out GeoVector dv, out GeoVector duu, out GeoVector dvv, out GeoVector duv);
+            Matrix I = DenseMatrix.Create(2, 2, 0);
+            I[0, 0] = du * du;
+            I[0, 1] = I[1, 0] = du * dv;
+            I[1, 1] = dv * dv;
+            GeoVector n = (du ^ dv).Normalized;
+            Matrix II = DenseMatrix.Create(2, 2, 0);
+            II[0, 0] = duu * n;
+            II[0, 1] = I[1, 0] = duv * n;
+            II[1, 1] = dvv * n;
+            Matrix S = (Matrix)I.Inverse().Multiply(II); // Weingarten
+            Evd<double> evd = S.Evd();
+            Vector<System.Numerics.Complex> eigenValues = evd.EigenValues;
+            Matrix eigenVectors = (Matrix)evd.EigenVectors;
+            minCurvature = maxCurvature = null;
+            if (eigenValues.Count > 0)
+            {
+                if (eigenValues[0].Imaginary == 0.0)
+                {
+                    GeoVector dir = eigenVectors[0, 0] * du + eigenVectors[1, 0] * dv;
+                    if (eigenValues[0].Real != 0.0)
+                    {
+                        double rad = 1.0 / eigenValues[0].Real;
+                        GeoPoint cnt = location + rad * n;
+                        Ellipse elli = Ellipse.Construct();
+                        elli.SetCirclePlaneCenterRadius(new Plane(cnt, n, dir), cnt, Math.Abs(rad));
+                        minCurvature = elli;
+                    }
+                    else
+                    {
+                        Line line = Line.Construct();
+                        line.SetTwoPoints(location, location + dir);
+                        minCurvature = line;
+                    }
+                }
+            }
+            if (eigenValues.Count > 1) // what about a double eigenvalue?
+            {
+                if (eigenValues[1].Imaginary == 0.0)
+                {
+                    GeoVector dir = eigenVectors[0, 1] * du + eigenVectors[1, 1] * dv;
+                    if (eigenValues[1].Real != 0.0)
+                    {
+                        double rad = 1.0 / eigenValues[0].Real;
+                        GeoPoint cnt = location + rad * n;
+                        Ellipse elli = Ellipse.Construct();
+                        elli.SetCirclePlaneCenterRadius(new Plane(cnt, n, dir), cnt, Math.Abs(rad));
+                        minCurvature = elli;
+                    }
+                    else
+                    {
+                        Line line = Line.Construct();
+                        line.SetTwoPoints(location, location + dir);
+                        minCurvature = line;
+                    }
+                }
             }
         }
     }
