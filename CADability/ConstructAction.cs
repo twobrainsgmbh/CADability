@@ -7137,7 +7137,7 @@ namespace CADability.Actions
          * in der Callback Methode ausführen. Dann kann man immer noch Escape drücken, wenns zu lange dauart (Vervielfältigen, Schraffur)
          */
         Thread backgroundTask;
-        bool finishedBackgroundTask;
+        bool finishedBackgroundTask, syncCallBack;
         Delegate CallbackOnDone;
         private void StartThread(object pars)
         {   // das läuft im background thread
