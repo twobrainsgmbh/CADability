@@ -2484,7 +2484,15 @@ namespace CADability.GeoObject
             }
             if (other is CylindricalSurface cylindricalSurface) 
             {   // we need tangential points to split the result there
-                return cylindricalSurface.GetDualSurfaceCurves(otherBounds,this,thisBounds,seeds,extremePositions);
+                IDualSurfaceCurve[] res = cylindricalSurface.GetDualSurfaceCurves(otherBounds,this,thisBounds,seeds,extremePositions);
+                if (res != null)
+                {
+                    for (int i = 0; i < res.Length; i++)
+                    {
+                        res[i].SwapSurfaces();
+                    }
+                }
+                return res;
             }
             return base.GetDualSurfaceCurves(thisBounds, other, otherBounds, seeds, extremePositions);
         }
