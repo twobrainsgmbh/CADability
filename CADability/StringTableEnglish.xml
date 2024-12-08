@@ -7364,4 +7364,66 @@
 	<data name="Solid.NewFeatureName">
 		<label>Feature</label>
 	</data>
+	<data name="MenuId.Feature">
+		<label>Feature</label>
+	</data>
+	<data name="MenuId.Feature.Position">
+		<label>Position</label>
+		<tip>Position of the feature</tip>
+	</data>
+	<data name="MenuId.Feature.Name">
+		<label>Name</label>
+		<tip>Name of the feature</tip>
+	</data>
+	<data name="MenuId.Feature.Remove">
+		<label>Remove</label>
+		<tip>Remove this feature from the Solid</tip>
+	</data>
+	<data name="MenuId.SplitByPlane">
+		<label>Split by plane</label>
+		<tip>Split this solid by a plane</tip>
+	</data>
+	<data name="MenuId.Axis">
+		<label>Axis</label>
+	</data>
+	<data name="MenuId.Offset">
+		<label>Offset Shell</label>
+	</data>
+	<data name="MenuId.ThickShell">
+		<label>Thick Shell</label>
+	</data>
+	<data name="MenuId.Solid.ShellToSolid">
+		<label>Shell to Solid</label>
+	</data>
+	<data name="MenuId.MakeOpaque">
+		<label>Make Opaque</label>
+		<tip>Display this object opaque (non-tranparent)</tip>
+		<info>Display this object opaque (non-tranparent)</info>
+	</data>
+	<data name="MenuId.Solid.RemoveFrom">
+		<label>Remove this solid from</label>
+	</data>
+	<data name="MenuId.Solid.RemoveFromAll">
+		<label>Remove this solid from all</label>
+	</data>
+	<data name="MenuId.Solid.RemoveAll">
+		<label>Remove all from this solid</label>
+	</data>
+	<data name="MenuId.Solid.UniteWith">
+		<label>Unite this solid with</label>
+	</data>
+	<data name="MenuId.Solid.UniteWithAll">
+		<label>Unite this solid with all</label>
+	</data>
+	<data name="MenuId.Solid.IntersectWith">
+		<label>Intersect this solid with</label>
+	</data>
+	<data name="MenuId.Solid.SplitWith">
+		<label>Split this solid with</label>
+	</data>
+	<data name="MenuId.Solid.SplitWithAll">
+		<label>Split this solid with all</label>
+	</data>
+	<!--
+	-->
 </root>
