@@ -1363,6 +1363,13 @@ namespace CADability
     }
     public static class Extension
     {
+        /// <summary>
+        /// Check whether the Face face is totaly covered by the corresponding face(s) in the provided dict.
+        /// </summary>
+        /// <param name="dict"></param>
+        /// <param name="face"></param>
+        /// <param name="precision"></param>
+        /// <returns></returns>
         public static bool ContainsSameFace(this Dictionary<Face, Set<Face>> dict, Face face, double precision)
         {
             if (dict.TryGetValue(face, out Set<Face> commonWith))
@@ -1374,13 +1381,34 @@ namespace CADability
                     vertices.Add(edg.Vertex1);
                     vertices.Add(edg.Vertex2);
                 }
+                Set<Vertex> otherVertices = new Set<Vertex>();
+                Set<Edge> otherEdges = new Set<Edge>();
                 foreach (Face fce in commonWith)
                 {
-                    if (BRepOperation.IsSameFace(edges, vertices, fce, precision))
-                    {
-                        return true;
-                    }
+                    otherVertices.AddMany(fce.Vertices);
+                    otherEdges.AddMany(fce.Edges);
                 }
+                foreach (Edge edg in edges)
+                {
+                    bool edgeFound = false;
+                    foreach (Edge edg1 in Vertex.ConnectingEdges(edg.Vertex1, edg.Vertex2))
+                    {
+                        if (BRepOperation.SameEdge(edg, edg1, precision))
+                        {
+                            edgeFound = true;
+                            break;
+                        }
+                    }
+                    if (!edgeFound) return false;
+                }
+                return true;
+                //foreach (Face fce in commonWith)
+                //{
+                //    if (BRepOperation.IsSameFace(edges, vertices, fce, precision))
+                //    {
+                //        return true;
+                //    }
+                //}
             }
             return false;
         }
@@ -3885,7 +3913,7 @@ namespace CADability
                 else if (operation == Operation.difference)
                 {   // no intersection: shell1 - shell2, shell2 is reversed, i.e. IsInside means outside of the original
                     if (shell2.Contains(shell1.Vertices[0].Position)) res.Add(shell1); // shell1 remains unchanged, because shell2 is outside
-                    else if (shell1.Contains(shell2.Vertices[0].Position)) 
+                    else if (shell1.Contains(shell2.Vertices[0].Position))
                     {   // this is a solid with an inner hole. This is currently not implemented by Solid as it is very rarely used
                         // the correct result would be shell1 and shell2 in its reversed form
                         res.Add(shell1);
@@ -3897,8 +3925,8 @@ namespace CADability
                 {
                     if (shell2.Contains(shell1.Vertices[0].Position)) res.Add(shell1); // shell2 contains shell1, the result ist shell1
                     else if (shell1.Contains(shell2.Vertices[0].Position)) res.Add(shell2); // shell1 contains shell2, the result ist shell2
-                    // else: shells are disjunct, the result is empty
-                    
+                                                                                            // else: shells are disjunct, the result is empty
+
                 }
             }
             foreach (Face fc in allFaces)

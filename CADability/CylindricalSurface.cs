@@ -3,6 +3,7 @@ using CADability.Shapes;
 using CADability.UserInterface;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
 using Wintellect.PowerCollections;
 
@@ -1151,7 +1152,28 @@ namespace CADability.GeoObject
                 {
                     if (Geometry.DistPL(torus.Location, Location, ZAxis) < Precision.eps && Precision.IsPerpendicular(torus.ZAxis, ZAxis, false))
                     {   // special case: tangential intersection
-
+                        // TODO: implement!
+                    }
+                }
+                if (Precision.SameAxis(new Axis(torus.Location,torus.Axis), new Axis(Location,Axis)) && IsRealCylinder) // we assume torus is not elliptical
+                {
+                    // special case: cylinder and torus are on a common axis
+                    if (Math.Abs(Math.Abs(torus.XAxis.Length-torus.MinorRadius)-RadiusX)<Precision.eps ||
+                        Math.Abs(Math.Abs(torus.XAxis.Length + torus.MinorRadius) - RadiusX) < Precision.eps)
+                    {   // cylinder touches inner hole of torus or the torus is exactely inside the cylinder
+                        if (seeds.Count > 1) 
+                        { // the first and last seed is the start and endpoint of the arc of intersection
+                            GeoPoint2D uvStartThis = this.PositionOf(seeds[0]);
+                            GeoPoint2D uvEndThis = this.PositionOf(seeds.Last());
+                            SurfaceHelper.AdjustPeriodic(this, thisBounds, ref uvStartThis);
+                            SurfaceHelper.AdjustPeriodic(this, thisBounds, ref uvEndThis);
+                            GeoPoint2D uvStartTorus = torus.PositionOf(seeds[0]);
+                            GeoPoint2D uvEndTorus = torus.PositionOf(seeds.Last());
+                            Line2D l1 = new Line2D(uvStartThis, uvEndThis);
+                            this.Make3dCurve(l1);
+                            Line2D l2 = new Curve2D.Line2D(uvStartTorus,uvEndTorus);
+                            return new IDualSurfaceCurve[] { new DualSurfaceCurve(this.Make3dCurve(l1), this, l1, torus, l2) };
+                        }
                     }
                 }
 
@@ -1440,7 +1462,7 @@ namespace CADability.GeoObject
                         tpOnTorus.RemoveAt(i);
                     }
                 }
-                if (tpOnTorus.Count > 0)
+                if (tpOnTorus.Count > 1)
                 {
                     // we have to split the bounds at the found positions and create new seedpoints
                     double[] cu = new double[tpOnTorus.Count];
@@ -1460,14 +1482,14 @@ namespace CADability.GeoObject
                     Array.Sort(tv);
                     List<BoundingRect> thisParts = new List<BoundingRect>();
                     List<BoundingRect> otherParts = new List<BoundingRect>();
-                    for (int i = 0; i < cu.Length; i++)
+                    for (int i = 0; i < cu.Length-1; i++)
                     {
                         double left, right;
                         if (i == 0) left = thisBounds.Left;
                         else left = cu[i];
                         if (i < cu.Length - 1) right = cu[i + 1];
                         else right = thisBounds.Right;
-                        for (int j = 0; j < cv.Length; j++)
+                        for (int j = 0; j < cv.Length-1; j++)
                         {
                             double bottom, top;
                             if (j == 0) bottom = thisBounds.Bottom;
@@ -1477,14 +1499,14 @@ namespace CADability.GeoObject
                             thisParts.Add(new BoundingRect(left, bottom, right, top));
                         }
                     }
-                    for (int i = 0; i < tu.Length; i++)
+                    for (int i = 0; i < tu.Length - 1; i++)
                     {
                         double left, right;
                         if (i == 0) left = otherBounds.Left;
                         else left = tu[i];
                         if (i < tu.Length - 1) right = tu[i + 1];
                         else right = otherBounds.Right;
-                        for (int j = 0; j < tv.Length; j++)
+                        for (int j = 0; j < tv.Length - 1; j++)
                         {
                             double bottom, top;
                             if (j == 0) bottom = otherBounds.Bottom;
@@ -1497,7 +1519,7 @@ namespace CADability.GeoObject
                     List<GeoPoint2D> seedsUvThis = new List<GeoPoint2D>();
                     List<GeoPoint2D> seedsUvOther = new List<GeoPoint2D>();
                     seeds.AddRange(touchingPoints);
-                    for (int i = 0; i < seeds.Count; i++)
+                    for (int i = 0; i < touchingPoints.Count; i++)
                     {
                         seedsUvThis.Add(PositionOf(touchingPoints[i], thisBounds));
                         seedsUvOther.Add(torus.PositionOf(touchingPoints[i], otherBounds));

@@ -2331,15 +2331,24 @@ namespace CADability.GeoObject
                 // if (Math.Abs(ZAxis.Length - tsother.ZAxis.Length) > precision) return false; // die Länge der Z-Achse
                 if (Math.Abs(MinorRadius - tsother.MinorRadius) > precision) return false;
                 // fehlt noch die Richtung der Z-Achse, ist aber mit Genauigkeit schwierig
-                GeoPoint2D uv1 = new GeoPoint2D(0.0, 0.0);
-                GeoPoint p1 = PointAt(uv1);
-                GeoPoint2D uv2 = tsother.PositionOf(p1);
-                GeoPoint p2 = tsother.PointAt(uv2);
+                GeoPoint2D[] uvthis = new GeoPoint2D[3];
+                GeoPoint2D[] uvother = new GeoPoint2D[3];
+                uvthis[0] = new GeoPoint2D(0.0, 0.0);
+                uvthis[1] = new GeoPoint2D(0.0, 1.0);
+                uvthis[2] = new GeoPoint2D(1.0, 0.0);
+                GeoPoint p1 = PointAt(uvthis[0]);
+                uvother[0] = tsother.PositionOf(p1);
+                GeoPoint p2 = tsother.PointAt(uvother[0]);
                 if ((p1 | p2) > precision) return false;
                 p1 = PointAt(new GeoPoint2D(Math.PI / 2.0, 0.0)); // bei 90°
                 p2 = tsother.PointAt(tsother.PositionOf(p1));
                 if ((p1 | p2) > precision) return false;
-                firstToSecond = ModOp2D.Translate(uv2 - uv1); // es kann eigentlich nur verschiebung in x geben
+                BoundingRect br = new BoundingRect(uvother[0], Math.PI, Math.PI); // we use three points close to each other
+                uvother[1] = tsother.PositionOf(this.PointAt(uvthis[1]));
+                uvother[2] = tsother.PositionOf(this.PointAt(uvthis[2]));
+                SurfaceHelper.AdjustPeriodic(tsother, br, ref uvother[1]);
+                SurfaceHelper.AdjustPeriodic(tsother, br, ref uvother[2]);
+                firstToSecond = ModOp2D.Fit(uvthis, uvother, true);
                 return true;
             }
             return base.SameGeometry(thisBounds, other, otherBounds, precision, out firstToSecond);
