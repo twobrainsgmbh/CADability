@@ -6672,8 +6672,11 @@ namespace CADability.Actions
         public override bool OnTab(object sender)
         {
             int ci = currentInputIndex;
-            if (InputDefinitions[ci] != null && InputDefinitions[ci].GetShowProperty() != null && InputDefinitions[ci].GetShowProperty().IsOpen) return false;
-            SetNextInputIndex(true, true);
+            if (ci >= 0)
+            {
+                if (InputDefinitions[ci] != null && InputDefinitions[ci].GetShowProperty() != null && InputDefinitions[ci].GetShowProperty().IsOpen) return false;
+                SetNextInputIndex(true, true);
+            }
             return ci != currentInputIndex; // true (handled), if the input field changed to the next input
         }
 
