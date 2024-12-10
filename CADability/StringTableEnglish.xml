@@ -3190,6 +3190,9 @@
 	<data name="Menu.NotImplemented">
 		<label>Function not yet implemented</label>
 	</data>
+	<data name="Error">
+		<label>Error in CADability</label>
+	</data>
 	<data name="Select.TooManyObjects">
 		<label>Too many objects ({0:##})</label>
 		<tip>Too many objects to display</tip>
@@ -7401,29 +7404,30 @@
 		<info>Display this object opaque (non-tranparent)</info>
 	</data>
 	<data name="MenuId.Solid.RemoveFrom">
-		<label>Remove this solid from</label>
+		<label>Remove this solid from ...</label>
 	</data>
 	<data name="MenuId.Solid.RemoveFromAll">
-		<label>Remove this solid from all</label>
+		<label>Remove this solid from all overlapping</label>
 	</data>
 	<data name="MenuId.Solid.RemoveAll">
-		<label>Remove all from this solid</label>
+		<label>Remove all overlapping from this solid</label>
 	</data>
 	<data name="MenuId.Solid.UniteWith">
-		<label>Unite this solid with</label>
+		<label>Unite this solid with ...</label>
 	</data>
 	<data name="MenuId.Solid.UniteWithAll">
-		<label>Unite this solid with all</label>
+		<label>Unite this solid with all overlapping</label>
 	</data>
 	<data name="MenuId.Solid.IntersectWith">
-		<label>Intersect this solid with</label>
+		<label>Intersect this solid with ...</label>
 	</data>
 	<data name="MenuId.Solid.SplitWith">
-		<label>Split this solid with</label>
+		<label>Split this solid with ...</label>
 	</data>
 	<data name="MenuId.Solid.SplitWithAll">
-		<label>Split this solid with all</label>
+		<label>Split this solid with all overlapping</label>
 	</data>
 	<!--
+	MenuId.Solid.RemoveAllFromThis
 	-->
 </root>
