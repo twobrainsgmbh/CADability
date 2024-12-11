@@ -3668,14 +3668,16 @@ namespace CADability.Shapes
                 }
             }
         }
+
         internal Border[] RemoveConstrictions(double precision)
-        {   // Wenn es Einschnürungen gibt, also Stellen, an denen sich das Border auf "precision" selbst berührt,
-            // dann entferne diese Einschnürungen und liefere eine Liste von Teilborders, die auch mindesten precision voneinander entfernt sind
-            // und keine solchen Engstellen haben
+        {
+            // If there are constrictions, i.e., areas where the border touches itself within "precision",
+            // remove these constrictions and return a list of sub-borders that are at least "precision" apart
+            // and do not have such narrow areas.
 
             List<Border> res = new List<Border>();
             double len = this.Extent.Size;
-            double leneps = len * precision;
+            
             for (int i = 0; i < segment.Length; i++)
             {
                 ICollection cl = QuadTree.GetObjectsCloseTo(segment[i]);
@@ -3690,7 +3692,8 @@ namespace CADability.Shapes
                             double par1 = segment[i].PositionOf(p1);
                             double par2 = curve.PositionOf(p2);
                             if (Precision.OppositeDirection(segment[i].DirectionAt(par1), curve.DirectionAt(par2)))
-                            {// hier müssen wir aufspalten
+                            {
+                                // Split into parts
                                 int k = (int)segmentToIndex[curve];
                                 Border[] parts = Split(new double[] { i + par1, k + par2 });
                                 if (parts.Length == 3)
@@ -3704,21 +3707,26 @@ namespace CADability.Shapes
                                     bdr1.RemoveNarrowEnd(precision);
                                     bdr2.forceClosed();
                                     bdr2.RemoveNarrowEnd(precision);
-                                    // jetzt beide Border an der Nahtstelle soweit zurückverfolgen, bis der Abstand größer precision wird
-                                    // Dabei kann das Border auch verschwinden
-                                    if (bdr1.Area > precision * precision) res.AddRange(bdr1.RemoveConstrictions(precision));
-                                    if (bdr2.Area > precision * precision) res.AddRange(bdr2.RemoveConstrictions(precision));
-                                    return res.ToArray();
+
+                                    // Recursively remove constrictions
+                                    if (bdr1.Area > precision * precision)
+                                        res.AddRange(bdr1.RemoveConstrictions(precision));
+                                    if (bdr2.Area > precision * precision)
+                                        res.AddRange(bdr2.RemoveConstrictions(precision));
                                 }
                             }
                         }
                     }
                 }
-                return new Border[] { this }; // dieses unverändert
             }
+
+            // If no constrictions were found, add the current border
+            if (res.Count == 0)
+                res.Add(this);
 
             return res.ToArray();
         }
+
 
         private bool RemoveNarrowEnd(double precision)
         {   // an der Naht ist dieses Border möglicherweise spitz. Gehe soweit zurück, bis mindestens eine Breite von precision erreicht wird

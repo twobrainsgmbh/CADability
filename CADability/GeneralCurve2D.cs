@@ -1442,18 +1442,18 @@ namespace CADability.Curve2D
 
         GeoPoint2D[] I2DIntersectable.IntersectWith(I2DIntersectable other)
         {
-            if (other is ICurve2D)
+            if (other is ICurve2D curve2D)
             {
-                GeoPoint2DWithParameter[] ips = Intersect(other as ICurve2D);
+                GeoPoint2DWithParameter[] ips = Intersect(curve2D);
                 GeoPoint2D[] res = new GeoPoint2D[ips.Length];
+                
                 for (int i = 0; i < ips.Length; i++)
-                {
                     res[i] = ips[i].p;
-                    return res;
-                }
+
+                return res;
             }
+
             return other.IntersectWith(this);
-            // throw new NotImplementedException("I2DIntersectable.IntersectWith " + other.GetType().Name);
         }
 #if DEBUG
         public GeoObjectList debug
@@ -3562,6 +3562,9 @@ namespace CADability.Curve2D
             }
             par = p1 + Math.Abs(d1) / (Math.Abs(d1) + Math.Abs(d2)) * (p2 - p1);
             return true; // this is a good value without much iteration. This method is only used to find the extend and may be somewhat imprecise
+            
+            //Unreachable code
+            /*
             while (p2 - p1 > 1e-6)
             {
                 double p = (p1 + p2) / 2.0;
@@ -3582,6 +3585,7 @@ namespace CADability.Curve2D
             }
             par = (p1 + p2) / 2.0;
             return true;
+            */
         }
 
         private bool TriangleHitTest(ref ClipRect rect, GeoPoint2D sp, GeoPoint2D ep, GeoPoint2D tr, double spar, double epar, GeoVector2D sdir, GeoVector2D edir)
