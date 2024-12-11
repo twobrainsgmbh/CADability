@@ -3080,8 +3080,13 @@ namespace CADability.GeoObject
                 }
                 return new ProjectedCurve(curve, this, true, restricted, precision);
             }
-            if (!usedArea.IsInfinite) return new ProjectedCurve(curve, this, true, BoundingRect.EmptyBoundingRect, precision);
-            else return new ProjectedCurve(curve, this, true, usedArea, precision);
+            if (!usedArea.IsInfinite) 
+                return new ProjectedCurve(curve, this, true, BoundingRect.EmptyBoundingRect, precision);
+            else 
+                return new ProjectedCurve(curve, this, true, usedArea, precision);
+            
+            //Unreachable code
+            /*
             int n = 16;
             bool ok = false;
             BSpline2D b2d = null;
@@ -3278,6 +3283,7 @@ namespace CADability.GeoObject
                 if (ok || n > 1024) break;
             }
             return b2d;
+            */
         }
         /// <summary>
         /// Implements <see cref="CADability.GeoObject.ISurface.Intersect (ICurve, BoundingRect, out GeoPoint[], out GeoPoint2D[], out double[])"/>
@@ -4636,7 +4642,9 @@ namespace CADability.GeoObject
                 }
             }
             return max;
-
+            
+            //Unreachable code
+            /*
             BoxedSurfaceEx.RawPointNormalAt(sp, out sp3d, out sn); // Punkt und Normale auf die Fläche am Startpunkt
             BoxedSurfaceEx.RawPointNormalAt(ep, out ep3d, out en); // Punkt und Normale auf die Fläche am Startpunkt
             d3d = ep3d - sp3d; // die Richtung der 3d-Linie
@@ -4726,6 +4734,7 @@ namespace CADability.GeoObject
             //catch (PolylineException) { }
 #endif
             return md;
+            */
         }
 
         private GeoPoint2D[] newtonFindTangent(GeoVector dir3d, GeoPoint2D sp, GeoPoint2D ep, GeoVector sn, GeoVector en, double precision)
@@ -5098,6 +5107,8 @@ namespace CADability.GeoObject
             bsp.ThroughPoints(p.ToArray(), degree, closed);
             return bsp; //Debug
 
+            //Unreachable code
+            /*
             int maxThroughPoints = 200;
             int next_index = 1;
             int initp = p.Count;
@@ -5174,6 +5185,7 @@ namespace CADability.GeoObject
                     return bspr;
                 }
             }
+            */
         }
 
         #region IOctTreeInsertable Members
@@ -11047,6 +11059,9 @@ namespace CADability.GeoObject
                 res[i] = cvs[i] as IDualSurfaceCurve;
             }
             return res;
+
+            //Unreachable code
+            /*
             // alter Text:
             ComputeIntersectionCurve cic = new ComputeIntersectionCurve(this, pl, umin, umax, vmin, vmax);
 #if DEBUG
@@ -11054,6 +11069,7 @@ namespace CADability.GeoObject
             // System.Diagnostics.Trace.WriteLine("Anzahl der Boxes: " + allCubes.Length.ToString());
 #endif
             return cic.GetIntersectionCurves(new BoundingRect(umin, vmin, umax, vmax));
+            */
         }
         public virtual IDualSurfaceCurve[] GetSurfaceIntersection(ISurface surface, double umin, double umax, double vmin, double vmax, double precision)
         {

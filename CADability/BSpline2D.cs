@@ -86,6 +86,9 @@ namespace CADability.Curve2D
                     knotslist.Add(knots[i]);
                 }
             }
+
+            //Unreachable code
+            /*
             if (false) // periodic ist nur eine Info, der Spline selbst ist doch immer geclampet, oder?
             // if (periodic)
             {
@@ -107,10 +110,14 @@ namespace CADability.Curve2D
                     ++secondknotindex;
                 }
             }
+            */
+
             if (weights == null)
             {
                 GeoPoint2D[] npoles;
-                if (false)
+                
+                //Unreachable code
+                /* if (false)
                 //if (periodic)
                 {
                     npoles = new GeoPoint2D[poles.Length + degree];
@@ -131,22 +138,25 @@ namespace CADability.Curve2D
                     //{   // das kommt bei STEP/piece0 z.B. vor, kommt ja nur über OpenCascade
                     //    knotslist.Insert(0, knotslist[0]);
                     //}
-                }
-                else
-                {
+                }*/
+                //else
+                //{
+
                     npoles = new GeoPoint2D[poles.Length];
                     for (int i = 0; i < poles.Length; ++i)
                     {
                         npoles[i] = poles[i];
                     }
-                }
+                //}
                 this.nubs = new Nurbs<GeoPoint2D, GeoPoint2DPole>(degree, npoles, knotslist.ToArray());
                 nubs.InitDeriv1();
             }
             else
             {
                 GeoPoint2DH[] npoles;
-                if (false)
+                
+                //Unreachable code
+                /*if (false)
                 // if (periodic)
                 {
                     npoles = new GeoPoint2DH[poles.Length + degree];
@@ -161,13 +171,13 @@ namespace CADability.Curve2D
                     // s.o.
                 }
                 else
-                {
+                {*/
                     npoles = new GeoPoint2DH[poles.Length];
                     for (int i = 0; i < poles.Length; ++i)
                     {
                         npoles[i] = new GeoPoint2DH(poles[i], weights[i]);
                     }
-                }
+                //}
                 this.nurbs = new Nurbs<GeoPoint2DH, GeoPoint2DHPole>(degree, npoles, knotslist.ToArray());
                 nurbs.InitDeriv1();
             }

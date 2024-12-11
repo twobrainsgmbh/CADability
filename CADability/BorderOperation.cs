@@ -804,9 +804,10 @@ namespace CADability.Shapes
                         return new CompoundShape(ss);
                     }
                     // sie überschneiden sich, aber der Inhalt ist leer, also border1 liefern
-                    if (found) return new CompoundShape();
-                    else return new CompoundShape(new SimpleShape(border1));
-                    break;
+                    if (found) 
+                        return new CompoundShape();
+                    
+                    return new CompoundShape(new SimpleShape(border1));
             }
             throw new BorderException("unexpected error in BorderOperation.Intersection!", BorderException.BorderExceptionType.InternalError);
         }

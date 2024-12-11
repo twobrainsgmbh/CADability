@@ -3676,6 +3676,8 @@ namespace CADability.Shapes
             List<Border> res = new List<Border>();
             double len = this.Extent.Size;
             double leneps = len * precision;
+
+            //TODO: This doesn't make sense. Directly returning inside the for loop
             for (int i = 0; i < segment.Length; i++)
             {
                 ICollection cl = QuadTree.GetObjectsCloseTo(segment[i]);

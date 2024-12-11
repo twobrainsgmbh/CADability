@@ -826,7 +826,6 @@ namespace CADability
         public override bool HitTest(ref BoundingRect rect, bool includeControlPoints)
         {
             return true;
-            return false;
         }
 #endregion
     }

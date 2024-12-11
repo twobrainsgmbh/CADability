@@ -881,8 +881,10 @@ namespace CADability.DXF
                 blk.Set(res);
                 return blk;
             }
-            else if (res.Count == 1) return res[0];
-            else return null;
+            
+            if (res.Count == 1) 
+                return res[0];
+             
             return null;
         }
         private string processAcadString(string acstr)
