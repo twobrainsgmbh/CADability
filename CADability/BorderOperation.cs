@@ -814,9 +814,11 @@ namespace CADability.Shapes
                         return new CompoundShape(ss);
                     }
                     // they intersect, but the content is empty, so return border1
-                    if (found) return new CompoundShape();
-                    else return new CompoundShape(new SimpleShape(border1));
-                    break;
+                    if (found) 
+                        return new CompoundShape();
+                    
+                    return new CompoundShape(new SimpleShape(border1));
+
             }
             throw new BorderException("unexpected error in BorderOperation.Intersection!", BorderException.BorderExceptionType.InternalError);
         }

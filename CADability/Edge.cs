@@ -1823,7 +1823,8 @@ namespace CADability
 #endif
                         return;
 
-
+                        //Unreachable code
+                        /*
                         //BoundingRect bounds1 = curveOnPrimaryFace.GetExtent();
                         //BoundingRect bounds2 = curveOnSecondaryFace.GetExtent();
                         // sicher ist hier, dass StartVertex und EndVertex stimmen
@@ -1912,6 +1913,7 @@ namespace CADability
 #if DEBUG
                         dsc.CheckSurfaceParameters();
 #endif
+                        */
                     }
                 }
                 else

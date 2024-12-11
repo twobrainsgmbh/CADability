@@ -4563,7 +4563,6 @@ VERTEX_POINT: C:\Zeichnungen\STEP\Ligna - Staab - Halle 1.stp (85207)
                             importProblems[item.definingIndex] = "item not imported: " + item.type.ToString();
                             break;
                         }
-                        break;
                 }
 #if DEBUG
                 lock (definitionStack) definitionStack.Pop();
@@ -4695,6 +4694,9 @@ VERTEX_POINT: C:\Zeichnungen\STEP\Ligna - Staab - Halle 1.stp (85207)
             //System.Diagnostics.Trace.WriteLine("     (" + res.Item(1, 0).ToString("F3", c) + ", " + res.Item(1, 1).ToString("F3", c) + ", " + res.Item(1, 2).ToString("F3", c) + ", " + res.Item(1, 3).ToString("F3", c) + ")");
             //System.Diagnostics.Trace.WriteLine("     (" + res.Item(2, 0).ToString("F3", c) + ", " + res.Item(2, 1).ToString("F3", c) + ", " + res.Item(2, 2).ToString("F3", c) + ", " + res.Item(2, 3).ToString("F3", c) + ")");
             return res;
+
+            //Unreachable code
+            /*
             // according to pdmug_release4_3.pdf, page 52, but not used
             GeoVector zo = (GeoVector)origin.parameter["axis"].val;
             GeoVector ao = (GeoVector)origin.parameter["ref_direction"].val;
@@ -4759,6 +4761,7 @@ VERTEX_POINT: C:\Zeichnungen\STEP\Ligna - Staab - Halle 1.stp (85207)
             ModOp rot = ModOp.Fit(new GeoVector[] { org.DirectionZ, cross, -orgperp }, new GeoVector[] { trg.DirectionZ, cross, trgperp });
             ModOp trans = ModOp.Translate(org.Location - trg.Location);
             return trans * rot;
+            */
         }
 
         private double GetContextLengthFactor(Item item)
