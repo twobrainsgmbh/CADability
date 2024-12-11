@@ -838,21 +838,18 @@ namespace CADability.Curve2D
                 case Direction.toLeft:
                     if (Rect.Left > startPoint.x) return false;
                     return Rect.Bottom <= startPoint.y && Rect.Top >= startPoint.y;
-                    break;
                 case Direction.toRight:
                     if (Rect.Right < startPoint.x) return false;
                     return Rect.Bottom <= startPoint.y && Rect.Top >= startPoint.y;
-                    break;
                 case Direction.toBottom:
                     if (Rect.Bottom > startPoint.y) return false;
                     return Rect.Left <= startPoint.x && Rect.Right >= startPoint.x;
-                    break;
                 case Direction.toTop:
                     if (Rect.Top < startPoint.y) return false;
                     return Rect.Left <= startPoint.x && Rect.Right >= startPoint.x;
-                    break;
+                default:
+                    return false;
             }
-            return false; // damit der Compiler zufrieden ist
         }
         public object ReferencedObject
         {

@@ -3082,6 +3082,9 @@ namespace CADability.GeoObject
                     if (throughPoints2d.Count < 2)
                     {
                         return new Line2D(p.Project((this as ICurve).StartPoint), p.Project((this as ICurve).EndPoint));
+
+                        //Unreachable code
+                        /*
                         return null;
                         double prec = this.GetExtent(Precision.eps).Size * 1e-4;
                         ICurve approx = (this as ICurve).Approximate(false, prec);
@@ -3092,7 +3095,7 @@ namespace CADability.GeoObject
                             p2d.Reduce(prec);   // vereinfacht den Pfad selbst, also res
                             if (p2d.SubCurvesCount == 1) return p2d.SubCurves[0];
                         }
-                        return res;
+                        return res;*/
                     }
                 }
                 try

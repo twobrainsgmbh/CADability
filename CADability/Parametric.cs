@@ -301,7 +301,7 @@ namespace CADability
             //        }
             //    }
             //}
-            return false;
+            //return false;
         }
 
         private void followCrosswayTangential(Edge edge, ICurve axis, double newRadius)
