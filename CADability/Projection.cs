@@ -1246,7 +1246,9 @@ namespace CADability
             //    CalcOpenGlMatrix();
             //}
             return (double[,])openGlMatrix;
-
+            
+            //Unreachable code
+            /*
             // Liefert die OpenGl Projektion unter der Annahme, dass dort Gl.glViewport(0, 0, width, height);
             // gesetzt wurde. Da diese Projektion die Y-Achse umklappt sehen die UnProject Punkte so 
             // merkwürdig aus.
@@ -1399,6 +1401,7 @@ namespace CADability
             {
                 return new double[,] { { 1, 0, 0, 0 }, { 0, 1, 0, 0 }, { 0, 0, 1, 0 }, { 0, 0, 0, 1 } };
             }
+            */
         }
         #region Funktionen im Zusammenhang mit DrawingPlane
         public Plane DrawingPlane

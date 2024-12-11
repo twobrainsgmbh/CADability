@@ -3677,7 +3677,7 @@ namespace CADability.Shapes
 
             List<Border> res = new List<Border>();
             double len = this.Extent.Size;
-            
+
             for (int i = 0; i < segment.Length; i++)
             {
                 ICollection cl = QuadTree.GetObjectsCloseTo(segment[i]);

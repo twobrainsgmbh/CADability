@@ -403,9 +403,8 @@ namespace CADability.GeoObject
                     }
                 }
             }
-            else if (faceShellOrPath is Face)
+            else if (faceShellOrPath is Face fc)
             {
-                Face fc = faceShellOrPath as Face;
                 if (fc.Area.HasSingleSegmentBorder())
                 {
                     // nur eine geschlossene Kante. Besser zwei Kanten machen
@@ -420,7 +419,11 @@ namespace CADability.GeoObject
                     if (edg.SecondaryFace != null) mustBeCloned = true;
                 }
                 if (mustBeCloned) fc = fc.Clone() as Face; // neue Edges
+                
                 return Solid.MakeSolid(MakeBrutePrism(fc, extrusion));
+
+                //Unreachable code
+                /*
                 GeoVector normal = fc.Surface.GetNormal(fc.Area.GetExtent().GetCenter());
                 if (normal * extrusion > 0)
                 {
@@ -582,6 +585,7 @@ namespace CADability.GeoObject
                 sld.SetShell(sh);
                 if (project != null) project.SetDefaults(sld);
                 return sld; // Testweise wieder mit OCAS, da ein Problem bei ???
+                */
             }
             return null;
         }
@@ -1273,7 +1277,6 @@ namespace CADability.GeoObject
                 res.SetFaces(new Face[] { fc });
                 return res;
             }
-            return null;
         }
         public static Face MakeFace(Path path, Project project)
         {
