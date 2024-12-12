@@ -706,6 +706,7 @@ namespace CADability
             placementFactor = factor;
             placementX = dx;
             placementY = dy;
+            SetCoefficients();
         }
         /// <summary>
         /// Liefert die Werte für die Platzierung. Achtung: die Y-Werte müssen mit dem negativen
