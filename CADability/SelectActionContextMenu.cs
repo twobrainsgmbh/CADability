@@ -160,6 +160,10 @@ namespace CADability
             if (owningShell == null && selectedEdges.Count > 0) owningShell = (selectedEdges.First().Owner as Face).Owner as Shell;
             if (owningShell != null)
             {
+                if (selectedEdges.Count > 0)
+                {
+                    List<Shell> shellFeatures = owningShell.FeaturesFromEdges(selectedEdges);
+                }
                 for (int i = 0; i < features.Count; i++)
                 {
                     List<Face> featureI = new List<Face>(features[i]);
