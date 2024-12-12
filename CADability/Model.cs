@@ -2,6 +2,7 @@
 using CADability.Curve2D;
 using CADability.GeoObject;
 using CADability.UserInterface;
+// using netDxf.Entities;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -2114,8 +2115,9 @@ namespace CADability
                                     (visibleLayers.Count == 0 || l == null || visibleLayers.Contains(l)))
                                 {
                                     double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
-                                    if (z <= zmin && !toAvoid.Contains(go))
-                                    {
+                                    if (!toAvoid.Contains(go) || z < zmin - Precision.eps)
+                                    {   // if nothing else is closest, use the object ignoring toAvoid, if an object has the same distance as objects in toAvoid, but is not in toAvoid, use this object
+                                        // this helps to get the other object, if two objects overlap
                                         zmin = z;
                                         singleObject = go;
                                     }
@@ -2147,8 +2149,9 @@ namespace CADability
                                 (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer)))
                             {
                                 double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
-                                if (z <= zmin && !toAvoid.Contains(go))
-                                {
+                                if (!toAvoid.Contains(go) || z < zmin - Precision.eps)
+                                {   // if nothing else is closest, use the object ignoring toAvoid, if an object has the same distance as objects in toAvoid, but is not in toAvoid, use this object
+                                    // this helps to get the other object, if two objects overlap
                                     zmin = z;
                                     singleObject = go;
                                 }
@@ -2203,6 +2206,7 @@ namespace CADability
                                     {   // sonst werden auch edges gefunden, was hier bei single click nicht gewünscht
                                         if (!toAvoid.Contains(toInsert) || z < zmin - Precision.eps)
                                         {   // if nothing else is closest, use the object ignoring toAvoid, if an object has the same distance as objects in toAvoid, but is not in toAvoid, use this object
+                                            // this helps to get the other object, if two objects overlap
                                             zmin = z;
                                             singleObject = toInsert;
                                         }

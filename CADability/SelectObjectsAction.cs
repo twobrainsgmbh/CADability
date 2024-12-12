@@ -1508,7 +1508,7 @@ namespace CADability.Actions
                     {
                         if (Frame.UIService.ModifierKeys == Keys.Control || accumulateObjects)
                         {
-                            GeoObjectList undercursor = ObjectsUnderCursor(e, vw, true);
+                            GeoObjectList undercursor = ObjectsUnderCursor(e, vw, true); 
                             GeoObjectList toSelect = selectedObjects.Clone();
                             foreach (IGeoObject go in undercursor)
                             {
