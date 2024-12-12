@@ -1442,20 +1442,18 @@ namespace CADability.Curve2D
 
         GeoPoint2D[] I2DIntersectable.IntersectWith(I2DIntersectable other)
         {
-            if (other is ICurve2D)
+            if (other is ICurve2D curve2D)
             {
-                GeoPoint2DWithParameter[] ips = Intersect(other as ICurve2D);
+                GeoPoint2DWithParameter[] ips = Intersect(curve2D);
                 GeoPoint2D[] res = new GeoPoint2D[ips.Length];
                 
-                //TODO: This does not make sense. Returning directly in a for loop
                 for (int i = 0; i < ips.Length; i++)
-                {
                     res[i] = ips[i].p;
-                    return res;
-                }
+
+                return res;
             }
+
             return other.IntersectWith(this);
-            // throw new NotImplementedException("I2DIntersectable.IntersectWith " + other.GetType().Name);
         }
 #if DEBUG
         public GeoObjectList debug
