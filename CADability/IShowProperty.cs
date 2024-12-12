@@ -317,6 +317,7 @@ namespace CADability.UserInterface
         {
             this.frame = null;
         }
+
         event PropertyEntryChangedStateDelegate IPropertyEntry.PropertyEntryChangedStateEvent
         {
             add
