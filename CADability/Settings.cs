@@ -1021,6 +1021,10 @@ namespace CADability
                         {
                             ((IntegerProperty)(entries[Name])).SetInt((int)NewValue);
                         }
+                        else if (entries[Name].GetType() == typeof(DoubleProperty) && NewValue is double)
+                        {
+                            ((DoubleProperty)(entries[Name])).SetDouble((double)NewValue);
+                        }
                         else if (entries[Name].GetType() == typeof(ColorSetting))
                         {
                             ((ColorSetting)(entries[Name])).Color = (Color)NewValue;

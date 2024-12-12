@@ -1823,7 +1823,8 @@ namespace CADability
 #endif
                         return;
 
-
+                        //Unreachable code
+                        /*
                         //BoundingRect bounds1 = curveOnPrimaryFace.GetExtent();
                         //BoundingRect bounds2 = curveOnSecondaryFace.GetExtent();
                         // sicher ist hier, dass StartVertex und EndVertex stimmen
@@ -1912,6 +1913,7 @@ namespace CADability
 #if DEBUG
                         dsc.CheckSurfaceParameters();
 #endif
+                        */
                     }
                 }
                 else
@@ -2713,7 +2715,7 @@ namespace CADability
                     Polyline pdbg = Polyline.Construct();
                     pdbg.SetPoints(pnts, false);
                 }
-                catch (PolylineException ex) { };
+                catch (PolylineException) { };
             }
 #endif
             if (curve3d != null) dist = Math.Max(dist, curve3d.DistanceTo(mp));

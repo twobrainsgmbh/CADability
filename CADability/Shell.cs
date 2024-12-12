@@ -312,7 +312,7 @@ namespace CADability.GeoObject
                         double a = cp.Length / 2.0; // area of the triangle
                         corr += a * d * 3 / 4; // 3/4 is a good value for spheres and cylinders
                     }
-                    catch (PlaneException pe) { }
+                    catch (PlaneException) { }
                 }
             }
             return sum / 6 + corr;
@@ -700,7 +700,7 @@ namespace CADability.GeoObject
                                 }
                             }
                         }
-                        catch (Exception ex) { }
+                        catch (Exception) { }
                     }
                     backSide.Clear();
                     if (bestFace != null) backSide.Add(bestFace);
@@ -1428,11 +1428,15 @@ namespace CADability.GeoObject
             }
             return res;
         }
+
         private static double findCylinder(GeoPoint[] points, GeoVector[] normals, out GeoPoint axisPoint, out GeoVector axisDir, out double radius)
         {
             // points must be a multipe of 3, each triple describes a triangle, for each triangle there is a normal
             // typically there is one side of the triangles, which is parallel to the axis. So let us try to find parallel triengla edges
             throw new NotImplementedException();
+
+            //Unreachable code
+            /*
             int nTriple = points.Length / 3;
             Matrix m = new DenseMatrix(nTriple + 1, 3);
             Vector b = new DenseVector(nTriple + 1);
@@ -1470,7 +1474,9 @@ namespace CADability.GeoObject
                     return maxerr;
                 }
             }
+            */
         }
+        
 #if DEBUG
         public
 #else
@@ -1523,10 +1529,10 @@ namespace CADability.GeoObject
 #endif
 
             return false;
+
+            //Unreachable code
+            /*
             Set<Face> usedFaces = new Set<Face>();
-
-
-
             List<Face> createdFaces = new List<Face>();
             Dictionary<Edge, Edge> newEdges = new Dictionary<Edge, Edge>();
             foreach (Edge edg in Edges)
@@ -1546,6 +1552,7 @@ namespace CADability.GeoObject
                 }
             }
             return false;
+            */
         }
 
         private class VectorInOctTree : IOctTreeInsertable

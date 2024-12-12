@@ -530,7 +530,7 @@ namespace CADability.DXF
 
                         ICurve curve = (ICurve)bsp;
                         //Use approximate to get the count of lines that will be needed to convert the spline into a Polyline2D
-                        double maxError = project.Frame.GetDoubleSetting("Approximate.Precision", 0.01);
+                        double maxError = Settings.GlobalSettings.GetDoubleValue("Approximate.Precision", 0.01);
                         ICurve approxCurve = curve.Approximate(true, maxError);
 
                         int usedCurves = 0;
@@ -881,8 +881,10 @@ namespace CADability.DXF
                 blk.Set(res);
                 return blk;
             }
-            else if (res.Count == 1) return res[0];
-            else return null;
+            
+            if (res.Count == 1) 
+                return res[0];
+             
             return null;
         }
         private string processAcadString(string acstr)

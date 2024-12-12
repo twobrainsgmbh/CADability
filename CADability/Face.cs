@@ -5898,7 +5898,11 @@ namespace CADability.GeoObject
         {
             SimpleShape ss = Area; // damit es sicher bestimmt ist
                                    // wenn die Fläche Knicke hat, dann entlang der Knicke aufteilen
+
+            //Code unreachable
+            /*
             ICurve2D[] discontinuities;
+            
             if (false)
             // if (surface.HasDiscontinuousDerivative(out discontinuities))
             {
@@ -5947,10 +5951,11 @@ namespace CADability.GeoObject
                             triangleIndex = lsttriangleIndex.ToArray();
                         }
                         return;
-                    }
-                }
-
+                    }            
+                }                
             }
+            */
+
 #if DEBUG
             // System.Diagnostics.Trace.WriteLine("Triangulate: " + hashCode.ToString() + ", prec: " + precision.ToString() + ", " + (System.Environment.TickCount / 100).ToString());
 #endif
@@ -6305,7 +6310,7 @@ namespace CADability.GeoObject
                     }
                 }
             }
-            catch (ApplicationException e)
+            catch (ApplicationException)
             {   // something went wrong with the triangulation. This should not happen and needs to be debugged and fixed
             }
             triangleExtent = BoundingCube.EmptyBoundingCube; // needs to be recalculated
@@ -6606,7 +6611,7 @@ namespace CADability.GeoObject
                 }
 #endif
             }
-            catch (ApplicationException e)
+            catch (ApplicationException)
             {   // Selbstüberschneidungen von Löchern und Rand oder in den Rändern selbst
                 List<GeoPoint2D> sumTriUv = new List<GeoPoint2D>();
                 List<GeoPoint> sumTriPoint = new List<GeoPoint>();
@@ -7958,7 +7963,6 @@ namespace CADability.GeoObject
                         selections[segments.Length - 2].Remove(selections[segments.Length - 2].FirstItem.Key, selections[segments.Length - 2].FirstItem.Value);
                     }
                 }
-                return false;
             }
             catch (Exception)
             {
@@ -9030,6 +9034,9 @@ namespace CADability.GeoObject
             {
                 ReverseOrientation(); // das ist identisch mit diesem hier!!
                 return;
+                
+                //Unreachable code
+                /*
                 SimpleShape ss = Area;
                 BoundingRect ext = ss.GetExtent();
                 GeoPoint2D c = ss.GetExtent().GetCenter();
@@ -9105,6 +9112,8 @@ namespace CADability.GeoObject
                 ss = Area; // DEBUG
 
                 orientedOutward = false;
+
+                */
             }
             else
             {

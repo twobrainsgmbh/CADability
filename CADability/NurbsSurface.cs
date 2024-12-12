@@ -1976,7 +1976,7 @@ namespace CADability.GeoObject
                     {
                         reparametrisation = ModOp2D.Fit(srcf, dstf, true);
                     }
-                    catch (ModOpException mex)
+                    catch (ModOpException)
                     {
                         return false;
                     }
@@ -2825,7 +2825,7 @@ namespace CADability.GeoObject
                         if (!isPlane) break;
                     }
                 }
-                catch (ModOpException mex)
+                catch (ModOpException)
                 {
                     isPlane = false;
                 }
@@ -4850,6 +4850,8 @@ namespace CADability.GeoObject
             //    List<double[]> sol = Polynom.Solve(equations, new(double min, double max)[] { (UKnots[0], UKnots[UKnots.Length - 1]), (VKnots[0], VKnots[VKnots.Length - 1]), (0.0, 1.0) });
             //}
 #endif
+            //Unreachable code
+            /*
             if (false)
             // if (curve is IExplicitPCurve3D) // keine guten Ergebnisse!
             {
@@ -4913,6 +4915,7 @@ namespace CADability.GeoObject
                     return;
                 }
             }
+            */
             base.Intersect(curve, uvExtent, out ips, out uvOnFaces, out uOnCurve3Ds);
         }
         /// <summary>

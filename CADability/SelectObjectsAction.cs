@@ -2012,7 +2012,6 @@ namespace CADability.Actions
                     {
                         throw new ApplicationException("not implemented");
                     }
-                    return true;
                 case "MenuId.Constr.Face.FromSelectedObject":
                     {
                         GeoObjectList select = new GeoObjectList(selectedObjects);
