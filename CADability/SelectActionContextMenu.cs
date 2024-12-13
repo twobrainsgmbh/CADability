@@ -27,7 +27,7 @@ namespace CADability
         private List<Face> faces;
         private List<Shell> shells;
         private List<Solid> solids;
-        private List<IEnumerable<Face>> features;
+        private List<(IEnumerable<Face> faces, IEnumerable<Face> lids, bool isGap)> features;
         private GeoObjectList curves;
         private List<Edge> edges;
         private GeoObjectList currentMenuSelection;
@@ -61,7 +61,7 @@ namespace CADability
             faces = new List<Face>();
             shells = new List<Shell>(); // only Shells, which are not part of a Solid
             solids = new List<Solid>();
-            features = new List<IEnumerable<Face>>();
+            features = new List<(IEnumerable<Face> faces, IEnumerable<Face> lids, bool isGap)>();
             double delta = vw.Model.Extent.Size * 1e-4;
             double mindist = double.MaxValue;
             for (int i = 0; i < fl.Count; i++)
@@ -111,7 +111,7 @@ namespace CADability
                                 shell.FeaturesFromEdges(loops, lfeatures, lids, startWith);
                                 for (int k = 0; k < lfeatures.Count; k++)
                                 {
-                                    if (lfeatures[k].Count() < shell.Faces.Length * 0.5) features.Add(lfeatures[k]);
+                                    // if (lfeatures[k].Count() < shell.Faces.Length * 0.5) features.Add(lfeatures[k]);
                                 }
                             }
                         }
@@ -166,7 +166,7 @@ namespace CADability
                 }
                 for (int i = 0; i < features.Count; i++)
                 {
-                    List<Face> featureI = new List<Face>(features[i]);
+                    List<Face> featureI = new List<Face>(features[i].faces);
                     MenuWithHandler mh = new MenuWithHandler("MenuId.Feature");
                     mh.OnSelected = (m, selected) =>
                     {
