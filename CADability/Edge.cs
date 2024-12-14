@@ -3642,6 +3642,19 @@ namespace CADability
             mhdist.Target = new ParametricsDistanceActionOld(this, frame);
             return new MenuWithHandler[] { mhdist };
         }
+        /// <summary>
+        /// Returns the face of this edge, which is not in <paramref name="forbiddenFaces"/>.
+        /// Returns null if both or none of primary and secondary face is in forbiddenFaces;
+        /// </summary>
+        /// <param name="forbiddenFaces"></param>
+        /// <returns></returns>
+        internal Face OtherFace(HashSet<Face> forbiddenFaces)
+        {
+            bool pf = forbiddenFaces.Contains(primaryFace);
+            bool sf = secondaryFace != null && forbiddenFaces.Contains(secondaryFace);
+            if (pf == sf) return null;
+            return pf ? secondaryFace : primaryFace;
+        }
 #if DEBUG
         public bool IsDebug
         {

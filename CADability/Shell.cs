@@ -11,6 +11,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using Wintellect.PowerCollections;
 using MathNet.Numerics.LinearAlgebra.Factorization;
+using System.Collections;
 #if WEBASSEMBLY
 using CADability.WebDrawing;
 using Point = CADability.WebDrawing.Point;
@@ -6392,6 +6393,190 @@ namespace CADability.GeoObject
             // to continue, work in progress
             return null;
         }
+        /// <summary>
+        /// From a set of <paramref name="edges"/> build loops of sorted edges. Each loop contains ordered edges which 
+        /// </summary>
+        /// <param name="edges"></param>
+        /// <param name="extendIfNecessary"></param>
+        /// <returns></returns>
+        private static List<Edge[]> sortLoops(IEnumerable<Edge> edges, bool extendIfNecessary)
+        {
+            if (!edges.Any()) return null;
+            List<Edge[]> res = new List<Edge[]>();
+            HashSet<Edge> available = new HashSet<Edge>(edges);
+            while (available.Any())
+            {
+                List<Edge> loop = new List<Edge>();
+                Edge startWith = available.First();
+                available.Remove(startWith);
+                loop.Add(startWith);
+                Vertex currentVertex = startWith.Vertex1;
+                Vertex stopVertex = startWith.Vertex2;
+                while (currentVertex != stopVertex)
+                {
+                    IEnumerable<Edge> outgoing = currentVertex.Edges.Where(e => available.Contains(e));
+                    // outgoing should exactely contain one edge, which connects to the end of the loop
+                    if (outgoing.Count() == 1)
+                    {
+                        Edge nextEdge = outgoing.First();
+                        loop.Add(nextEdge);
+                        available.Remove(nextEdge);
+                        currentVertex = nextEdge.OtherVertex(currentVertex);
+                    }
+                    else
+                    {   // no connection found: here we could try to find a connection, if extendIfNecessary is true. But how?
+                        break;
+                    }
+                }
+                if (currentVertex == stopVertex) res.Add(loop.ToArray()); // only when  is closed 
+            }
+            return res;
+        }
+        /// <summary>
+        /// Collect all faces which are connected to the provided <paramref name="faces"/> and are part of the same surface geometry 
+        /// (like two halves of a cylinder, which are connected by a "seam" edge)
+        /// </summary>
+        /// <param name="faces"></param>
+        /// <returns></returns>
+        private static HashSet<Face> connectedSameGeometryFaces(IEnumerable<Face> faces)
+        {
+            HashSet<Face> res = new HashSet<Face>(faces);
+            IEnumerable<Face> facesToIterate = faces;
+            while (facesToIterate.Any())
+            {
+                HashSet<Face> added = new HashSet<Face>();
+                foreach (Face fc in facesToIterate)
+                {
+                    foreach (Edge edge in fc.Edges)
+                    {
+                        Face other = edge.OtherFace(fc);
+                        if (other != null && other.SameSurface(fc))
+                        {
+                            if (res.Add(other)) added.Add(other);
+                        }
+                    }
+                }
+                facesToIterate = added;
+            }
+            return res;
+        }
+        /// <summary>
+        /// Tries to find a "feature" which is disconnected from the remaining shell by the provided edges in <paramref name="loopEdges"/>.
+        /// 
+        /// </summary>
+        /// <param name="loopEdges">unsorted edges, which seperate the feature from the shell</param>
+        /// <param name="featureFaces">faces (of this shell), which belong to the feature</param>
+        /// <param name="connection">new faces, which close the open shell of the feature and the open shell of the remaining shell</param>
+        /// <param name="isGap">the feature is a gap (e.g. a drilling hole) and not some extra part of the shell</param>
+        /// <returns>true, if such a feature was found</returns>
+        public bool FeatureFromLoops(IEnumerable<Edge> loopEdges, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap)
+        {
+            List<Edge[]> loops = sortLoops(loopEdges, true);
+            HashSet<Edge> bounds = new HashSet<Edge>(loopEdges);
+            HashSet<Face> found = new HashSet<Face>();
+            Face startWith = bounds.First().PrimaryFace; // we don't know on which side of the loop the feature should be. We will take the smaller part.
+            featureFaces = new HashSet<Face>();
+            CollectConnected(startWith, featureFaces as HashSet<Face>, bounds);
+            HashSet<Face> allFaces = new HashSet<Face>(Faces);
+            allFaces.ExceptWith(featureFaces);
+            if (allFaces.Count() < featureFaces.Count()) featureFaces = allFaces; // the feature part is the one with less faces. We could also use the smaller surface area.
+            // Now we have to create new Faces, which seperate the feature from the remainning shell. The remaining shell and the feature are both open shells.
+            // For each loop there will be a shell (often only a single face), which can be used to close the remaining (big) shell and
+            // the feature.
+            isGap = false;
+            connection = new List<Face>();
+            foreach (Edge[] loop in loops)
+            {
+                IEnumerable<Face> connect = CloseEdgeLoop(loop, featureFaces as HashSet<Face>);
+                if (connect != null) connection.AddRange(connect);
+                else return false;
+            }
+            return true;
+        }
+
+        private IEnumerable<Face> CloseEdgeLoop(Edge[] loop, HashSet<Face> forbiddenFaces)
+        {
+            HashSet<Face> boundingFaces = new HashSet<Face>();
+            for (int i = 0; i < loop.Length; i++)
+            {
+                boundingFaces.Add(loop[i].OtherFace(forbiddenFaces));
+            }
+            Face faceWithSurface = null;
+            foreach (Face fc in boundingFaces)
+            {
+                if (faceWithSurface == null) faceWithSurface = fc;
+                else
+                {
+                    if (!faceWithSurface.SameSurface(fc))
+                    {
+                        faceWithSurface = null;
+                        break;
+                    }
+                }
+            }
+            ICurve[] outline = new ICurve[loop.Length];
+            for (int i = 0; i < loop.Length; i++)
+            {
+                outline[i] = loop[i].Curve3D.Clone();
+            }
+            if (faceWithSurface != null)
+            {   // the only surface, which sourrounds the loop, makes the face we need to close the loop
+                Face res = Face.FromEdges(faceWithSurface.Surface.Clone(), new ICurve[][] { outline });
+                return new Face[] { res };
+            }
+            if (Curves.GetCommonPlane(outline, out Plane commonPlane))
+            {   // all curves of the loop are in a common plane: we can make a planar face to close the loop
+                PlaneSurface ps = new PlaneSurface(commonPlane);
+                Face res = Face.FromEdges(ps, new ICurve[][] { outline });
+                return new Face[] { res };
+            }
+            if (boundingFaces.Count == 2 && loop.Length == 2)
+            {   // two faces with different surfaces sourround the loop: try to find a common edge between those two faces and make
+                // two new faces, which fill the loop (e.g. a drilling hole through the edge of a cube)
+                // there must be exactely two edges in loop[]
+                Face fc1 = boundingFaces.First();
+                Face fc2 = boundingFaces.Last();
+                IDualSurfaceCurve[] dscs = fc1.Surface.GetDualSurfaceCurves(fc1.Domain, fc2.Surface, fc2.Domain, new List<GeoPoint> { loop[0].Vertex1.Position, loop[0].Vertex2.Position }, null);
+                if (dscs.Length == 1)
+                {
+                    Face res1 = Face.FromEdges(fc1.Surface.Clone(), new[] { new[] { loop[0].Curve3D, dscs[0].Curve3D } });
+                    Face res2 = Face.FromEdges(fc1.Surface.Clone(), new[] { new[] { loop[1].Curve3D, dscs[0].Curve3D } });
+                    return new Face[] { res1, res2 };
+                }
+            }
+            if (loop.Length > 2)
+            {   // similar case as above, but more than two faces.
+                // we first group the faces into faces with same geometry (if any). So we have a set of different surfaces.
+                // now we try to find connecting curves between vertices of the loop edges. If we find two vertices, which connect only two different
+                // surfaces (could be up to 4), we try to find the intersection curve.
+                // Now we have the loop curves and the intersection curves, which have to be oredered for each surface to make faces.
+                Dictionary<ISurface, List<Face>> surfaces = new Dictionary<ISurface, List<Face>>();
+            }
+            // here we need to consider more cases:
+            // 1.: all curves are in a single plane: make a planar face
+            // 2.: there are a finite number of surfaces, which can extent across the loop
+            // 3.: try to make one or more ruled surfaces
+            return null;
+        }
+
+        /// <summary>
+        /// Collect all faces, which are connected to <paramref name="startWith"/>, but do not cross <paramref name="bounds"/>. The result will be
+        /// returned in <paramref name="featureFaces"/>.
+        /// </summary>
+        /// <param name="startWith"></param>
+        /// <param name="featureFaces"></param>
+        /// <param name="bounds"></param>
+        private void CollectConnected(Face startWith, HashSet<Face> featureFaces, HashSet<Edge> bounds)
+        {
+            if (featureFaces.Add(startWith))
+            {
+                foreach (Edge edge in startWith.AllEdges)
+                {
+                    if (!bounds.Contains(edge)) CollectConnected(edge.OtherFace(startWith), featureFaces, bounds);
+                }
+            }
+        }
+
         private static Face CommonFace(IEnumerable<Edge> edges, bool acceptSameGeometry)
         {
             Face face = null;
@@ -6428,8 +6613,8 @@ namespace CADability.GeoObject
             return face;
         }
         /// <summary>
-        /// Returns "features" of the shell. A feature is a subset of the faces of the shell, which is seperated by the provided <paramref name="loops"/>. Since such a feature
-        /// has open edges, there is also a face or multiple faces, which close the feature to make it to a solid.
+        /// Returns "features" of the shell. A feature is a subset of the faces of the shell, which is seperated by the provided <paramref name="loops"/>. 
+        /// Since such a feature has open edges, there is also a face or multiple faces, which close the feature to make it to a solid.
         /// </summary>
         /// <param name="bounds"></param>
         public void FeaturesFromEdges(List<Edge[]> loops, List<IEnumerable<Face>> features, List<IEnumerable<Face>> lids, IEnumerable<Face> startWith)

@@ -151,6 +151,19 @@ namespace CADability
                 if (go is ICurve && go.Owner is Edge edg) selectedEdges.Add(edg);
                 if (go is Face fc) selectedFaces.Add(fc);
             }
+            if (selectedEdges.Any())
+            {
+                Shell edgesShell = null;
+                if (selectedEdges.Count > 0) edgesShell = (selectedEdges.First().Owner as Face).Owner as Shell;
+                if (edgesShell != null)
+                {
+                    if (edgesShell.FeatureFromLoops(selectedEdges, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
+                    {
+                        features.Add((featureFaces,connection, isGap));
+                    }
+                }
+                    
+            }
             List<MenuWithHandler> cm = new List<MenuWithHandler>();
 
             Shell owningShell = null;

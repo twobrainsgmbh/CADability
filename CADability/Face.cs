@@ -6342,8 +6342,7 @@ namespace CADability.GeoObject
         public bool SameSurface(Face otherFace)
         {
             if (otherFace == null) return false;
-            ModOp2D fts;
-            return surface.SameGeometry(Area.GetExtent(), otherFace.Surface, otherFace.Area.GetExtent(), Precision.eps, out fts);
+            return surface.SameGeometry(Area.GetExtent(), otherFace.Surface, otherFace.Area.GetExtent(), Precision.eps, out _);
         }
 
         internal bool SameSurface(Face otherFace, out ModOp2D fts)
