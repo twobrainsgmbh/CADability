@@ -12,6 +12,8 @@ using System.Text;
 using Wintellect.PowerCollections;
 using MathNet.Numerics.LinearAlgebra.Factorization;
 using System.Collections;
+using System.Security.Cryptography;
+
 #if WEBASSEMBLY
 using CADability.WebDrawing;
 using Point = CADability.WebDrawing.Point;
@@ -6551,6 +6553,76 @@ namespace CADability.GeoObject
                 // surfaces (could be up to 4), we try to find the intersection curve.
                 // Now we have the loop curves and the intersection curves, which have to be oredered for each surface to make faces.
                 Dictionary<ISurface, List<Face>> surfaces = new Dictionary<ISurface, List<Face>>();
+                foreach (Face fc in boundingFaces)
+                {
+                    bool found = false;
+                    foreach (KeyValuePair<ISurface, List<Face>> item in surfaces)
+                    {
+                        if (item.Value[0].SameSurface(fc))
+                        {
+                            item.Value.Add(fc);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) surfaces[fc.Surface] = new List<Face>(new Face[] { fc });
+                }
+                // surfaces contains all surfaces of the bounding faces, same geometries are combined
+                HashSet<Vertex> loopVertices = new HashSet<Vertex>();
+                for (int i = 0; i < loop.Length; i++)
+                {
+                    loopVertices.Add(loop[i].Vertex1);
+                    loopVertices.Add(loop[i].Vertex2);
+                }
+                Dictionary<ISurface, HashSet<Vertex>> vertices = new Dictionary<ISurface, HashSet<Vertex>>();
+                Dictionary<ISurface, List<IDualSurfaceCurve>> intersections = new Dictionary<ISurface, List<IDualSurfaceCurve>>();
+                foreach (KeyValuePair<ISurface, List<Face>> item in surfaces)
+                {
+                    HashSet<Vertex> vtx = new HashSet<Vertex>();
+                    foreach (Face fc in item.Value)
+                    {
+                        vtx.UnionWith(fc.Vertices);
+                    }
+                    vtx.IntersectWith(loopVertices);
+                    vertices[item.Key] = vtx;
+                }
+                foreach (ISurface srf in surfaces.Keys)
+                {
+                    intersections[srf] = new List<IDualSurfaceCurve>();
+                }
+                List<KeyValuePair<ISurface, List<Face>>> surfaceList = surfaces.ToList();
+                for (int i = 0; i < surfaceList.Count - 1; i++)
+                {
+                    for (int j = i + 1; j < surfaceList.Count; j++)
+                    {
+                        // a pair of surfaces: are there two vertices in the loop, which connect to both a face
+                        // of the i-th surface and of the j-th surface.
+                        IEnumerable<Vertex> commonVertices = vertices[surfaceList[i].Key].Intersect(vertices[surfaceList[j].Key]);
+                        if (commonVertices.Count() == 2)
+                        {
+                            IDualSurfaceCurve[] dscs = surfaceList[i].Key.GetDualSurfaceCurves(surfaceList[i].Value[0].Domain, surfaceList[j].Key, surfaceList[j].Value[0].Domain, new List<GeoPoint> { commonVertices.First().Position, commonVertices.Last().Position }, null);
+                            if (dscs != null && dscs.Length == 1)
+                            {
+                                intersections[surfaceList[i].Key].Add(dscs[0]);
+                                intersections[surfaceList[j].Key].Add(dscs[0]);
+                            }
+                        }
+                    }
+                }
+                // now for each surface we have one or more intersection curves. Together with the loop curves for a
+                // surface, these intersection curves should make a face.
+                foreach (ISurface srf in surfaces.Keys)
+                {
+                    HashSet<Edge> surfaceEdges = new HashSet<Edge>();
+                    foreach (Face fc in surfaces[srf])
+                    {
+                        surfaceEdges.UnionWith(fc.Edges);
+                    }
+                    surfaceEdges.IntersectWith(loop);
+                    List<ICurve> curves = new List<ICurve>(surfaceEdges.Select(edge => edge.Curve3D));
+                    curves.AddRange(intersections[srf].Select(dsc => dsc.Curve3D));
+                    Face.MakeFace(srf, curves);
+                }
             }
             // here we need to consider more cases:
             // 1.: all curves are in a single plane: make a planar face

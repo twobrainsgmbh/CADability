@@ -3483,6 +3483,20 @@ namespace CADability.GeoObject
             }
             if (surface is ISurfaceImpl si) si.usedArea = Domain;
         }
+        internal static Face MakeFace(ISurface surface, ICurve[] outline)
+        {   // TODO: we need to sort and orient the curves!!!
+            Edge[] edges = new Edge[outline.Length];
+            Face res = Face.Construct();
+            res.surface = surface;
+            for (int i = 0; i < outline.Length; i++)
+            {
+                edges[i] = new Edge(res, outline[i], res, surface.GetProjectedCurve(outline[i],0.0), true);
+                // orientation is unknown here!
+            }
+            res.Set(surface, new Edge[][] { edges }, true);
+            return res;
+        }
+
         internal static Face MakeFace(ISurface surface, Edge[] outline)
         {
             Face res = Face.Construct();
