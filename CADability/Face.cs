@@ -11,6 +11,8 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
 using Wintellect.PowerCollections;
+using System.Linq;
+
 #if WEBASSEMBLY
 using CADability.WebDrawing;
 using Point = CADability.WebDrawing.Point;
@@ -3483,15 +3485,46 @@ namespace CADability.GeoObject
             }
             if (surface is ISurfaceImpl si) si.usedArea = Domain;
         }
-        internal static Face MakeFace(ISurface surface, ICurve[] outline)
-        {   // TODO: we need to sort and orient the curves!!!
-            Edge[] edges = new Edge[outline.Length];
+        internal static Face MakeFace(ISurface surface, IEnumerable<ICurve> outline)
+        {   
+            // simple linear search for best curve
+            HashSet<ICurve> allCurves = new HashSet<ICurve>(outline);
+            List<ICurve> sortedCurves = new List<ICurve>();
+            ICurve current = allCurves.First();
+            allCurves.Remove(current);
+            sortedCurves.Add(current);
+            while (allCurves.Any())
+            {
+                double maxDist = double.MaxValue;
+                bool forward = true;
+                ICurve next = null;
+                foreach (ICurve crv in allCurves)
+                {
+                    double d = current.EndPoint | crv.StartPoint;
+                    if (d<maxDist)
+                    {
+                        maxDist = d;
+                        forward = true;
+                        next = crv;
+                    }
+                    d = current.StartPoint | crv.StartPoint;
+                    if (d < maxDist)
+                    {
+                        maxDist = d;
+                        forward = false;
+                        next = crv;
+                    }
+                }
+                allCurves.Remove(next);
+                if (!forward) next.Reverse();
+                sortedCurves.Add(next);
+            }
+            Edge[] edges = new Edge[sortedCurves.Count];
             Face res = Face.Construct();
             res.surface = surface;
-            for (int i = 0; i < outline.Length; i++)
+            for (int i = 0; i < sortedCurves.Count; i++)
             {
-                edges[i] = new Edge(res, outline[i], res, surface.GetProjectedCurve(outline[i],0.0), true);
-                // orientation is unknown here!
+                edges[i] = new Edge(res, sortedCurves[i], res, surface.GetProjectedCurve(sortedCurves[i],0.0), true);
             }
             res.Set(surface, new Edge[][] { edges }, true);
             return res;
