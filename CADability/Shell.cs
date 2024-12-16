@@ -6600,7 +6600,18 @@ namespace CADability.GeoObject
                         IEnumerable<Vertex> commonVertices = vertices[surfaceList[i].Key].Intersect(vertices[surfaceList[j].Key]);
                         if (commonVertices.Count() == 2)
                         {
-                            IDualSurfaceCurve[] dscs = surfaceList[i].Key.GetDualSurfaceCurves(surfaceList[i].Value[0].Domain, surfaceList[j].Key, surfaceList[j].Value[0].Domain, new List<GeoPoint> { commonVertices.First().Position, commonVertices.Last().Position }, null);
+                            GeoPoint sp = commonVertices.First().Position;
+                            GeoPoint ep = commonVertices.Last().Position;
+                            BoundingRect exti = new BoundingRect(surfaceList[i].Key.PositionOf(sp));
+                            GeoPoint2D uv = surfaceList[i].Key.PositionOf(ep);
+                            SurfaceHelper.AdjustPeriodic(surfaceList[i].Key, exti, ref uv);
+                            exti.MinMax(uv);
+                            BoundingRect extj = new BoundingRect(surfaceList[j].Key.PositionOf(sp));
+                            uv = surfaceList[j].Key.PositionOf(ep);
+                            SurfaceHelper.AdjustPeriodic(surfaceList[j].Key, extj, ref uv);
+                            extj.MinMax(uv);
+                            // find domains for the intersection which include the two points
+                            IDualSurfaceCurve[] dscs = surfaceList[i].Key.GetDualSurfaceCurves(exti, surfaceList[j].Key, extj, new List<GeoPoint> { sp, ep}, null);
                             if (dscs != null && dscs.Length == 1)
                             {
                                 intersections[surfaceList[i].Key].Add(dscs[0]);
@@ -6611,6 +6622,7 @@ namespace CADability.GeoObject
                 }
                 // now for each surface we have one or more intersection curves. Together with the loop curves for a
                 // surface, these intersection curves should make a face.
+                List<Face> res = new List<Face>();
                 foreach (ISurface srf in surfaces.Keys)
                 {
                     HashSet<Edge> surfaceEdges = new HashSet<Edge>();
@@ -6621,8 +6633,10 @@ namespace CADability.GeoObject
                     surfaceEdges.IntersectWith(loop);
                     List<ICurve> curves = new List<ICurve>(surfaceEdges.Select(edge => edge.Curve3D));
                     curves.AddRange(intersections[srf].Select(dsc => dsc.Curve3D));
-                    Face.MakeFace(srf, curves.ToArray());
+                    Face face = Face.MakeFace(srf, curves.ToArray());
+                    if (face!=null) res.Add(face);
                 }
+                return res;
             }
             // here we need to consider more cases:
             // 1.: all curves are in a single plane: make a planar face

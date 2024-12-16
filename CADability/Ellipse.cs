@@ -1687,7 +1687,24 @@ namespace CADability.GeoObject
             {
                 if (Plane.Intersect(fromHere, direction, out GeoPoint p))
                 {
-                    return Geometry.LinePar(fromHere, direction, p); // nicht getestet ob Ellipse auch getroffen
+                    // double planeDistance = Geometry.LinePar(fromHere, direction, p); // the beam hits the plane at this point
+                    double pos = (this as ICurve).PositionOf(p);
+                    if (pos >= 0.0 && pos <= 1.0)
+                    {
+                        GeoPoint pCurve = (this as ICurve).PointAt(pos);
+                        return Geometry.LinePar(fromHere, direction, pCurve);
+                    }
+                    else
+                    {
+                        if ((p | StartPoint)<( p | EndPoint))
+                        {
+                            return Geometry.LinePar(fromHere, direction, StartPoint);
+                        }
+                        else
+                        {
+                            return Geometry.LinePar(fromHere, direction, EndPoint);
+                        }
+                    }
                 }
                 else
                 {

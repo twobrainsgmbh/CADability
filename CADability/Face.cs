@@ -3507,7 +3507,7 @@ namespace CADability.GeoObject
                         forward = true;
                         next = crv;
                     }
-                    d = current.StartPoint | crv.StartPoint;
+                    d = current.EndPoint | crv.EndPoint;
                     if (d < maxDist)
                     {
                         maxDist = d;
@@ -3515,6 +3515,7 @@ namespace CADability.GeoObject
                         next = crv;
                     }
                 }
+                current = next;
                 allCurves.Remove(next);
                 if (!forward) next.Reverse();
                 sortedCurves.Add(next);
