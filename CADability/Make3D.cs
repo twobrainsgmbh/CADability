@@ -1585,7 +1585,7 @@ namespace CADability.GeoObject
 
             // make the bottom and the top cover to close the solid
             Edge e0 = null, e1 = null;
-            foreach (Edge edg in fc0.AllEdgesIterated())
+            foreach (Edge edg in fc0.Edges)
             {
                 if (edg.Curve3D is Ellipse)
                 {
@@ -1593,7 +1593,7 @@ namespace CADability.GeoObject
                     break;
                 }
             }
-            foreach (Edge edg in fc1.AllEdgesIterated())
+            foreach (Edge edg in fc1.Edges)
             {
                 if (edg.Curve3D is Ellipse)
                 {
@@ -1609,7 +1609,7 @@ namespace CADability.GeoObject
             faces.Add(bfc);
 
             Edge e2 = null, e3 = null;
-            foreach (Edge edg in fc2.AllEdgesIterated())
+            foreach (Edge edg in fc2.Edges)
             {
                 if (edg.Curve3D is Ellipse)
                 {
@@ -1617,7 +1617,7 @@ namespace CADability.GeoObject
                     break;
                 }
             }
-            foreach (Edge edg in fc3.AllEdgesIterated())
+            foreach (Edge edg in fc3.Edges)
             {
                 if (edg.Curve3D is Ellipse)
                 {
@@ -1930,7 +1930,7 @@ namespace CADability.GeoObject
         {
             result.Add(startWith);
             allFaces.Remove(startWith);
-            foreach (Edge edge in startWith.AllEdgesIterated())
+            foreach (Edge edge in startWith.Edges)
             {
                 if (allFaces.Contains(edge.PrimaryFace))
                 {

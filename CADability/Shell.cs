@@ -742,7 +742,7 @@ namespace CADability.GeoObject
                     HashSet<Face> backTangential = new HashSet<Face>();
                     foreach (Face face in frontSide)
                     {
-                        foreach (Edge edge in face.AllEdgesIterated())
+                        foreach (Edge edge in face.Edges)
                         {
                             if (edge.IsTangentialEdge() && !frontSide.Contains(edge.OtherFace(face)) && !backSide.Contains(edge.OtherFace(face)))
                             {
@@ -752,7 +752,7 @@ namespace CADability.GeoObject
                     }
                     foreach (Face face in backSide)
                     {
-                        foreach (Edge edge in face.AllEdgesIterated())
+                        foreach (Edge edge in face.Edges)
                         {
                             if (edge.IsTangentialEdge() && !backSide.Contains(edge.OtherFace(face)) && !frontSide.Contains(edge.OtherFace(face)))
                             {
@@ -1636,7 +1636,7 @@ namespace CADability.GeoObject
                     dbgvtx.Add(vertex);
                     dbgext.MinMax(vertex.Position);
                 }
-                foreach (Edge edg in fc.AllEdgesIterated())
+                foreach (Edge edg in fc.Edges)
                 {
                     dbgedg.Add(edg);
                 }
@@ -2254,7 +2254,7 @@ namespace CADability.GeoObject
             // 1. in sich selbst zurückkehrende edges entfernen
             // 2. doppelt vorhandene Edges entfernen und das innere Stück in ein Loch verwandeln
 
-            foreach (Edge edg in fc.AllEdgesIterated())
+            foreach (Edge edg in fc.Edges)
             {
                 List<Edge> connecting = new List<Edge>(Vertex.ConnectingEdges(edg.Vertex1, edg.Vertex2));
                 if (connecting.Count > 1)
@@ -4106,7 +4106,7 @@ namespace CADability.GeoObject
             // 4. noch offene Kanten schließen
             for (int i = 0; i < fcs.Count; i++)
             {
-                foreach (Edge edg in fcs[i].AllEdgesIterated())
+                foreach (Edge edg in fcs[i].Edges)
                 {
                     if (edg.SecondaryFace == null)
                     {
@@ -4627,7 +4627,7 @@ namespace CADability.GeoObject
             Set<Vertex> splitVertices = new Set<Vertex>(); // das sollen alle vertices sein, die in replaceBy sind, aber nicht in affected
             foreach (Face fc in replaceBy)
             {
-                foreach (Edge edg in fc.AllEdgesIterated())
+                foreach (Edge edg in fc.Edges)
                 {
                     if (edg.SecondaryFace == null)
                     {
@@ -4774,7 +4774,7 @@ namespace CADability.GeoObject
             BoundingCube ext = BoundingCube.EmptyBoundingCube;
             for (int i = 0; i < toConnect.Length; i++)
             {
-                foreach (Edge edg in toConnect[i].AllEdgesIterated())
+                foreach (Edge edg in toConnect[i].Edges)
                 {
                     if (edg.SecondaryFace == null)
                     {
@@ -5198,7 +5198,7 @@ namespace CADability.GeoObject
                 // somit ist der folgende Abschnitt noch nicht getestet
                 Set<Edge> freeEdges = new Set<Edge>(OpenEdges); // ggf. als OctTree, ber Edge ist nicht OctTreeInsertable
                 Dictionary<Edge, SortedList<double, Vertex>> edgesToSplit = new Dictionary<Edge, SortedList<double, Vertex>>();
-                foreach (Edge edge in face.AllEdgesIterated())
+                foreach (Edge edge in face.Edges)
                 {
                     foreach (Edge freeEdge in freeEdges)
                     {
@@ -5233,7 +5233,7 @@ namespace CADability.GeoObject
                 }
                 // jetzt entprechen sich Kanten entweder komplett oder garnicht
                 freeEdges = new Set<Edge>(OpenEdges); // ggf. als OctTree, ber Edge ist nicht OctTreeInsertable
-                foreach (Edge edge in face.AllEdgesIterated())
+                foreach (Edge edge in face.Edges)
                 {
                     foreach (Edge freeEdge in freeEdges)
                     {
@@ -5523,7 +5523,7 @@ namespace CADability.GeoObject
                                 edg.DisconnectFromFace(edg.SecondaryFace);
                                 edg.DisconnectFromFace(edg.PrimaryFace);
                             }
-                            foreach (Edge edg in faceToRemove.AllEdgesIterated())
+                            foreach (Edge edg in faceToRemove.Edges)
                             {
                                 if (edg.Vertex1 != null) edg.Vertex1.RemovePositionOnFace(faceToRemove);
                                 if (edg.Vertex2 != null) edg.Vertex2.RemovePositionOnFace(faceToRemove);
@@ -6157,7 +6157,7 @@ namespace CADability.GeoObject
                 Set<Edge> openEdges = new Set<Edge>();
                 foreach (Face fce in saveFeatureFaces)
                 {
-                    foreach (Edge edg in fce.AllEdgesIterated())
+                    foreach (Edge edg in fce.Edges)
                     {
                         if (!saveFeatureFaces.Contains(edg.PrimaryFace))
                         {
