@@ -2894,7 +2894,7 @@ VERTEX_POINT: C:\Zeichnungen\STEP\Ligna - Staab - Halle 1.stp (85207)
                                         //if (2859 == item.definingIndex || 3219 == item.definingIndex)
                                         //    (item.val as Face[])[i].AssureTriangles(0.004); // remove when done
 
-                                        //foreach (Edge edg in (item.val as Face[])[i].AllEdgesIterated())
+                                        //foreach (Edge edg in (item.val as Face[])[i].Edges)
                                         //{
                                         //    if (edg.PrimaryFace != (item.val as Face[])[i]) edg.PrimaryFace.CheckConsistency();
                                         //    if (edg.SecondaryFace != null && edg.SecondaryFace != (item.val as Face[])[i]) edg.SecondaryFace.CheckConsistency();
