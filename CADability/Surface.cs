@@ -4624,7 +4624,6 @@ namespace CADability.GeoObject
         public virtual double MaxDist(GeoPoint2D sp, GeoPoint2D ep, out GeoPoint2D mp)
         {
             GeoPoint sp3d, ep3d; // start und enpunkt in 3d, der maximale Abstand zu dieser Linie wird gesucht
-            GeoVector sn, en, d3d;
             sp3d = PointAt(sp);
             ep3d = PointAt(ep);
             // Kurzfassung zur Überbrückung der Probleme an 3 Stellen messen:

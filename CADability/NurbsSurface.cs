@@ -2120,7 +2120,6 @@ namespace CADability.GeoObject
             {   // Test aut Kugel oder Torus
                 double[] us = GetUSingularities();
                 double[] vs = GetVSingularities();
-                double du;
                 GeoPoint[,] points = new GeoPoint[3, 3];
                 GeoVector[,] normals = new GeoVector[3, 3];
                 double[] upars = GetPars(umin, umax, IsUPeriodic, us, 3);
@@ -2284,7 +2283,6 @@ namespace CADability.GeoObject
             {
                 double[] us = GetUSingularities();
                 double[] vs = GetVSingularities();
-                double du;
                 GeoPoint[,] points = new GeoPoint[3, 3];
                 GeoVector[,] normals = new GeoVector[3, 3];
                 double[] upars = GetPars(umin, umax, IsUPeriodic, us, 3);
