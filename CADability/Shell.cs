@@ -4196,7 +4196,6 @@ namespace CADability.GeoObject
                     Edge innerParallel, outerParallel;
                     if (innerEdges.TryGetValue(oe[i], out innerParallel) && outerEdges.TryGetValue(oe[i], out outerParallel))
                     {
-                        ISurface srf;
                         Edge e1, e2; // die beiden Verbindungslinien
                         Vertex v1 = outerParallel.Vertex1;
                         Vertex v2 = outerParallel.Vertex2;

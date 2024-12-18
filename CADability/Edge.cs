@@ -466,7 +466,7 @@ namespace CADability
         }
         private void SpreadVertex(Vertex v)
         {   // gib diesen Vertex weiter an die mit dieser Kante verbunden Kanten
-            GeoPoint2D pruv, scuv = GeoPoint2D.Origin;
+            GeoPoint2D scuv = GeoPoint2D.Origin;
             if (primaryFace != null)
             {
                 Edge[] adj = primaryFace.FindAdjacentEdges(this);
@@ -3045,7 +3045,6 @@ namespace CADability
             // diese Kante soll ja rausgelöst und ersetzt werden
             if (v2 != null) v2.RemoveEdge(this);
 #if DEBUG
-            DebuggerContainer dc;
             //if (primaryFace.GetHashCode()==2098 || primaryFace.GetHashCode() == 2198)
             //{
             //    dc = primaryFace.DebugEdges2D;

@@ -2050,7 +2050,7 @@ namespace CADability
                     }
                 }
             }
-            bool exchanged;
+
             int dbgcount = 0;
 #if DEBUG
             DebuggerContainer dc = Debug;

@@ -2899,7 +2899,6 @@ namespace CADability.Curve2D
 
         private void SubTriangle(GeoPoint2D p1, GeoPoint2D p2, GeoVector2D v1, GeoVector2D v2, double mp, out GeoPoint2D pm1, out GeoPoint2D pm2, out GeoPoint2D pmm, out GeoVector2D vm)
         {
-            GeoPoint2D ints;
             PointDirAt(mp, out pmm, out vm);
             if (!Geometry.IntersectLL(p1, v1, pmm, vm, out pm1)) throw new BSplineException("internal");
             if (!Geometry.IntersectLL(pmm, vm, p2, v2, out pm2)) throw new BSplineException("internal");
