@@ -7560,7 +7560,6 @@ namespace CADability.GeoObject
             }
             BoxedSurface boxedSurface;
             ISurfaceImpl toIntersectWith;
-            double umin, umax, vmin, vmax; // bezogen auf boxedSurface
             BoundingRect uvSize;
             Dictionary<double, List<IntersectionPoint>> uIntersections; // Schnittpunkte zu festem u bereits bestimmt
             Dictionary<double, List<IntersectionPoint>> vIntersections;
@@ -10565,7 +10564,6 @@ namespace CADability.GeoObject
             }
             BoxedSurfaceEx BoxedSurfaceEx;
             ISurfaceImpl toIntersectWith;
-            double umin, umax, vmin, vmax; // bezogen auf BoxedSurfaceEx
             BoundingRect uvSize;
             Dictionary<double, List<IntersectionPoint>> uIntersections; // Schnittpunkte zu festem u bereits bestimmt
             Dictionary<double, List<IntersectionPoint>> vIntersections;

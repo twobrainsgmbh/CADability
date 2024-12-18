@@ -389,7 +389,6 @@ namespace CADability
 
         private ProjectedModel projectedModel;
         private Project project;
-        private string name; // der Name für die Darstellung im ControlCenter
         private bool zAxisUp;
         internal bool projectedModelNeedsRecalc; // Ansicht wurde mit der Maus gedreht, Quadtree muss berechnet werden
         private static bool UseOpenGl = Settings.GlobalSettings.GetBoolValue("UseOpenGl", true);

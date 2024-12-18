@@ -32,7 +32,6 @@ namespace CADability
             bool isPerspective;
             Plane[] bounds;
             GeoPoint frontCenter;
-            GeoPoint center;
             GeoVector direction;
             Projection projection;
             internal PickArea(Projection projection, RectangleF viewRect)

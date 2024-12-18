@@ -9,7 +9,6 @@ namespace CADability.UserInterface
     internal class GeoObjectListProperty : IShowPropertyImpl, ICommandHandler
     {
         ListWithEvents<IGeoObject> list;
-        bool isDragging;
         string contextMenuId;
         ICommandHandler contextHandler;
         public GeoObjectListProperty(ListWithEvents<IGeoObject> list, string resourceId)

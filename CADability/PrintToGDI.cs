@@ -1462,7 +1462,6 @@ namespace CADability
         List<IPrintItemImpl> currentCollectionList;
         QuadTree<IPrintItemImpl> currentCollectionQuad;
         double currentPrecision;
-        PrintPageEventArgs currentPage;
         Graphics currentGraphics;
         Projection currentProjection;
         GraphicsPath graphicsPath; // wenn!=null wird darauf gezeichnet

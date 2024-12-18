@@ -52,7 +52,6 @@ namespace CADability
     }
     internal class ProjectOldVersionException : ApplicationException
     {
-        private string resourceId; // resourceId für die MessageBox
         public ProjectOldVersionException(string message, Exception innerEx)
             : base(message, innerEx)
         {

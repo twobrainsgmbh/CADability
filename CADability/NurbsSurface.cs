@@ -29,7 +29,6 @@ namespace CADability.GeoObject
         private bool vPeriodic;
         private int upoles, vpoles;
         private double uMinRestrict = 0.0, uMaxRestrict = 0.0, vMinRestrict = 0.0, vMaxRestrict = 0.0; // restriction for periodic surfaces
-        private ImplicitPSurface[,] implicitSurface;
         // nur einer von beiden NURBS Helfern ist besetzt
         private Nurbs<GeoPoint, GeoPointPole> nubs;
         private Nurbs<GeoPointH, GeoPointHPole> nurbs;

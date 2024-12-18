@@ -77,7 +77,6 @@ namespace CADability
         // Animation läuft
         private bool isRunning;
         private bool isPaused;
-        private int startTickCount;
         ISchedule schedule;
         double timeBase; // basis für die Zeitbestimmung, so dass time = (tc - timeBase) / 1000.0 * speed;
         double startTime;

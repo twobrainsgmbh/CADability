@@ -12,7 +12,6 @@ namespace CADability.Actions
     internal class ToolsRoundMultiple : ConstructAction
     {
         private GeoPoint objectPoint; // der (evtl. mittlere) Pickpunkt zum Runden
-        private GeoPoint radiusPoint; // der Pickpunkt der Aufteil-Curve
         private ICurve iCurve1; // zwei Kurven, zum Rundungsbogenberechnen
         private ICurve iCurve2; // 
         private ICurve iCurveOrg; // OrginalKurve, merken zum evtl. Löschen
