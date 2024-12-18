@@ -877,7 +877,6 @@ namespace CADability.GeoObject
     internal class QuadTreeLine : IQuadTreeInsertableZ
     {
         GeoPoint2D sp, ep;
-        double fx, fy, c; // beschreibt die Ebene für den Z-Wert
         IGeoObject go;
         Plane plane;
         double zmax;

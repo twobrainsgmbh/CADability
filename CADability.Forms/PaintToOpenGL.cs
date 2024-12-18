@@ -46,11 +46,9 @@ namespace CADability.Forms
         bool useLineWidth;
         double precision;
         double pixelToWorld;
-        double[] linePattern;
         const int selectBufSize = 1000; // const ist immer auch static
         int[] selectBuf;
         int clientwidth, clientheight;
-        Dictionary<System.Drawing.Bitmap, byte[]> iconCache;
         struct state
         {   // der state wird in einem Stack gehalten und wieder restauriert
             // da können noch mehr Dinge dazukommen

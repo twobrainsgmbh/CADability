@@ -1455,7 +1455,6 @@ namespace CADability
     internal class CurveDriveCurveProperty : PropertyEntryImpl, ICommandHandler
     {
         CurveDrive curveDrive;
-        bool isDragging;
         public CurveDriveCurveProperty(CurveDrive curveDrive)
         {
             this.curveDrive = curveDrive;
@@ -1548,7 +1547,6 @@ namespace CADability
     internal class AxisDriveCurveProperty : PropertyEntryImpl, ICommandHandler
     {
         AxisDrive AxisDrive;
-        bool isDragging;
         public AxisDriveCurveProperty(AxisDrive AxisDrive)
         {
             this.AxisDrive = AxisDrive;

@@ -55,7 +55,6 @@ namespace CADability.Curve2D
         //private GeoVector2D[] interdir; // Richtungen an den Stützpunkten
         //private double[] interparam; // Parameterwerte an den Stützpunkten
         //private GeoPoint2D[] tringulation; // Dreiecks-Zwischenpunkte (einer weniger als interpol)
-        private BoundingRect extend; // Umgebendes Rechteck nur einmal berechnen
         private bool extendIsValid; // schon berechnet?
         private double parameterEpsilon; // ein epsilon, welches sich auf den Parameter bezieht. Abbruch für Iterationen
         private double distanceEpsilon; // ein epsilon, welches sich auf die Ausdehnung bezieht. Abbruch für Iterationen

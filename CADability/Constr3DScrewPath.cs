@@ -16,8 +16,6 @@ namespace CADability.Actions
     {
         private CurveInput pathInput;
         private CurveInput rotateLineInput;
-        private GeoVectorInput axisVectorInput;
-        private GeoPointInput axisPointInput;
         private MultipleChoiceInput orientation;
         private DoubleInput numTurns;
         private bool handed; // true: righthanded, false: lefthanded

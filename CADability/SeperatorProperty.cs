@@ -6,7 +6,6 @@
 
     public class SeperatorProperty : IShowPropertyImpl
     {
-        private string labelText;
         public SeperatorProperty(string resourceId)
         {
             base.resourceId = resourceId;

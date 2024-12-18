@@ -56,7 +56,6 @@ namespace CADability
         public Kind kind;
         public Edge edge;
         public ICurve2D edge2d;
-        double[] visibleParts; // Paare von Intervallgrenzen für die sichtbaren Teilstücke, leer: unsichtbar
     }
 
 

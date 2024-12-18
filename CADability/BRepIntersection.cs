@@ -98,7 +98,6 @@ namespace CADability
             public List<Face> onFaces;
             public GeoPoint position;
         }
-        Dictionary<Edge, Dictionary<double, GeoPoint>> edgesIntersectionPoints;
 
         public BRepIntersection(Shell s1, Shell s2)
         {
@@ -192,9 +191,6 @@ namespace CADability
     }
     class CollectIntersectionCurve
     {
-        Face f1;
-        Face f2;
-
         public CollectIntersectionCurve(Face f1, Face f2, GeoPoint p1, GeoPoint p2)
         {
         }
@@ -1393,9 +1389,7 @@ namespace CADability
         private PlaneSurface splittingOnplane; // when splitting a Shell with a plane, this is the surface
         private bool allowOpenEdges;
         private bool shellsAreUnchanged;
-#if DEBUG
-        Edge debugEdge;
-#endif
+
         Dictionary<DoubleFaceKey, ModOp2D> overlappingFaces; // Faces von verschiedenen Shells, die auf der gleichen Surface beruhen und sich überlappen
         Dictionary<DoubleFaceKey, Set<Edge>> overlappingEdges; // relevante Kanten auf den overlappingFaces
         Dictionary<DoubleFaceKey, ModOp2D> oppositeFaces; // Faces von verschiedenen Shells, die auf der gleichen Surface beruhen und sich überlappen aber verschieden orientiert sind

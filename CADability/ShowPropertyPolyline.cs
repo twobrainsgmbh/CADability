@@ -18,7 +18,6 @@ namespace CADability.UserInterface
         private GeoPointProperty locationProperty; // wg. hotspot merken 
         private GeoPointProperty locationParallelProperty; // wg. hotspot merken 
         private ShowPropertyHotSpot widthHotSpot;
-        private ShowPropertyHotSpot widthParallelHotSpot;
         private ShowPropertyHotSpot heightHotSpot;
         private GeoVectorHotSpot directionHotSpot;
         private GeoVectorHotSpot directionXParallelHotSpot;

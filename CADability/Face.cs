@@ -5875,7 +5875,6 @@ namespace CADability.GeoObject
             return polylines.ToArray();
         }
 
-        private OctTree<TraingleOctTree> triangleOctTree;
         private void Triangulate(double precision)
         {
             SimpleShape ss = Area; // damit es sicher bestimmt ist

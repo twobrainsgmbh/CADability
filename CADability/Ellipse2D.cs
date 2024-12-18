@@ -27,9 +27,7 @@ namespace CADability.Curve2D
         internal ModOp2D fromUnitCircle; // diese Abbildung bildet den Einheitskreis auf die Ellipse ab
         internal GeoPoint2D left, right, bottom, top; // die Extrempunkte
         internal double majrad, minrad, majaxsin, majaxcos;
-        // im folgenden Daten für IVisibleSegments (z_Position)
-        private Plane zPosition; // die Raum-Ebene, in deren Mittelpunkt der Kreis bezüglich seine 2d Darstellung liegt
-
+        
         internal void RecalcUnitCircle()
         {
             // berechnen der beiden ModOps fromUnitCircle und toUnitCircle 

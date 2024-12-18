@@ -52,7 +52,6 @@ namespace CADability
         CompoundShape shape;
         SimpleShape currentSimpleShape;
         QuadTree<ICurve2D> quadtree;
-        double width, height;
         BoundingRect extent;
         double maxWidth;
         double strokeWidth; // die typische "Strichbreite" der Zeichen, wird von außen gesetzt, kann auch 0.0, also ungesetzt sein.
