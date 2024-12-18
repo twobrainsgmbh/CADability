@@ -2125,8 +2125,6 @@ namespace CADability.GeoObject
                 double[] vpars = GetPars(vmin, vmax, IsVPeriodic, vs, 3);
                 GeoPoint[] cnt = new GeoPoint[6];
                 double[] rad = new double[6];
-                double minrad = 0.0;
-                double maxrad = 0.0;
                 bool ok = true;
                 int curvesok = 0;
 #if DEBUG
@@ -5450,7 +5448,6 @@ namespace CADability.GeoObject
 #endif
         static double findBestFitCone(GeoPoint[] samples, GeoVector[] normals, out GeoPoint location, out GeoVector direction, out double halfAngle)
         {
-            double maxError = double.MaxValue;
             for (int i = 0; i < normals.Length; i++)
             {
                 normals[i].NormIfNotNull();

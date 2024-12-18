@@ -367,10 +367,6 @@ namespace CADability.Attribute
                 {
                     hatch.Update();
                 }
-                else
-                {
-                    int dbg = 0;
-                }
             }
             else if (go is Block)
             {

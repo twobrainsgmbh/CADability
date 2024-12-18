@@ -2691,7 +2691,6 @@ namespace CADability
             // GeoPoint2D mp2d = curve2d.PointAt(ipar);
             GeoPoint2D mp2d;
             double dist = surface.MaxDist(parpoint[spar], parpoint[epar], out mp2d);
-            double distCurve = 0.0;
             ipar = curve2d.PositionOf(mp2d);
             //ipar = findMaxDist(spar, epar, curve2d, surface, out dist);
             if (ipar <= spar || ipar >= epar)

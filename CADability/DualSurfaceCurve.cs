@@ -637,7 +637,6 @@ namespace CADability
             if (prec == 0.0) prec = curve3D.Length * 1e-3; // changed to 1e-3, it is used to snap endpoints to poles
             startPoint2d = surface.PositionOf(curve3D.StartPoint);
             endPoint2d = surface.PositionOf(curve3D.EndPoint);
-            bool distinctStartEndPoint = false;
             if ((surface.IsUPeriodic && Math.Abs(startPoint2d.x - endPoint2d.x) < surface.UPeriod * 1e-3) ||
                 (surface.IsVPeriodic && Math.Abs(startPoint2d.y - endPoint2d.y) < surface.VPeriod * 1e-3))
             {   // adjust start and endpoint according to its neighbors
@@ -649,7 +648,6 @@ namespace CADability
                 SurfaceHelper.AdjustPeriodic(surface, periodicDomain, ref p2d);
                 ext.MinMax(p2d);
                 SurfaceHelper.AdjustPeriodic(surface, ext, ref endPoint2d);
-                distinctStartEndPoint = true;
             }
             periodicDomain = domain;
             if (periodicDomain.IsEmpty() && (surface.IsUPeriodic || surface.IsVPeriodic))

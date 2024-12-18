@@ -379,10 +379,6 @@ namespace CADability.Attribute
                 {
                     dim.Recalc();
                 }
-                else
-                {
-                    int dbg = 0;
-                }
             }
             else if (go is Block)
             {

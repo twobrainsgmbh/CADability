@@ -623,7 +623,6 @@ namespace CADability.Forms
                     // Wgl.wglGetCurrentContext();
                     // bool ok = Wgl.wglMakeCurrent(deviceContext, renderContext);
                     // if (ok) 
-                    bool ok = false;
                     // xxx ok = Wgl.wglDeleteContext(renderContext);
                     // man darf ihn hier nicht löschen, da er noch als Context für die SharedLists gebraucht wird
                     lock (ContextsToDelete)

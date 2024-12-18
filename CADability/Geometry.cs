@@ -3081,8 +3081,8 @@ namespace CADability
         /// <param name="radius">radius of the circle</param>
         /// <returns>maximum error</returns>
         public static double CircleFit(GeoPoint2D[] points, out GeoPoint2D center, out double radius)
-        {   // aus GeometricTools, siehe dort auch "Wm4ApprQuadraticFit2.h" für besseren Startwert
-            int maxIterations = 10;
+        {   
+            // aus GeometricTools, siehe dort auch "Wm4ApprQuadraticFit2.h" für besseren Startwert
 
             // initial guess
             // Startwert hier als Schnittpunkt der Mittelsenkrechten
