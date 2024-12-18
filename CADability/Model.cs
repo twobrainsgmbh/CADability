@@ -2079,9 +2079,9 @@ namespace CADability
                     {
                         if (go.HitTest(area, false))
                         {
-                            // wenn Kanten gesucht werden, dann sollen auch Kurven geliefert werden, die
-                            // keine eigentlichen kanten sind. Oder?
-                            if (go.Owner is Edge || go is ICurve)
+                            // looking for edges should only return edges, not curves. If you need curves
+                            // use PickMode.normal
+                            if (go.Owner is Edge) // was: "|| go is ICurve" before
                             {
                                 Layer l = go.Layer;
                                 if (l == null && go.Owner is Edge)
@@ -2115,9 +2115,10 @@ namespace CADability
                                     (visibleLayers.Count == 0 || l == null || visibleLayers.Contains(l)))
                                 {
                                     double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
-                                    if (!toAvoid.Contains(go) || z < zmin - Precision.eps)
-                                    {   // if nothing else is closest, use the object ignoring toAvoid, if an object has the same distance as objects in toAvoid, but is not in toAvoid, use this object
-                                        // this helps to get the other object, if two objects overlap
+                                    if (z < zmin - Precision.eps)
+                                    {   // the toAvoid array contains already selected objects. For faces it might be difficult to select overlapping
+                                        // faces, so we use toAvoid to find the "other" face, which is currently not selected. For curves
+                                        // there is always a way to pick it on a different position, so we don't use toAvoid here
                                         zmin = z;
                                         singleObject = go;
                                     }
@@ -2149,7 +2150,7 @@ namespace CADability
                                 (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer)))
                             {
                                 double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
-                                if (!toAvoid.Contains(go) || z < zmin - Precision.eps)
+                                if (!toAvoid.Contains(go) && z < zmin - Precision.eps)
                                 {   // if nothing else is closest, use the object ignoring toAvoid, if an object has the same distance as objects in toAvoid, but is not in toAvoid, use this object
                                     // this helps to get the other object, if two objects overlap
                                     zmin = z;

@@ -2434,11 +2434,12 @@ namespace CADability.GeoObject
                 if (Precision.SameDirection(this.Axis, (other as PlaneSurface).Normal, false))
                 {
                     Plane unitPlane = toUnit * (other as PlaneSurface).Plane;
-                    if (Math.Abs(unitPlane.Location.z) <= Math.Abs(minorRadius))
+                    if (Math.Abs(unitPlane.Location.z) <= Math.Abs(minorRadius) + Precision.eps)
                     {
                         List<IDualSurfaceCurve> res = new List<IDualSurfaceCurve>();
-                        double v1 = Math.Asin(unitPlane.Location.z / minorRadius); // -pi/2 ... +pi/2
+                        double v1 = Math.Asin(Math.Max(Math.Min((unitPlane.Location.z / minorRadius), 1), -1)); // -pi/2 ... +pi/2
                         double v2 = Math.PI - v1;
+                        if (v1 < 0) v2 = -Math.PI - v1;
                         if (Math.Abs(v1 - v2) < 1e-6)
                         {   // single solution
                             double v = Math.PI / 2.0;
@@ -2491,9 +2492,9 @@ namespace CADability.GeoObject
                     }
                 }
             }
-            if (other is CylindricalSurface cylindricalSurface) 
+            if (other is CylindricalSurface cylindricalSurface)
             {   // we need tangential points to split the result there
-                IDualSurfaceCurve[] res = cylindricalSurface.GetDualSurfaceCurves(otherBounds,this,thisBounds,seeds,extremePositions);
+                IDualSurfaceCurve[] res = cylindricalSurface.GetDualSurfaceCurves(otherBounds, this, thisBounds, seeds, extremePositions);
                 if (res != null)
                 {
                     for (int i = 0; i < res.Length; i++)

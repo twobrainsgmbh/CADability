@@ -50,8 +50,40 @@ namespace CADability
         private void ShowContextMenu(Point mousePoint, IView vw)
         {
             currentView = vw;
-            GeoObjectList result = new GeoObjectList();
 
+            HashSet<Edge> selectedEdges = new HashSet<Edge>();
+            HashSet<Face> selectedFaces = new HashSet<Face>();
+            if (soa.IsAccumulating)
+            {   // we have been accumulating edges or faces, now we want to do something with this collection
+                // this right click should not add or remove some more objects to or from the selection
+                // but try to find a "feature" and show a menu to handle it
+                List<MenuWithHandler> cmaccu = new List<MenuWithHandler>(); // build a context menue for the accumulation case
+                GeoObjectList selectedObjects = soa.GetSelectedObjects();
+                foreach (IGeoObject go in selectedObjects)
+                {
+                    if (go is ICurve && go.Owner is Edge edg) selectedEdges.Add(edg);
+                    if (go is Face fc) selectedFaces.Add(fc);
+                }
+                if (selectedEdges.Any())
+                {
+                    Shell edgesShell = null;
+                    if (selectedEdges.Count > 0) edgesShell = (selectedEdges.First().Owner as Face).Owner as Shell;
+                    if (edgesShell != null)
+                    {
+                        if (edgesShell.FeatureFromLoops(selectedEdges, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
+                        {
+                            // there is a feature
+                            cmaccu.Add(CreateFeatureMenu(vw, featureFaces, connection, isGap));
+                        }
+                    }
+
+                }
+
+                cmaccu.AddRange(CreateGeneralContextMenus(vw)); // the menu "Show"
+                mousePoint.X += vw.DisplayRectangle.Width / 8; // find a better place for the menu position, using the extent of the objects
+                vw.Canvas.ShowContextMenu(cmaccu.ToArray(), mousePoint, ContextMenuCollapsed);
+                return;
+            }
             int pickRadius = soa.Frame.GetIntSetting("Select.PickRadius", 5);
             Projection.PickArea pa = vw.Projection.GetPickSpace(new Rectangle(mousePoint.X - pickRadius, mousePoint.Y - pickRadius, pickRadius * 2, pickRadius * 2));
             IActionInputView pm = vw as IActionInputView;
@@ -118,7 +150,7 @@ namespace CADability
                     }
                 }
             }
-            curves = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), PickMode.onlyEdges, null); // returns edges and curves
+            curves = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), PickMode.onlyEdges, null); // returns only edges
             edges = new List<Edge>();
             // we only accept edges, which belong to one of the selected faces
             for (int i = curves.Count - 1; i >= 0; --i)
@@ -144,8 +176,6 @@ namespace CADability
 
             // we also need access to the already selected edges and faces to 
             GeoObjectList selobj = soa.GetSelectedObjects();
-            HashSet<Edge> selectedEdges = new HashSet<Edge>();
-            HashSet<Face> selectedFaces = new HashSet<Face>();
             foreach (IGeoObject go in selobj)
             {
                 if (go is ICurve && go.Owner is Edge edg) selectedEdges.Add(edg);
@@ -159,10 +189,10 @@ namespace CADability
                 {
                     if (edgesShell.FeatureFromLoops(selectedEdges, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
                     {
-                        features.Add((featureFaces,connection, isGap));
+                        features.Add((featureFaces, connection, isGap));
                     }
                 }
-                    
+
             }
             List<MenuWithHandler> cm = new List<MenuWithHandler>();
 
@@ -179,92 +209,7 @@ namespace CADability
                 }
                 for (int i = 0; i < features.Count; i++)
                 {
-                    List<Face> featureI = new List<Face>(features[i].faces);
-                    MenuWithHandler mh = new MenuWithHandler("MenuId.Feature");
-                    mh.OnSelected = (m, selected) =>
-                    {
-                        currentMenuSelection.Clear();
-                        currentMenuSelection.AddRange(featureI.ToArray());
-                        currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
-                    };
-                    MenuWithHandler positionFeature = new MenuWithHandler("MenuId.Feature.Position");
-                    MenuWithHandler nameFeature = new MenuWithHandler("MenuId.Feature.Name");
-                    MenuWithHandler removeFeature = new MenuWithHandler("MenuId.Feature.Remove");
-                    mh.SubMenus = new MenuWithHandler[] { positionFeature, nameFeature, removeFeature };
-                    // this is very rudimentary. We have to provide a version of ParametricsDistanceAction, where you can select from and to object. Only axis is implemented
-                    Shell shell = featureI[0].Owner as Shell;
-                    GeoObjectList fa = shell.FeatureAxis;
-                    Line axis = null;
-                    foreach (IGeoObject geoObject in fa)
-                    {
-                        Face axisOf = geoObject.UserData.GetData("CADability.AxisOf") as Face;
-                        if (axisOf != null)
-                        {
-                            if (featureI.Contains(axisOf))
-                            {
-                                axis = geoObject as Line;
-                            }
-                        }
-                        if (axis != null) break;
-                    }
-                    positionFeature.OnCommand = (menuId) =>
-                    {
-                        ParametricsDistanceActionOld pd = new ParametricsDistanceActionOld(featureI, soa.Frame);
-                        soa.Frame.SetAction(pd);
-                        return true;
-                    };
-                    positionFeature.OnSelected = (menuId, selected) =>
-                    {
-                        currentMenuSelection.Clear();
-                        currentMenuSelection.AddRange(featureI.ToArray());
-                        currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
-                    };
-                    nameFeature.OnCommand = (menuId) =>
-                    {
-                        string name = shell.GetNewFeatureName();
-                        shell.AddFeature(name, featureI);
-                        if (shell.Owner is Solid sld)
-                        {
-                            soa.SetSelectedObject(sld);
-                            IPropertyEntry toEdit = soa.Frame.ControlCenter.FindItem(name);
-                            if (toEdit != null)
-                            {
-                                
-                                List<IPropertyEntry> parents = new List<IPropertyEntry>();
-                                if (toEdit != null)
-                                {
-                                    IPropertyEntry p = toEdit;
-                                    while ((p = p.Parent as IPropertyEntry) != null)
-                                    {
-                                        parents.Add(p);
-                                    }
-                                    IPropertyPage propertyPage = parents[parents.Count-1].Parent as IPropertyPage;
-                                    if (propertyPage != null)
-                                    {
-                                        for (int k = parents.Count - 1; k >= 0; --k)
-                                        {
-                                            propertyPage.OpenSubEntries(parents[k], true);
-                                        }
-                                        toEdit.StartEdit(false);
-                                    }
-                                }
-                            }
-                        }
 
-                        return true;
-                    };
-                    nameFeature.OnSelected = (menuId, selected) =>
-                    {
-                        currentMenuSelection.Clear();
-                        currentMenuSelection.AddRange(featureI.ToArray());
-                        currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
-                    };
-                    removeFeature.OnCommand = (menuId) =>
-                    {
-                        shell.RemoveFeature(featureI);
-                        return true;
-                    };
-                    cm.Add(mh);
                 }
             }
             for (int i = 0; i < curves.Count; i++)
@@ -298,7 +243,7 @@ namespace CADability
                 selectMoreEdges.OnCommand = (menuId) =>
                 {
                     soa.SetSelectedObject(edgeI.Curve3D as IGeoObject);
-                    soa.OverwriteMode(PickMode.onlyEdges);
+                    soa.Accumulate(PickMode.onlyEdges);
                     return true;
                 };
                 lmh.AddRange(edges[i].GetContextMenu(soa.Frame));
@@ -318,7 +263,7 @@ namespace CADability
                 selectMoreFaces.OnCommand = (menuId) =>
                 {
                     soa.SetSelectedObject(faceI);
-                    soa.OverwriteMode(PickMode.onlyFaces);
+                    soa.Accumulate(PickMode.onlyFaces);
                     return true;
                 };
                 lmh.AddRange(GetFacesSubmenus(faces[i]));
@@ -411,77 +356,213 @@ namespace CADability
                 mh.Target = this;
                 cm.Add(mh);
             }
-            {   // selection independent menu items
-                MenuWithHandler mh = new MenuWithHandler();
-                mh.ID = "MenuId.Show";
-                mh.Text = StringTable.GetString("MenuId.Show", StringTable.Category.label);
-                MenuWithHandler mhShowHidden = new MenuWithHandler();
-                mhShowHidden.ID = "MenuId.ShowHidden";
-                mhShowHidden.Text = StringTable.GetString("MenuId.ShowHidden", StringTable.Category.label);
-                mhShowHidden.OnCommand = (menuId) =>
-                {
-                    foreach (IGeoObject geoObject in vw.Model)
-                    {
-                        if (geoObject.Layer != null && geoObject.Layer.Name == "CADability.Hidden")
-                        {
-                            Layer layer = geoObject.UserData.GetData("CADability.OriginalLayer") as Layer;
-                            if (layer != null) geoObject.Layer = layer;
-                        }
-                    }
-                    return true;
-                };
-                MenuWithHandler mhShowAxis = new MenuWithHandler();
-                mhShowAxis.ID = "MenuId.ShowAxis";
-                mhShowAxis.Text = StringTable.GetString("MenuId.ShowAxis", StringTable.Category.label);
-                mhShowAxis.OnCommand = (menuId) =>
-                {
-                    bool isOn = false;
-                    foreach (IGeoObject geoObject in vw.Model)
-                    {
-                        Shell shell = null;
-                        if (geoObject is Solid solid) shell = solid.Shells[0];
-                        else if (geoObject is Shell sh) shell = sh;
-                        if (shell != null && shell.FeatureAxis.Count > 0)
-                        {
-                            isOn = shell.FeatureAxis[0].IsVisible;
-                            break;
-                        }
-                    }
-
-                    using (vw.Canvas.Frame.Project.Undo.UndoFrame)
-                    {
-                        foreach (IGeoObject geoObject in vw.Model)
-                        {
-                            if (geoObject is Solid solid) solid.ShowFeatureAxis = !isOn;
-                            else if (geoObject is Shell shell) shell.ShowFeatureAxis = !isOn;
-                        }
-                    }
-                    return true;
-                };
-                mhShowAxis.OnUpdateCommand = (menuId, commandState) =>
-                {
-                    bool isOn = false;
-                    foreach (IGeoObject geoObject in vw.Model)
-                    {
-                        Shell shell = null;
-                        if (geoObject is Solid solid) shell = solid.Shells[0];
-                        else if (geoObject is Shell sh) shell = sh;
-                        if (shell != null && shell.FeatureAxis.Count > 0)
-                        {
-                            isOn = shell.FeatureAxis[0].IsVisible;
-                            break;
-                        }
-                    }
-                    commandState.Checked = isOn;
-                    return true;
-                };
-                mh.SubMenus = new MenuWithHandler[] { mhShowHidden, mhShowAxis };
-                mh.Target = this;
-                cm.Add(mh);
-            }
+            cm.AddRange(CreateGeneralContextMenus(vw));
             vw.SetPaintHandler(PaintBuffer.DrawingAspect.Select, new PaintView(OnRepaintSelect));
             mousePoint.X += vw.DisplayRectangle.Width / 8; // find a better place for the menu position, using the extent of the objects
             vw.Canvas.ShowContextMenu(cm.ToArray(), mousePoint, ContextMenuCollapsed);
+        }
+        /// <summary>
+        /// Create a submenu for a feature. This enables the user to name, remove (and add to clipboard) the feature, or splt the solid 
+        /// into feature and remaining parts
+        /// </summary>
+        /// <param name="vw"></param>
+        /// <param name="featureFaces"></param>
+        /// <param name="connection"></param>
+        /// <param name="isGap"></param>
+        /// <returns></returns>
+        private MenuWithHandler CreateFeatureMenu(IView vw, IEnumerable<Face> featureFaces, List<Face> connection, bool isGap)
+        {
+            List<Face> ff = new List<Face>(featureFaces.Select(fc => fc.Clone() as Face));
+            foreach (Face fc in connection)
+            {
+                fc.ReverseOrientation();
+            }
+            ff.AddRange(connection.Select(fc => fc.Clone() as Face));
+            BoundingCube ext = BoundingCube.EmptyBoundingCube;
+            ext.MinMax(ff);
+            Shell.connectFaces(ff.ToArray(), Math.Max(Precision.eps,ext.Size*1e-6));
+            Shell feature = Shell.FromFaces(ff.ToArray());
+#if DEBUG
+            bool ok = feature.CheckConsistency();
+#endif
+            Solid featureSolid = Solid.MakeSolid(feature);
+            Shell shell = featureFaces.First().Owner as Shell; // this is the original shell of the solid
+            MenuWithHandler mh = new MenuWithHandler("MenuId.Feature");
+            mh.OnSelected = (m, selected) =>
+            {
+                currentMenuSelection.Clear();
+                currentMenuSelection.Add(feature);
+                currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+            };
+            MenuWithHandler positionFeature = new MenuWithHandler("MenuId.Feature.Position");
+            MenuWithHandler nameFeature = new MenuWithHandler("MenuId.Feature.Name");
+            MenuWithHandler removeFeature = new MenuWithHandler("MenuId.Feature.Remove");
+            MenuWithHandler splitFeature = new MenuWithHandler("MenuId.Feature.Split");
+            mh.SubMenus = new MenuWithHandler[] { positionFeature, nameFeature, removeFeature, splitFeature };
+            // this is very rudimentary. We have to provide a version of ParametricsDistanceAction, where you can select from and to object. Only axis is implemented
+            GeoObjectList fa = feature.FeatureAxis;
+            Line axis = null;
+            //foreach (IGeoObject geoObject in fa)
+            //{
+            //    Face axisOf = geoObject.UserData.GetData("CADability.AxisOf") as Face;
+            //    if (axisOf != null)
+            //    {
+            //        if (featureI.Contains(axisOf))
+            //        {
+            //            axis = geoObject as Line;
+            //        }
+            //    }
+            //    if (axis != null) break;
+            //}
+            positionFeature.OnCommand = (menuId) =>
+            {
+                ParametricsDistanceActionOld pd = new ParametricsDistanceActionOld(feature, soa.Frame);
+                soa.Frame.SetAction(pd);
+                return true;
+            };
+            positionFeature.OnSelected = (menuId, selected) =>
+            {
+                currentMenuSelection.Clear();
+                currentMenuSelection.Add(feature);
+                currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+            };
+            nameFeature.OnCommand = (menuId) =>
+            {
+                string name = shell.GetNewFeatureName();
+                shell.AddFeature(name, featureFaces);
+                if (shell.Owner is Solid sld)
+                {
+                    soa.SetSelectedObject(sld);
+                    IPropertyEntry toEdit = soa.Frame.ControlCenter.FindItem(name);
+                    if (toEdit != null)
+                    {
+
+                        List<IPropertyEntry> parents = new List<IPropertyEntry>();
+                        if (toEdit != null)
+                        {
+                            IPropertyEntry p = toEdit;
+                            while ((p = p.Parent as IPropertyEntry) != null)
+                            {
+                                parents.Add(p);
+                            }
+                            IPropertyPage propertyPage = parents[parents.Count - 1].Parent as IPropertyPage;
+                            if (propertyPage != null)
+                            {
+                                for (int k = parents.Count - 1; k >= 0; --k)
+                                {
+                                    propertyPage.OpenSubEntries(parents[k], true);
+                                }
+                                toEdit.StartEdit(false);
+                            }
+                        }
+                    }
+                }
+
+                return true;
+            };
+            nameFeature.OnSelected = (menuId, selected) =>
+            {
+                currentMenuSelection.Clear();
+                currentMenuSelection.Add(feature);
+                currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+            };
+            removeFeature.OnCommand = (menuId) =>
+            {
+                Solid solid = shell.Owner as Solid;
+                Solid[] remaining = Solid.Subtract(solid, featureSolid);
+                if (remaining != null && remaining.Length>0)
+                {
+                    IGeoObjectOwner owner = solid.Owner;
+                    owner.Remove(solid);
+                    for (int i=0; i<remaining.Length; ++i) owner.Add(remaining[i]);
+                }
+                return true;
+            };
+            splitFeature.OnCommand = (menuId) =>
+            {
+                Solid solid = shell.Owner as Solid;
+                Solid[] remaining = Solid.Subtract(solid, featureSolid);
+                if (remaining != null && remaining.Length > 0)
+                {
+                    IGeoObjectOwner owner = solid.Owner;
+                    owner.Remove(solid);
+                    for (int i = 0; i < remaining.Length; ++i) owner.Add(remaining[i]);
+                    owner.Add(featureSolid);
+                }
+                return true;
+            };
+            return mh;
+        }
+
+        private IEnumerable<MenuWithHandler> CreateGeneralContextMenus(IView vw)
+        {
+            // selection independent menu items
+            MenuWithHandler mh = new MenuWithHandler();
+            mh.ID = "MenuId.Show";
+            mh.Text = StringTable.GetString("MenuId.Show", StringTable.Category.label);
+            MenuWithHandler mhShowHidden = new MenuWithHandler();
+            mhShowHidden.ID = "MenuId.ShowHidden";
+            mhShowHidden.Text = StringTable.GetString("MenuId.ShowHidden", StringTable.Category.label);
+            mhShowHidden.OnCommand = (menuId) =>
+            {
+                foreach (IGeoObject geoObject in vw.Model)
+                {
+                    if (geoObject.Layer != null && geoObject.Layer.Name == "CADability.Hidden")
+                    {
+                        Layer layer = geoObject.UserData.GetData("CADability.OriginalLayer") as Layer;
+                        if (layer != null) geoObject.Layer = layer;
+                    }
+                }
+                return true;
+            };
+            MenuWithHandler mhShowAxis = new MenuWithHandler();
+            mhShowAxis.ID = "MenuId.ShowAxis";
+            mhShowAxis.Text = StringTable.GetString("MenuId.ShowAxis", StringTable.Category.label);
+            mhShowAxis.OnCommand = (menuId) =>
+            {
+                bool isOn = false;
+                foreach (IGeoObject geoObject in vw.Model)
+                {
+                    Shell shell = null;
+                    if (geoObject is Solid solid) shell = solid.Shells[0];
+                    else if (geoObject is Shell sh) shell = sh;
+                    if (shell != null && shell.FeatureAxis.Count > 0)
+                    {
+                        isOn = shell.FeatureAxis[0].IsVisible;
+                        break;
+                    }
+                }
+
+                using (vw.Canvas.Frame.Project.Undo.UndoFrame)
+                {
+                    foreach (IGeoObject geoObject in vw.Model)
+                    {
+                        if (geoObject is Solid solid) solid.ShowFeatureAxis = !isOn;
+                        else if (geoObject is Shell shell) shell.ShowFeatureAxis = !isOn;
+                    }
+                }
+                return true;
+            };
+            mhShowAxis.OnUpdateCommand = (menuId, commandState) =>
+            {
+                bool isOn = false;
+                foreach (IGeoObject geoObject in vw.Model)
+                {
+                    Shell shell = null;
+                    if (geoObject is Solid solid) shell = solid.Shells[0];
+                    else if (geoObject is Shell sh) shell = sh;
+                    if (shell != null && shell.FeatureAxis.Count > 0)
+                    {
+                        isOn = shell.FeatureAxis[0].IsVisible;
+                        break;
+                    }
+                }
+                commandState.Checked = isOn;
+                return true;
+            };
+            mh.SubMenus = new MenuWithHandler[] { mhShowHidden, mhShowAxis };
+            mh.Target = this;
+            return new[] { mh };
         }
 
         private class FeatureCommandHandler : MenuWithHandler, ICommandHandler
@@ -576,7 +657,7 @@ namespace CADability
                             }
                         }
                     }
-                    soa.ResetMode();
+                    soa.StopAccumulate();
                     return true;
                 };
                 fd.OnSelected = (mh, selected) =>

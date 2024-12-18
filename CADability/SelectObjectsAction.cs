@@ -664,16 +664,31 @@ namespace CADability.Actions
                 accumulateObjects = false;
             }
         }
-        public void OverwriteMode(PickMode mode)
+        /// <summary>
+        /// Starts the accumulation mode: each click adds to the selection, regardless whether the ctrl key is pressed or not.
+        /// Used by feature definition and maybe in other situations.
+        /// </summary>
+        /// <param name="mode"></param>
+        public void Accumulate(PickMode mode)
         {
             oldPickMode = this.pickMode;
             this.pickMode = mode;
             accumulateObjects = true;
         }
-        public void ResetMode()
+        /// <summary>
+        /// Stops the accumulation mode (<seealso cref="Accumulate(PickMode)"/>
+        /// </summary>
+        public void StopAccumulate()
         {
             accumulateObjects = false;
             pickMode = oldPickMode;
+        }
+        /// <summary>
+        /// Detects whether the accumulate mode is on (<seealso cref="Accumulate(PickMode)"/>
+        /// </summary>
+        public bool IsAccumulating
+        {
+            get { return accumulateObjects; }
         }
         /// <summary>
         /// Adds the provided GeoObject to the list of selected objects.
@@ -994,7 +1009,7 @@ namespace CADability.Actions
                     //vw.RemovePaintHandler(PaintBuffer.DrawingAspect.Select, new RepaintView(OnRepaintSelect));
                     vw.RemovePaintHandler(PaintBuffer.DrawingAspect.Select, new PaintView(OnRepaintSelect));
                 }
-                ResetMode(); // when the context menu did switch to a collecting mode, we must stop it here
+                StopAccumulate(); // when the context menu did switch to a collecting mode, we must stop it here
             }
             base.Frame.SettingChangedEvent -= new SettingChangedDelegate(OnSettingChanged);
             Model m = base.Frame.Project.GetActiveModel();

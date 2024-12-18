@@ -3486,7 +3486,7 @@ namespace CADability.GeoObject
             if (surface is ISurfaceImpl si) si.usedArea = Domain;
         }
         internal static Face MakeFace(ISurface surface, IEnumerable<ICurve> outline)
-        {   
+        {
             // simple linear search for best curve
             HashSet<ICurve> allCurves = new HashSet<ICurve>(outline);
             List<ICurve> sortedCurves = new List<ICurve>();
@@ -3501,13 +3501,13 @@ namespace CADability.GeoObject
                 foreach (ICurve crv in allCurves)
                 {
                     double d = current.EndPoint | crv.StartPoint;
-                    if (d<maxDist)
+                    if (d < maxDist)
                     {
                         maxDist = d;
                         forward = true;
                         next = crv;
                     }
-                    d = current.StartPoint | crv.StartPoint;
+                    d = current.EndPoint | crv.EndPoint;
                     if (d < maxDist)
                     {
                         maxDist = d;
@@ -3515,16 +3515,31 @@ namespace CADability.GeoObject
                         next = crv;
                     }
                 }
+                current = next;
                 allCurves.Remove(next);
                 if (!forward) next.Reverse();
                 sortedCurves.Add(next);
+            }
+            ICurve2D[] bounds2d = new ICurve2D[sortedCurves.Count];
+            for (int i = 0; i < sortedCurves.Count; ++i)
+            {
+                bounds2d[i] = surface.GetProjectedCurve(sortedCurves[i], 0.0);
+            }
+            double area = Border.SignedArea(bounds2d);
+            if (area<0)
+            {
+                sortedCurves.Reverse();
+                for (int i = 0; i < sortedCurves.Count; i++)
+                {
+                    sortedCurves[i].Reverse();
+                }
             }
             Edge[] edges = new Edge[sortedCurves.Count];
             Face res = Face.Construct();
             res.surface = surface;
             for (int i = 0; i < sortedCurves.Count; i++)
             {
-                edges[i] = new Edge(res, sortedCurves[i], res, surface.GetProjectedCurve(sortedCurves[i],0.0), true);
+                edges[i] = new Edge(res, sortedCurves[i], res, surface.GetProjectedCurve(sortedCurves[i], 0.0), true);
             }
             res.Set(surface, new Edge[][] { edges }, true);
             return res;
@@ -9027,14 +9042,37 @@ namespace CADability.GeoObject
             foreach (Edge edg in AllEdgesIterated())
             {
                 edg.Orient(); // ModifyCurve2D unsets the "oriented"-Flag of the edge. Maybe the edge has already been oriented, so ReverseOrientation(this) doesn't help
-                if (edg.Curve3D is InterpolatedDualSurfaceCurve)
-                {
-                    if (edg.PrimaryFace == this) edg.Curve3D = new InterpolatedDualSurfaceCurve(this.surface, modifiedBounds, edg.SecondaryFace.surface, edg.SecondaryFace.Area.GetExtent(), (edg.Curve3D as InterpolatedDualSurfaceCurve).BasePoints);
-                    else edg.Curve3D = new InterpolatedDualSurfaceCurve(edg.PrimaryFace.surface, edg.PrimaryFace.Area.GetExtent(), this.surface, modifiedBounds, (edg.Curve3D as InterpolatedDualSurfaceCurve).BasePoints);
-                    edg.PrimaryCurve2D = (edg.Curve3D as InterpolatedDualSurfaceCurve).CurveOnSurface1;
-                    if (!edg.Forward(edg.PrimaryFace)) edg.PrimaryCurve2D.Reverse();
-                    edg.SecondaryCurve2D = (edg.Curve3D as InterpolatedDualSurfaceCurve).CurveOnSurface2;
-                    if (!edg.Forward(edg.SecondaryFace)) edg.SecondaryCurve2D.Reverse();
+                if (edg.Curve3D is InterpolatedDualSurfaceCurve idsc)
+                {   // Repair InterpolatedDualSurfaceCurves 
+                    if (edg.SecondaryFace == null)
+                    {   // the face is not connected to one of the surfaces of the idsc. Find the other surface
+                        ISurface otherSurface = null;
+                        BoundingRect otherDomain = BoundingRect.EmptyBoundingRect;
+                        if (idsc.Surface2.SameGeometry(idsc.Domain2, this.surface, modifiedBounds,0.0, out ModOp2D m2d))
+                        {
+                            otherSurface = idsc.Surface1;
+                            otherDomain = idsc.Domain1;
+                        }
+                        else
+                        {
+                            otherSurface = idsc.Surface2;
+                            otherDomain = idsc.Domain2;
+                        }
+                        edg.Curve3D = new InterpolatedDualSurfaceCurve(this.surface, modifiedBounds, otherSurface, otherDomain, (edg.Curve3D as InterpolatedDualSurfaceCurve).BasePoints);
+                        edg.PrimaryCurve2D = (edg.Curve3D as InterpolatedDualSurfaceCurve).CurveOnSurface1;
+                        if (!edg.Forward(edg.PrimaryFace)) edg.PrimaryCurve2D.Reverse();
+                        edg.SecondaryCurve2D = (edg.Curve3D as InterpolatedDualSurfaceCurve).CurveOnSurface2;
+                        if (!edg.Forward(edg.SecondaryFace)) edg.SecondaryCurve2D.Reverse();
+                    }
+                    else
+                    {
+                        if (edg.PrimaryFace == this) edg.Curve3D = new InterpolatedDualSurfaceCurve(this.surface, modifiedBounds, edg.SecondaryFace.surface, edg.SecondaryFace.Area.GetExtent(), (edg.Curve3D as InterpolatedDualSurfaceCurve).BasePoints);
+                        else edg.Curve3D = new InterpolatedDualSurfaceCurve(edg.PrimaryFace.surface, edg.PrimaryFace.Area.GetExtent(), this.surface, modifiedBounds, (edg.Curve3D as InterpolatedDualSurfaceCurve).BasePoints);
+                        edg.PrimaryCurve2D = (edg.Curve3D as InterpolatedDualSurfaceCurve).CurveOnSurface1;
+                        if (!edg.Forward(edg.PrimaryFace)) edg.PrimaryCurve2D.Reverse();
+                        edg.SecondaryCurve2D = (edg.Curve3D as InterpolatedDualSurfaceCurve).CurveOnSurface2;
+                        if (!edg.Forward(edg.SecondaryFace)) edg.SecondaryCurve2D.Reverse();
+                    }
                 }
             }
             area = null;
