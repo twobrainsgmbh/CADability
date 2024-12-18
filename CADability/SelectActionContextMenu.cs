@@ -378,8 +378,13 @@ namespace CADability
                 fc.ReverseOrientation();
             }
             ff.AddRange(connection.Select(fc => fc.Clone() as Face));
-            Shell.connectFaces(ff.ToArray(), 0.0);
+            BoundingCube ext = BoundingCube.EmptyBoundingCube;
+            ext.MinMax(ff);
+            Shell.connectFaces(ff.ToArray(), Math.Max(Precision.eps,ext.Size*1e-6));
             Shell feature = Shell.FromFaces(ff.ToArray());
+#if DEBUG
+            bool ok = feature.CheckConsistency();
+#endif
             Solid featureSolid = Solid.MakeSolid(feature);
             Shell shell = featureFaces.First().Owner as Shell; // this is the original shell of the solid
             MenuWithHandler mh = new MenuWithHandler("MenuId.Feature");

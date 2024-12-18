@@ -6631,7 +6631,7 @@ namespace CADability.GeoObject
                         surfaceEdges.UnionWith(fc.Edges);
                     }
                     surfaceEdges.IntersectWith(loop);
-                    List<ICurve> curves = new List<ICurve>(surfaceEdges.Select(edge => edge.Curve3D));
+                    List<ICurve> curves = new List<ICurve>(surfaceEdges.Select(edge => edge.Curve3D.Clone()));
                     curves.AddRange(intersections[srf].Select(dsc => dsc.Curve3D));
                     Face face = Face.MakeFace(srf, curves.ToArray());
                     if (face!=null) res.Add(face);

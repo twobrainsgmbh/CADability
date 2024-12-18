@@ -2150,7 +2150,7 @@ namespace CADability
                                 (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer)))
                             {
                                 double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
-                                if (!toAvoid.Contains(go) || z < zmin - Precision.eps)
+                                if (!toAvoid.Contains(go) && z < zmin - Precision.eps)
                                 {   // if nothing else is closest, use the object ignoring toAvoid, if an object has the same distance as objects in toAvoid, but is not in toAvoid, use this object
                                     // this helps to get the other object, if two objects overlap
                                     zmin = z;

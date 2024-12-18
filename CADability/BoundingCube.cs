@@ -250,6 +250,17 @@ namespace CADability
             if (b.Zmin < Zmin) Zmin = b.Zmin;
             if (b.Zmax > Zmax) Zmax = b.Zmax;
         }
+        /// <summary>
+        /// Makes this BoundingCube include all the specified objects
+        /// </summary>
+        /// <param name="objects"></param>
+        public void MinMax(IEnumerable<IGeoObject> objects)
+        {
+            foreach (IGeoObject go in objects)
+            {
+                MinMax(go.GetExtent(0.0));
+            }
+        }
         public static BoundingCube operator +(BoundingCube b1, BoundingCube b2)
         {
             return new BoundingCube(Math.Min(b1.Xmin, b2.Xmin), Math.Max(b1.Xmax, b2.Xmax), Math.Min(b1.Ymin, b2.Ymin), Math.Max(b1.Ymax, b2.Ymax), Math.Min(b1.Zmin, b2.Zmin), Math.Max(b1.Zmax, b2.Zmax));
