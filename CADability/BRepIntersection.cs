@@ -1458,7 +1458,6 @@ namespace CADability
 #if DEBUG
             DebuggerContainer dcedges = new DebuggerContainer();
             DebuggerContainer dcfaces = new DebuggerContainer();
-            int dbgcnt = 0;
             foreach (EdgeFaceKey ef in edgesToFaces.Keys)
             {
                 dcedges.Add(ef.edge.Curve3D as IGeoObject, ef.edge.GetHashCode());
@@ -3256,7 +3255,6 @@ namespace CADability
             {
                 DebuggerContainer dc = new DebuggerContainer();
                 dbgFaceTointersectionEdges[kv.Key] = dc;
-                int dbgc = 0;
                 double arrowSize = kv.Key.Area.GetExtent().Size * 0.02;
                 dc.Add(kv.Value, kv.Key, arrowSize, Color.Red, 0);
                 dc.Add(kv.Key.Edges, kv.Key, arrowSize, Color.Blue, 0);
@@ -3277,7 +3275,6 @@ namespace CADability
             {
                 DebuggerContainer dc = new DebuggerContainer();
                 dbgEdgePositions[kv.Key] = dc;
-                int dbgc = 0;
                 double arrowSize = kv.Key.Area.GetExtent().Size * 0.02;
                 dc.Add(kv.Value, kv.Key, arrowSize, Color.Red, 0);
                 dc.Add(kv.Key.Edges, kv.Key, arrowSize, Color.Blue, 0);
@@ -3499,7 +3496,6 @@ namespace CADability
                 {
                     if (Math.Abs(a) > Math.Abs(biggestArea)) biggestArea = a;
                 }
-                bool totalOutlineAdded = false;
                 if (biggestArea < 0) // when no loop, we don't need the outline
                 {
                     foreach (Pair<List<Edge>, ICurve2D[]> item in loops.Values) faceEdges.RemoveMany(item.First);
@@ -3509,7 +3505,6 @@ namespace CADability
                         List<Edge> outline = new List<Edge>(faceToSplit.OutlineEdges);
                         loops.AddUnique(outline, faceToSplit);
                         faceEdges.RemoveMany(outline); // we would not need that
-                        totalOutlineAdded = true;
                     }
                 }
                 // we also add the holes of the faceToSplit, as long as it was not used by intersections and is not enclosed by a bigger hole
@@ -8613,7 +8608,7 @@ namespace CADability
                             {
                                 created.Add(edge);
                                 // diese neue Kante in das Dictionary einfügen
-                                bool addToFace1 = true, addToFace2 = true, rejected = false;
+                                bool addToFace1 = true, addToFace2 = true;
                                 Edge[] splitted = null;
                                 if (j1IsOnBorder && j2IsOnBorder)
                                 {   // a very rare case (like in BRepTest30.cdb.json): the new intersecting edge starts and ends on the border of the face AND contains an already existing vertex of that face.

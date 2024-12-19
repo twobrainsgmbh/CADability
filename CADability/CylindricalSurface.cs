@@ -1031,20 +1031,16 @@ namespace CADability.GeoObject
                 {   // the smaller of this two cylinders completely penetrates the wider cylinder
                     // so we have two intersection curves (entering and leaving)
                     CylindricalSurface cyl1 = this;
-                    bool exchanged = false;
-                    BoundingRect bounds1, bounds2;
+                    BoundingRect bounds1;
                     if (cyl2.RadiusX < cyl1.RadiusX)
                     {
                         cyl1 = cyl2;
                         cyl2 = this;
-                        exchanged = true;
-                        bounds2 = thisBounds;
                         bounds1 = otherBounds;
                     }
                     else
                     {
                         bounds1 = thisBounds;
-                        bounds2 = otherBounds;
                     }
                     // cyl1 is the smaller one
                     GeoVector nrm = (cyl1.Axis ^ cyl2.Axis).Normalized;

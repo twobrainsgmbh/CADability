@@ -2006,7 +2006,6 @@ namespace CADability.GeoObject
                     circles.Sort(delegate (Tripel<double, GeoPoint, GeoVector> c1, Tripel<double, GeoPoint, GeoVector> c2) { return c1.First.CompareTo(c2.First); });
                     // sort by radius. Now youn dont know which kind is smaller, but longitudes should have almost the same radius, although two latitudes could also have the same radius
                     double eps = circles[0].First * 1e-4; // some precision guess
-                    double sr = 0.0;
                     int lower = -1;
                     int upper = -1;
                     for (int i = 0; i < circles.Count - 1; i++)
@@ -2919,7 +2918,6 @@ namespace CADability.GeoObject
             get
             {
                 List<Edge> open = new List<Edge>(OpenEdges);
-                bool ok = true;
                 for (int i = open.Count - 1; i >= 0; --i)
                 {
                     if (open[i].Vertex1 == open[i].Vertex2)

@@ -11702,7 +11702,6 @@ namespace CADability.GeoObject
             GeoVector curvedir = curve.DirectionAt(u);
             GeoPoint curvepoint = curve.PointAt(u);
             double error = curvepoint | loc;
-            int errorcount = 0;
 #if DEBUG
             {
                 DebuggerContainer dc = new DebuggerContainer();
@@ -12932,7 +12931,6 @@ namespace CADability.GeoObject
                 for (int i = 0; i < uknots1.Count; i++)
                 {
                     l = LinkedIntersectionPoint.CreateIntersections(surface, other, bounds1, bounds2, true, uknots1[i], vVal1.Min, vVal1.Max, true);
-                    LinkedIntersectionPoint.emode mode = 0;
                     foreach (LinkedIntersectionPoint lip in l)
                     {
                         lip.ui1 = i;

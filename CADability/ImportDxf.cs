@@ -930,7 +930,6 @@ namespace CADability.DXF
             double h = txt.Height;
             Plane plane = Plane(txt.Position, txt.Normal);
 
-            bool isShx = false;
             if (typeface.Length > 0)
             {
                 text.Font = typeface;
@@ -940,7 +939,6 @@ namespace CADability.DXF
                 if (filename.EndsWith(".shx") || filename.EndsWith(".SHX"))
                 {
                     filename = filename.Substring(0, filename.Length - 4);
-                    isShx = true;
                 }
                 if (filename.EndsWith(".ttf") || filename.EndsWith(".TTF"))
                 {

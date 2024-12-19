@@ -375,11 +375,7 @@ namespace CADability
                         if (mp != null) mp.Refresh();
                     }
                 }
-                bool modelViewExists = false;
-                foreach (ProjectedModel pm in projectedModels)
-                {
-                    if (pm.Model == ToAdd) modelViewExists = true;
-                }
+
                 //foreach (ModelViewDescription mvd in modelViews)
                 //{
                 //    if (mvd.Model == ToAdd) modelViewExists = true;

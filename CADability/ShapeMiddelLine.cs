@@ -982,7 +982,6 @@ namespace CADability
                 GeoVector2D dir1 = pl1.StartDirection;
                 GeoVector2D dir2 = pl2.StartDirection;
                 double dist = pl1.StartPoint | pl2.EndPoint;
-                int mode = 0;
                 if (dist < mindist)
                 {
                     p1 = pl1.StartPoint;
@@ -990,7 +989,6 @@ namespace CADability
                     dir1 = pl1.StartDirection;
                     dir2 = pl2.EndDirection;
                     mindist = dist;
-                    mode = 1;
                 }
                 dist = pl1.EndPoint | pl2.StartPoint;
                 if (dist < mindist)
@@ -1000,7 +998,6 @@ namespace CADability
                     dir1 = pl1.EndDirection;
                     dir2 = pl2.StartDirection;
                     mindist = dist;
-                    mode = 2;
                 }
                 dist = pl1.EndPoint | pl2.EndPoint;
                 if (dist < mindist)
@@ -1010,7 +1007,6 @@ namespace CADability
                     dir1 = pl1.EndDirection;
                     dir2 = pl2.EndDirection;
                     mindist = dist;
-                    mode = 3;
                 }
                 SweepAngle sw1 = new SweepAngle(dir1, p2 - p1);
                 SweepAngle sw2 = new SweepAngle(p2 - p1, dir2);

@@ -435,7 +435,6 @@ namespace CADability.GeoObject
                 }
                 // Some problem arise, because the curves may be not very precise. We try to adjust start- and endpoints
                 // so the connections are precise
-                bool orientationChanged = false;
                 for (int i = 0; i < loops.Count; i++)
                 {
                     if (loops[i].Count > 1)
@@ -478,12 +477,10 @@ namespace CADability.GeoObject
                                 else if (dmin == d2)
                                 {
                                     loops[i][jn].forward = !loops[i][jn].forward;
-                                    orientationChanged = true;
                                 }
                                 else if (dmin == d3)
                                 {
                                     loops[i][j].forward = !loops[i][j].forward;
-                                    orientationChanged = true;
                                 }
                                 else
                                 {   // maybe only two curves and the other connection is a little bit better: we don't need to reverse
@@ -491,7 +488,6 @@ namespace CADability.GeoObject
                                     {
                                         loops[i][j].forward = !loops[i][j].forward;
                                         loops[i][jn].forward = !loops[i][jn].forward;
-                                        orientationChanged = true;
                                     }
                                 }
                             }
@@ -1580,11 +1576,9 @@ namespace CADability.GeoObject
                                 }
                             }
                         }
-                        bool reversedii = false;
                         if (Geometry.InnerIntersection(loops[ii][loops[ii].Count - 1].curve2d.EndPoint, loops[oppii][0].curve2d.StartPoint, loops[oppii][loops[oppii].Count - 1].curve2d.EndPoint, loops[ii][0].curve2d.StartPoint))
                         {   // still self-intersecting
                             loops[ii].Reverse();
-                            reversedii = true;
                             for (int i = 0; i < loops[ii].Count; i++)
                             {
                                 loops[ii][i].forward = !loops[ii][i].forward;
@@ -1831,20 +1825,20 @@ namespace CADability.GeoObject
                                         if (loops[i][j].vertex2 != loops[i][j].createdEdges[0].Vertex1 && loops[i][j].vertex2 != loops[i][j].createdEdges[0].Vertex2) reverse = true;
                                     }
                                     if (reverse) loops[i][j].createdEdges.Reverse();
-#if DEBUG
-                                    bool ok = true;
-                                    if (loops[i][j].forward)
-                                    {
-                                        if (loops[i][j].vertex2 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex1
-                                            && loops[i][j].vertex2 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex2) ok = false;
-                                    }
-                                    else
-                                    {
-                                        if (loops[i][j].vertex1 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex1
-                                            && loops[i][j].vertex1 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex2) ok = false;
-                                    }
-                                    // System.Diagnostics.Debug.Assert(OK); this may happen and is valid
-#endif
+//#if DEBUG
+//                                    bool ok = true;
+//                                    if (loops[i][j].forward)
+//                                    {
+//                                        if (loops[i][j].vertex2 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex1
+//                                            && loops[i][j].vertex2 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex2) ok = false;
+//                                    }
+//                                    else
+//                                    {
+//                                        if (loops[i][j].vertex1 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex1
+//                                            && loops[i][j].vertex1 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex2) ok = false;
+//                                    }
+//                                    // System.Diagnostics.Debug.Assert(OK); this may happen and is valid
+//#endif
                                 }
                                 for (int k = 0; k < loops[i][j].createdEdges.Count; k++)
                                 {   // in most cases this is only a single edge, unless it has been splitted before
@@ -3772,8 +3766,7 @@ namespace CADability.GeoObject
             GeoObjectList res = new GeoObjectList(ToSort.Count);
             if (ToSort.Count == 0) return res;
             GeoObjectList ToRemove = new GeoObjectList(ToSort);
-            double maxdist = 1e-6; // TODO: zu verbessern mit der Ausdehnung
-                                   // Ausdehnung in 3D (GeoObject, GeoObjectList)?
+            
             int found = 0;
             GeoPoint LastEndPoint = new GeoPoint();
             GeoPoint BestPoint = new GeoPoint();
@@ -4054,13 +4047,11 @@ namespace CADability.GeoObject
                     if (boutline == null)
                     {
                         boutline = Border.FromOrientedList(segments); // 1. Versuch: schon richtig orientiert
-                        bool testReverse = false;
                         if (boutline == null)
                         {
                             boutline = Border.FromUnorientedList(segments, true); // 2. Versuch: sortieren
                                                                                   // FromUnorientedList dreht u.U. die Liste um, das muss natürlich auch in der Reihenfolge der Outlines
                                                                                   // berücksichtigt werden
-                            testReverse = true;
                         }
                         if (boutline == null) return null;
                         if (outline.Length > 1)
@@ -4093,14 +4084,12 @@ namespace CADability.GeoObject
                         }
                         //Border hole = Border.FromOrientedList(holecurves);
                         Border hole = null;
-                        bool testReverse = false;
                         if (hole == null)
                         {
                             hole = Border.FromOrientedList(holecurves); // 1. Versuch: schon richtig verbunden
                             if (hole == null)
                             {
                                 hole = Border.FromUnorientedList(holecurves, true); // 2. Versuch: orientieren!
-                                testReverse = true;
                             }
                         }
                         if (hole != null)

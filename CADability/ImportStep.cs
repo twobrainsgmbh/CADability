@@ -5058,8 +5058,6 @@ VERTEX_POINT: C:\Zeichnungen\STEP\Ligna - Staab - Halle 1.stp (85207)
                 ICurve fu = res.FixedU(u, res.VKnots[0], res.VKnots[res.VKnots.Length - 1]);
                 double[] si = fu.GetSelfIntersections();
                 int bestPair = -1;
-                double minDist = double.MaxValue;
-                double minPar = double.MaxValue;
                 double minTan = double.MaxValue;
                 for (int i = 0; i < si.Length; i += 2)
                 {   // when there are multiple self intersection pairs, then it looks like the best pair is where the intersection is tangential
