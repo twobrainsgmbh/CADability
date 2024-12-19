@@ -55,7 +55,6 @@ namespace CADability.Curve2D
         //private GeoVector2D[] interdir; // Richtungen an den Stützpunkten
         //private double[] interparam; // Parameterwerte an den Stützpunkten
         //private GeoPoint2D[] tringulation; // Dreiecks-Zwischenpunkte (einer weniger als interpol)
-        private bool extendIsValid; // schon berechnet?
         private double parameterEpsilon; // ein epsilon, welches sich auf den Parameter bezieht. Abbruch für Iterationen
         private double distanceEpsilon; // ein epsilon, welches sich auf die Ausdehnung bezieht. Abbruch für Iterationen
         WeakReference<ExplicitPCurve2D> explicitPCurve2D;
@@ -67,7 +66,6 @@ namespace CADability.Curve2D
             //interdir = null;
             //interparam = null;
             //tringulation = null;
-            extendIsValid = false;
             nubs = null;
             nurbs = null;
             explicitPCurve2D = null;
@@ -277,9 +275,7 @@ namespace CADability.Curve2D
         //            }
         //#endif
         //        }
-#if DEBUG
-        private static int maxTriangleCount = 0;
-#endif
+
         private bool FindInflectionPoint(double su, GeoPoint2D pl, GeoVector2D dir1l, GeoVector2D dir2l, double eu, GeoPoint2D pr, GeoVector2D dir1r, GeoVector2D dir2r, out double par)
         {
             GeoPoint2D pm;

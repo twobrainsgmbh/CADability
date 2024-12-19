@@ -27,7 +27,6 @@ namespace CADability.UserInterface
         //protected ImageList images; // die ImageList (kann fehlen)
         protected string selectedText; // der ausgewählte Text
         protected string unselectedText; // der Text, wenn nichts ausgewählt ist (wenn null, dann ganz leer)
-        private bool popup;
         /// <value>
         /// Back reference to any user item. Not used by the MultipleChoiceProperty object itself.
         /// </value>
@@ -59,7 +58,6 @@ namespace CADability.UserInterface
         /// </summary>
         public MultipleChoiceProperty()
         {
-            popup = true;
         }
         //private int ImageIndex(int Index)
         //{
