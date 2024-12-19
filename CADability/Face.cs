@@ -6737,7 +6737,6 @@ namespace CADability.GeoObject
                 }
             }
         }
-        static int maxtime = 0;
         internal void AssureTriangles(double precision)
         {
             lock (lockTriangulationRecalc)

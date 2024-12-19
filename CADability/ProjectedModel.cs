@@ -65,7 +65,6 @@ namespace CADability
     [Serializable]
     public class ProjectedModel : ISerializable, IDeserializationCallback, IJsonSerialize
     {
-        static bool DoBackgroundPaint = false; // immer false, keine Hidden lines mehr!
         #region Konzept:
         /*	Konzept zum ProjectedModel:
          * Die Klasse ProjectedModel hält einen QuadTree, der die Objekte für die 2D Darstellung enthält.

@@ -220,7 +220,6 @@ namespace CADability
         private Vertex v1, v2;
         private bool oriented; // obsolete, if false (forwardOnPrimaryFace, forwardOnSecondaryFace) have not yet been calculated
         enum EdgeKind { unknown, sameSurface, tangential, sharp }
-        private EdgeKind edgeKind = EdgeKind.unknown;
         internal BRepOperation.EdgeInfo edgeInfo; // only used for BRepOperation
         // TODO: überprüfen, ob isPartOf und startAtOriginal, endAtOriginal noch gebraucht wird (evtl. zu einem Objekt machen)
         // TODO: ist owner nicht immer primaryFace?
@@ -818,7 +817,6 @@ namespace CADability
         }
         internal Edge()
         {
-            edgeKind = EdgeKind.unknown;
             hashCode = hashCodeCounter++; // 
 #if DEBUG
             if (hashCode == 1214)
@@ -1761,7 +1759,6 @@ namespace CADability
             this.curveOnPrimaryFace = curveOnPrimaryFace;
             this.forwardOnPrimaryFace = forwardOnPrimaryFace;
             oriented = true;
-            edgeKind = EdgeKind.unknown;
         }
         internal void SetPrimary(Face fc, bool forward)
         {
@@ -1770,7 +1767,6 @@ namespace CADability
             if (!forward) curveOnPrimaryFace.Reverse();
             forwardOnPrimaryFace = forward;
             oriented = true;
-            edgeKind = EdgeKind.unknown;
         }
         internal void SetSecondary(Face fc, bool forward)
         {
@@ -1779,7 +1775,6 @@ namespace CADability
             if (!forward) curveOnSecondaryFace.Reverse();
             forwardOnSecondaryFace = forward;
             oriented = true;
-            edgeKind = EdgeKind.unknown;
         }
         internal void UpdateInterpolatedDualSurfaceCurve()
         {

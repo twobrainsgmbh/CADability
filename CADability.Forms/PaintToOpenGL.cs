@@ -67,7 +67,7 @@ namespace CADability.Forms
         IntPtr deviceContext = IntPtr.Zero, renderContext = IntPtr.Zero;
         IntPtr controlHandle = IntPtr.Zero;
         Graphics graphics = null;
-        byte accumBits = 0, colorBits = 32, depthBits = 16, stencilBits = 0;
+        byte accumBits = 0, colorBits = 32, depthBits = 16;
         static IntPtr MainRenderContext = IntPtr.Zero;
         static IntPtr LastRenderContext = IntPtr.Zero;
         private static List<System.Drawing.Bitmap> bitmapList = null;

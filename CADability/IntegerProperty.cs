@@ -18,7 +18,6 @@ namespace CADability.UserInterface
         private string text;
         private bool readOnly;
         private bool IsSetting;
-        private bool settingChanged;
         private bool highlight;
         private int minValue; // Grenzen für die Eingabe
         private int maxValue;
@@ -51,7 +50,6 @@ namespace CADability.UserInterface
                 }
             }
             IntChanged();
-            settingChanged = false;
         }
         public IntegerProperty(object ObjectWithInt, string PropertyName, string resourceId)
         {
@@ -169,7 +167,6 @@ namespace CADability.UserInterface
         {
             if (d == internalValue)
                 return;
-            settingChanged = true;
             internalValue = d;
             if (SetIntEvent != null)
             {
