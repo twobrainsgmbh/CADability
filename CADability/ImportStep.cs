@@ -4812,37 +4812,47 @@ VERTEX_POINT: C:\Zeichnungen\STEP\Ligna - Staab - Halle 1.stp (85207)
             {
                 foreach (Item it in units.val as List<Item>)
                 {
-                    if (it.parameter.TryGetValue("conversion_factor", out Item cf))
+                    if (it.parameter.TryGetValue("conversion_factor", out Item cf) &&
+                        cf.parameter.TryGetValue("value_component", out Item vc) &&
+                        vc.val is List<Item> vcList && vcList.Count > 0 &&
+                        vcList[0].type == Item.ItemType.floatval)
                     {
-                        if (cf.parameter.TryGetValue("value_component", out Item vc))
+                        double value = (double)vcList[0].val;
+                    
+                        if (cf.type == Item.ItemType.planeAngleMeasure || cf.type == Item.ItemType.planeAngleMeasureWithUnit)
                         {
-                            if ((cf.type == Item.ItemType.planeAngleMeasure || cf.type == Item.ItemType.planeAngleMeasureWithUnit) && vc.val is List<Item> && (vc.val as List<Item>)[0].type == Item.ItemType.floatval)
-                                context.toRadian = (double)(vc.val as List<Item>)[0].val;
-                            if ((cf.type == Item.ItemType.positiveLengthMeasure || cf.type == Item.ItemType.lengthMeasureWithUnit) && vc.val is List<Item> && (vc.val as List<Item>)[0].type == Item.ItemType.floatval)
+                            context.toRadian = value;
+                        }
+                        else if (cf.type == Item.ItemType.positiveLengthMeasure || cf.type == Item.ItemType.lengthMeasureWithUnit)
+                        {
+                            context.factor = value;
+                    
+                            if (it.parameter.TryGetValue("name", out Item name) &&
+                                name.type == Item.ItemType.stringval && name.sval == "METRE")
                             {
-                                context.factor = (double)(vc.val as List<Item>)[0].val; // why * 1000 ? definitely wrong for 83855_elp11b.stp
-                                if (it.parameter.TryGetValue("name", out Item name))
-                                {
-                                    //REVIEW: Is *= 1000 really right? Shouldn't it be = 1000?
-                                    if (name.type == Item.ItemType.stringval && name.sval == "METRE")
-                                        context.factor *= 1000; // added because of "PROBLEM ELE NULLPUNKT.stp"
-                                }
+                                context.factor *= 1000; // Handle "METRE" case
                             }
                         }
                     }
-                    else if (it.parameter.TryGetValue("name", out Item name) && it.parameter.TryGetValue("prefix", out Item prefix))
+                    else if (it.parameter.TryGetValue("name", out Item name))
                     {
-                        //TODO: Add other units
-                        if (name.type == Item.ItemType.keyword && name.sval == "METRE")
+                        // added because of issue 183.
+                        if (it.parameter.TryGetValue("prefix", out Item prefix) &&
+                            name.type == Item.ItemType.keyword && name.sval == "METRE")
                         {
                             if (prefix.sval == "MILLI")
-                                context.factor = 1; // added because of issue 183.
+                                context.factor = 1;
                             else if (prefix.sval == "CENTI")
                                 context.factor = 10;
                             else if (prefix.sval == "DECI")
                                 context.factor = 100;
                             else if (prefix.sval == null)
-                                context.factor = 1000; // added because of "issue153.stp"
+                                context.factor = 1000; // Default case for "METRE" without prefix
+                        }
+                        else if (name.type == Item.ItemType.keyword && name.sval == "METRE")
+                        {
+                            // added because of "issue153.stp"
+                            context.factor = 1000; // Default case for "METRE"
                         }
                     }
                 }
