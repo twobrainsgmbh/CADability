@@ -51,6 +51,11 @@ namespace CADability.GeoObject
         {
             this.list.AddRange(list);
         }
+        public GeoObjectList(IEnumerable<IGeoObject> list)
+            : this(list.ToArray().Length)
+        {
+            this.list.AddRange(list);
+        }
         public void Add(IGeoObject ObjectToAdd)
         {
             list.Add(ObjectToAdd);

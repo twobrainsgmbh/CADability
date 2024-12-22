@@ -54,7 +54,11 @@ namespace CADability
         /// <summary>
         /// If a block is selected return only the selected GeoObjects at the highest level below the block
         /// </summary>
-        singleChild
+        singleChild,
+        /// <summary>
+        /// may return a face and a curve, but both are checked to be above other faces or curves. Used for modelling
+        /// </summary>
+        singleFaceAndCurve
     }
 
     /// <summary>
@@ -2238,6 +2242,59 @@ namespace CADability
                     }
                     if (singleObject != null) res.Add(singleObject);
                     return res;
+                case CADability.PickMode.singleFaceAndCurve: // a single edge or curve, but also a face
+                    {
+                        Face singleFace = null;
+                        ICurve singleCurve = null;
+                        double zcurve = double.MaxValue;
+                        double zface = double.MaxValue;
+                        foreach (IGeoObject go in oct)
+                        {
+                            if (go.HitTest(area, false))
+                            {
+                                double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
+                                if (z <= zface && go is Face fc)
+                                {
+                                    if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
+                                        (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer) || visibleLayers.Contains(go.Layer)))
+                                    {
+                                        zface = z;
+                                        singleFace = fc;
+                                    }
+                                }
+                                if (z <= zcurve && go is ICurve crv)
+                                {
+                                    if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
+                                        (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer) || visibleLayers.Contains(go.Layer)))
+                                    {
+                                        zcurve = z;
+                                        singleCurve = crv;
+                                    }
+                                }
+                            }
+                        }
+                        if (singleFace != null && singleCurve != null)
+                        {   // accept curve only if not too far behind face
+                            if (zcurve <= zface + this.Extent.Size * 1e-3)
+                            {
+                                res.Add(singleFace);
+                                res.Add(singleCurve as IGeoObject);
+                            }
+                            else
+                            {
+                                res.Add(singleFace); // the curve is too far behind the face
+                            }
+                        } 
+                        else if(singleFace!= null)
+                        {
+                            res.Add(singleFace);
+                        }
+                        else if (singleCurve != null)
+                        {
+                            res.Add(singleCurve as IGeoObject);
+                        }
+                        return res;
+                    }
                 case CADability.PickMode.children:
                     foreach (IGeoObject go in oct)
                     {

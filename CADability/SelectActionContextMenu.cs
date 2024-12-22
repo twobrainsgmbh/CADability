@@ -100,8 +100,7 @@ namespace CADability
                         }
                     }
                 }
-
-                return;
+                selectAction.StopAccumulate();
             }
             else
             {
@@ -109,10 +108,10 @@ namespace CADability
                 int pickRadius = selectAction.Frame.GetIntSetting("Select.PickRadius", 5);
                 Projection.PickArea pa = vw.Projection.GetPickSpace(new Rectangle(mousePoint.X - pickRadius, mousePoint.Y - pickRadius, pickRadius * 2, pickRadius * 2));
                 IActionInputView pm = vw as IActionInputView;
-                GeoObjectList fl = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), PickMode.blockchildren, null); // returns all the face under the cursor
+                GeoObjectList fl = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), PickMode.singleFaceAndCurve, null); // returns all the face under the cursor
 
-                List<Face>  faces = new List<Face>();
-                List<Shell>  shells = new List<Shell>(); // only Shells, which are not part of a Solid
+                List<Face> faces = new List<Face>();
+                List<Shell> shells = new List<Shell>(); // only Shells, which are not part of a Solid
                 List<Solid> solids = new List<Solid>();
                 List<Face> axis = new List<Face>();
                 //private List<(IEnumerable<Face> faces, IEnumerable<Face> lids, bool isGap)> features;
@@ -135,13 +134,25 @@ namespace CADability
                         if (fl[i].UserData.Contains("CADability.AxisOf"))
                         {
                             Face faceWithAxis = (fl[i]).UserData.GetData("CADability.AxisOf") as Face;
-                            if (faceWithAxis!=null) axis.Add(faceWithAxis);
+                            if (faceWithAxis != null) axis.Add(faceWithAxis);
                         }
                     }
                 }
-
+                foreach (Face fc in faces)
+                {
+                    cm.Add(CreateFaceMenu(selectAction, vw, fc));
+                }
+                foreach (Edge edg in edges)
+                {
+                    cm.Add(CreateEdgeMenu(selectAction, vw, edg));
+                }
+                foreach (Solid sld in solids)
+                {
+                    cm.Add(CreateSolidMenu(selectAction, vw, sld));
+                }
             }
             cm.AddRange(CreateGeneralContextMenus(vw)); // the menu "Show"
+            vw.SetPaintHandler(PaintBuffer.DrawingAspect.Select, new PaintView(OnRepaintSelect));
             mousePoint.X += vw.DisplayRectangle.Width / 8; // find a better place for the menu position, using the extent of the objects
             vw.Canvas.ShowContextMenu(cm.ToArray(), mousePoint, ContextMenuCollapsed);
 
@@ -423,6 +434,131 @@ namespace CADability
             mousePoint.X += vw.DisplayRectangle.Width / 8; // find a better place for the menu position, using the extent of the objects
             vw.Canvas.ShowContextMenu(cm.ToArray(), mousePoint, ContextMenuCollapsed);
             */
+        }
+
+        private MenuWithHandler CreateSolidMenu(SelectObjectsAction selectAction, IView vw, Solid sld)
+        {
+            MenuWithHandler mh = new MenuWithHandler();
+            mh.ID = "MenuId.Solid";
+            mh.Text = StringTable.GetString("MenuId.Solid", StringTable.Category.label);
+            mh.SubMenus = sld.GetContextMenu(selectAction.Frame); // not consistent: solid context menu created in Solid
+            mh.Target = this;
+            mh.OnSelected = (menuId, selected) =>
+            {   // show the provided solid as feedback
+                currentMenuSelection.Clear();
+                currentMenuSelection.Add(sld);
+                vw.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+            };
+            return mh;
+        }
+
+        private MenuWithHandler CreateEdgeMenu(SelectObjectsAction selectAction, IView vw, Edge edg)
+        {
+            MenuWithHandler mh = new MenuWithHandler();
+            mh.ID = "MenuId.Edge";
+            mh.Text = StringTable.GetString("MenuId.Edge", StringTable.Category.label);
+            List<MenuWithHandler> lmh = new List<MenuWithHandler>();
+            MenuWithHandler selectMoreEdges = new MenuWithHandler("MenuId.SelectMoreEdges");
+            lmh.Add(selectMoreEdges);
+            HashSet<Edge> edges = Shell.connectedSameGeometryEdges(new Edge[] { edg });
+            mh.OnSelected = (menuId, selected) =>
+            {   // show the provided edge and the "same geometry connected" edges as feedback
+                currentMenuSelection.Clear();
+                currentMenuSelection.AddRange(edges.Select((edge) => edge.Curve3D as IGeoObject));
+                vw.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+            };
+            selectMoreEdges.OnCommand = (menuId) =>
+            {
+                selectAction.SetSelectedObjects(new GeoObjectList(edges.Select((edge) => edge.Curve3D as IGeoObject)));
+                selectAction.Accumulate(PickMode.onlyEdges);
+                return true;
+            };
+            MenuWithHandler mhdist = new MenuWithHandler();
+            mhdist.ID = "MenuId.Parametrics.DistanceTo";
+            mhdist.Text = StringTable.GetString("MenuId.Parametrics.DistanceTo", StringTable.Category.label);
+            mhdist.Target = new ParametricsDistanceActionOld(edg, selectAction.Frame);
+            lmh.Add(mhdist);
+
+            mh.SubMenus = lmh.ToArray();
+            return mh;
+        }
+
+        private MenuWithHandler CreateFaceMenu(SelectObjectsAction selectAction, IView vw, Face fc)
+        {
+            MenuWithHandler mh = new MenuWithHandler();
+            mh.ID = "MenuId.Face";
+            mh.Text = StringTable.GetString("MenuId.Face", StringTable.Category.label);
+            List<MenuWithHandler> lmh = new List<MenuWithHandler>();
+            MenuWithHandler selectMoreFaces = new MenuWithHandler("MenuId.SelectMoreFaces");
+            lmh.Add(selectMoreFaces);
+            Face faceI = fc;
+            HashSet<Face> faces = Shell.connectedSameGeometryFaces(new Face[] { fc });
+            selectMoreFaces.OnCommand = (menuId) =>
+            {
+                selectAction.SetSelectedObjects(new GeoObjectList(faces.ToArray()));
+                selectAction.Accumulate(PickMode.onlyFaces);
+                return true;
+            };
+            lmh.AddRange(GetFacesSubmenus(fc));
+            mh.OnSelected = (menuId, selected) =>
+            {   // show the provided face and the "same geometry connected" faces as feedback
+                currentMenuSelection.Clear();
+                currentMenuSelection.AddRange(faces.ToArray());
+                vw.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+            };
+            if (fc.Owner is Shell owningShell )
+            {
+                double thickness = owningShell.GetGauge(fc, out HashSet<Face> frontSide, out HashSet<Face> backSide);
+                if (thickness != double.MaxValue && frontSide.Count > 0)
+                {
+                    MenuWithHandler gauge = new MenuWithHandler("MenuId.Gauge");
+                    gauge.OnCommand = (menuId) =>
+                    {
+                        ParametricsOffset po = new ParametricsOffset(frontSide, backSide, selectAction.Frame, thickness);
+                        selectAction.Frame.SetAction(po);
+                        return true;
+                    };
+                    gauge.OnSelected = (menuId, selected) =>
+                    {
+                        currentMenuSelection.Clear();
+                        currentMenuSelection.AddRange(frontSide.ToArray());
+                        currentMenuSelection.AddRange(backSide.ToArray());
+                        currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+                    };
+                    lmh.Add(gauge);
+                }
+                int n = owningShell.GetFaceDistances(fc, out List<Face> distanceTo, out List<double> distance, out List<GeoPoint> pointsFrom, out List<GeoPoint> pointsTo);
+                for (int j = 0; j < n; j++)
+                {
+                    if (backSide == null || !backSide.Contains(distanceTo[j])) // this is not already used as gauge
+                    {
+                        HashSet<Face> capturedFaceI = new HashSet<Face>(new Face[] { fc });
+                        HashSet<Face> capturedDistTo = new HashSet<Face>(new Face[] { distanceTo[j] });
+                        double capturedDistance = distance[j];
+                        GeoPoint capturedPoint1 = pointsFrom[j];
+                        GeoPoint capturedPoint2 = pointsTo[j];
+                        GeoObjectList feedbackArrow = currentView.Projection.MakeArrow(pointsFrom[j], pointsTo[j], currentView.Projection.ProjectionPlane, Projection.ArrowMode.circleArrow);
+                        MenuWithHandler faceDist = new MenuWithHandler("MenuId.FaceDistance");
+                        faceDist.OnCommand = (menuId) =>
+                        {
+                            ParametricsDistanceAction pd = new ParametricsDistanceAction(capturedFaceI, capturedDistTo, capturedPoint1, capturedPoint2, selectAction.Frame);
+                            selectAction.Frame.SetAction(pd);
+                            return true;
+                        };
+                        faceDist.OnSelected = (menuId, selected) =>
+                        {
+                            currentMenuSelection.Clear();
+                            currentMenuSelection.AddRange(capturedFaceI.ToArray());
+                            currentMenuSelection.AddRange(capturedDistTo.ToArray());
+                            currentMenuSelection.AddRange(feedbackArrow);
+                            currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+                        };
+                        lmh.Add(faceDist);
+                    }
+                }
+            }
+            mh.SubMenus = lmh.ToArray();
+            return mh;
         }
         /// <summary>
         /// Create a submenu for a feature. This enables the user to name, remove (and add to clipboard) the feature, or splt the solid 
@@ -899,7 +1035,7 @@ namespace CADability
             PaintToSelect.SelectColor = Color.FromArgb(128, Color.Yellow);
             //PaintToSelect.SetColor (Color.Yellow);
             //PaintToSelect.UseZBuffer(false);
-            int wobbleWidth = -1; // i.e. also show faces which are behind other faces
+            int wobbleWidth = 3; // i.e. also show faces which are behind other faces
             if ((PaintToSelect.Capabilities & PaintCapabilities.ZoomIndependentDisplayList) != 0)
             {
                 PaintToSelect.OpenList("select-context");
@@ -927,7 +1063,7 @@ namespace CADability
         }
 
         void ICommandHandler.OnSelected(MenuWithHandler selectedMenu, bool selected)
-        {
+        {   // not used any more, handled by each menu item directely
             currentMenuSelection.Clear();
             if (selectedMenu is FeatureCommandHandler fch)
             {
