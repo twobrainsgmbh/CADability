@@ -23,7 +23,7 @@ namespace CADability
 {
     class SelectActionContextMenu : ICommandHandler
     {
-        private SelectObjectsAction soa;
+        private SelectObjectsAction selectAction;
         private List<Face> faces;
         private List<Shell> shells;
         private List<Solid> solids;
@@ -35,7 +35,7 @@ namespace CADability
         private IView currentView;
         public SelectActionContextMenu(SelectObjectsAction soa)
         {
-            this.soa = soa;
+            this.selectAction = soa;
             currentMenuSelection = new GeoObjectList();
         }
         public void FilterMouseMessages(MouseAction mouseAction, MouseEventArgs e, IView vw, ref bool handled)
@@ -49,41 +49,103 @@ namespace CADability
         }
         private void ShowContextMenu(Point mousePoint, IView vw)
         {
+            // Here the context menu for the right mouse click is composed
+            // We arrive here in two different situations: 
+            // - nothing was selected before and the right clickt happened on a face or an edge or some other object
+            // - several edges or faces have been selected with the menu "select more faces" or "select more edges"
+            // depending on the situation, different menus are beeing generated. The menu items are connected to the respective
+            // menu handlers
             currentView = vw;
+            GeoObjectList selectedObjects = selectAction.GetSelectedObjects();
+            List<MenuWithHandler> cm = new List<MenuWithHandler>(); // build a context menue for the accumulation case
 
             HashSet<Edge> selectedEdges = new HashSet<Edge>();
             HashSet<Face> selectedFaces = new HashSet<Face>();
-            if (soa.IsAccumulating)
+            if (selectAction.IsAccumulating)
             {   // we have been accumulating edges or faces, now we want to do something with this collection
                 // this right click should not add or remove some more objects to or from the selection
                 // but try to find a "feature" and show a menu to handle it
-                List<MenuWithHandler> cmaccu = new List<MenuWithHandler>(); // build a context menue for the accumulation case
-                GeoObjectList selectedObjects = soa.GetSelectedObjects();
                 foreach (IGeoObject go in selectedObjects)
                 {
                     if (go is ICurve && go.Owner is Edge edg) selectedEdges.Add(edg);
                     if (go is Face fc) selectedFaces.Add(fc);
+                    // multiple selected axis or curves are not implemented yet.
                 }
                 if (selectedEdges.Any())
                 {
                     Shell edgesShell = null;
                     if (selectedEdges.Count > 0) edgesShell = (selectedEdges.First().Owner as Face).Owner as Shell;
+                    selectedEdges = Shell.connectedSameGeometryEdges(selectedEdges); // add all faces which have the same surface and are connected
                     if (edgesShell != null)
                     {
                         if (edgesShell.FeatureFromLoops(selectedEdges, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
                         {
                             // there is a feature
-                            cmaccu.Add(CreateFeatureMenu(vw, featureFaces, connection, isGap));
+                            cm.Add(CreateFeatureMenu(vw, featureFaces, connection, isGap));
                         }
                     }
-
+                }
+                if (selectedFaces.Any())
+                {
+                    Shell facesShell = null;
+                    if (selectedFaces.Count > 0) facesShell = selectedFaces.First().Owner as Shell;
+                    if (facesShell != null)
+                    {
+                        selectedFaces = Shell.connectedSameGeometryFaces(selectedFaces); // add all faces which have the same surface and are connected
+                        if (facesShell.FeatureFromFaces(selectedFaces, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
+                        {
+                            // there is a feature. Multiple different features are not considered, we would need FeaturesFromFaces
+                            // which would return more than one feature
+                            cm.Add(CreateFeatureMenu(vw, featureFaces, connection, isGap));
+                        }
+                    }
                 }
 
-                cmaccu.AddRange(CreateGeneralContextMenus(vw)); // the menu "Show"
-                mousePoint.X += vw.DisplayRectangle.Width / 8; // find a better place for the menu position, using the extent of the objects
-                vw.Canvas.ShowContextMenu(cmaccu.ToArray(), mousePoint, ContextMenuCollapsed);
                 return;
             }
+            else
+            {
+                // we are not in accumulation mode. Nothing is selected when the right click occurred
+                int pickRadius = selectAction.Frame.GetIntSetting("Select.PickRadius", 5);
+                Projection.PickArea pa = vw.Projection.GetPickSpace(new Rectangle(mousePoint.X - pickRadius, mousePoint.Y - pickRadius, pickRadius * 2, pickRadius * 2));
+                IActionInputView pm = vw as IActionInputView;
+                GeoObjectList fl = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), PickMode.blockchildren, null); // returns all the face under the cursor
+
+                List<Face>  faces = new List<Face>();
+                List<Shell>  shells = new List<Shell>(); // only Shells, which are not part of a Solid
+                List<Solid> solids = new List<Solid>();
+                List<Face> axis = new List<Face>();
+                //private List<(IEnumerable<Face> faces, IEnumerable<Face> lids, bool isGap)> features;
+                List<Edge> edges = new List<Edge>();
+
+                for (int i = 0; i < fl.Count; i++)
+                {
+                    if (fl[i] is Face fc)
+                    {
+                        faces.Add(fc);
+                        if (fc.Owner is Shell sh)
+                        {
+                            if (sh.Owner is Solid solid) solids.Add(solid);
+                            else shells.Add(sh);
+                        }
+                    }
+                    if (fl[i] is ICurve)
+                    {
+                        if (fl[i].Owner is Edge edge) edges.Add(edge);
+                        if (fl[i].UserData.Contains("CADability.AxisOf"))
+                        {
+                            Face faceWithAxis = (fl[i]).UserData.GetData("CADability.AxisOf") as Face;
+                            if (faceWithAxis!=null) axis.Add(faceWithAxis);
+                        }
+                    }
+                }
+
+            }
+            cm.AddRange(CreateGeneralContextMenus(vw)); // the menu "Show"
+            mousePoint.X += vw.DisplayRectangle.Width / 8; // find a better place for the menu position, using the extent of the objects
+            vw.Canvas.ShowContextMenu(cm.ToArray(), mousePoint, ContextMenuCollapsed);
+
+            /*
             int pickRadius = soa.Frame.GetIntSetting("Select.PickRadius", 5);
             Projection.PickArea pa = vw.Projection.GetPickSpace(new Rectangle(mousePoint.X - pickRadius, mousePoint.Y - pickRadius, pickRadius * 2, pickRadius * 2));
             IActionInputView pm = vw as IActionInputView;
@@ -360,6 +422,7 @@ namespace CADability
             vw.SetPaintHandler(PaintBuffer.DrawingAspect.Select, new PaintView(OnRepaintSelect));
             mousePoint.X += vw.DisplayRectangle.Width / 8; // find a better place for the menu position, using the extent of the objects
             vw.Canvas.ShowContextMenu(cm.ToArray(), mousePoint, ContextMenuCollapsed);
+            */
         }
         /// <summary>
         /// Create a submenu for a feature. This enables the user to name, remove (and add to clipboard) the feature, or splt the solid 
@@ -380,7 +443,7 @@ namespace CADability
             ff.AddRange(connection.Select(fc => fc.Clone() as Face));
             BoundingCube ext = BoundingCube.EmptyBoundingCube;
             ext.MinMax(ff);
-            Shell.connectFaces(ff.ToArray(), Math.Max(Precision.eps,ext.Size*1e-6));
+            Shell.connectFaces(ff.ToArray(), Math.Max(Precision.eps, ext.Size * 1e-6));
             Shell feature = Shell.FromFaces(ff.ToArray());
 #if DEBUG
             bool ok = feature.CheckConsistency();
@@ -416,8 +479,8 @@ namespace CADability
             //}
             positionFeature.OnCommand = (menuId) =>
             {
-                ParametricsDistanceActionOld pd = new ParametricsDistanceActionOld(feature, soa.Frame);
-                soa.Frame.SetAction(pd);
+                ParametricsDistanceActionOld pd = new ParametricsDistanceActionOld(feature, selectAction.Frame);
+                selectAction.Frame.SetAction(pd);
                 return true;
             };
             positionFeature.OnSelected = (menuId, selected) =>
@@ -432,8 +495,8 @@ namespace CADability
                 shell.AddFeature(name, featureFaces);
                 if (shell.Owner is Solid sld)
                 {
-                    soa.SetSelectedObject(sld);
-                    IPropertyEntry toEdit = soa.Frame.ControlCenter.FindItem(name);
+                    selectAction.SetSelectedObject(sld);
+                    IPropertyEntry toEdit = selectAction.Frame.ControlCenter.FindItem(name);
                     if (toEdit != null)
                     {
 
@@ -470,11 +533,11 @@ namespace CADability
             {
                 Solid solid = shell.Owner as Solid;
                 Solid[] remaining = Solid.Subtract(solid, featureSolid);
-                if (remaining != null && remaining.Length>0)
+                if (remaining != null && remaining.Length > 0)
                 {
                     IGeoObjectOwner owner = solid.Owner;
                     owner.Remove(solid);
-                    for (int i=0; i<remaining.Length; ++i) owner.Add(remaining[i]);
+                    for (int i = 0; i < remaining.Length; ++i) owner.Add(remaining[i]);
                 }
                 return true;
             };
@@ -579,8 +642,8 @@ namespace CADability
                 switch (MenuId)
                 {
                     case "MenuId.Fillet.ChangeRadius":
-                        ParametricsRadius pr = new ParametricsRadius(involvedFaces, selectActionContextMenu.soa.Frame, true);
-                        selectActionContextMenu.soa.Frame.SetAction(pr);
+                        ParametricsRadius pr = new ParametricsRadius(involvedFaces, selectActionContextMenu.selectAction.Frame, true);
+                        selectActionContextMenu.selectAction.Frame.SetAction(pr);
                         return true;
                     case "MenuId.Fillet.Remove":
                         Shell orgShell = involvedFaces[0].Owner as Shell;
@@ -590,7 +653,7 @@ namespace CADability
                             Shell sh = rf.Result();
                             if (sh != null)
                             {
-                                using (selectActionContextMenu.soa.Frame.Project.Undo.UndoFrame)
+                                using (selectActionContextMenu.selectAction.Frame.Project.Undo.UndoFrame)
                                 {
                                     sh.CopyAttributes(orgShell);
                                     IGeoObjectOwner owner = orgShell.Owner;
@@ -627,8 +690,8 @@ namespace CADability
                 MenuWithHandler fr = new MenuWithHandler("MenuId.Fillet.ChangeRadius");
                 fr.OnCommand = (menuId) =>
                 {
-                    ParametricsRadius pr = new ParametricsRadius(connectedFillets.ToArray(), soa.Frame, true);
-                    soa.Frame.SetAction(pr);
+                    ParametricsRadius pr = new ParametricsRadius(connectedFillets.ToArray(), selectAction.Frame, true);
+                    selectAction.Frame.SetAction(pr);
                     return true;
                 };
                 fr.OnSelected = (mh, selected) =>
@@ -648,7 +711,7 @@ namespace CADability
                         Shell sh = rf.Result();
                         if (sh != null)
                         {
-                            using (soa.Frame.Project.Undo.UndoFrame)
+                            using (selectAction.Frame.Project.Undo.UndoFrame)
                             {
                                 sh.CopyAttributes(orgShell);
                                 IGeoObjectOwner owner = orgShell.Owner;
@@ -657,7 +720,7 @@ namespace CADability
                             }
                         }
                     }
-                    soa.StopAccumulate();
+                    selectAction.StopAccumulate();
                     return true;
                 };
                 fd.OnSelected = (mh, selected) =>
@@ -690,8 +753,8 @@ namespace CADability
                     MenuWithHandler mh = new MenuWithHandler("MenuId.FeatureDiameter");
                     mh.OnCommand = (menuId) =>
                     {
-                        ParametricsRadius pr = new ParametricsRadius(lconnected.ToArray(), soa.Frame, false);
-                        soa.Frame.SetAction(pr);
+                        ParametricsRadius pr = new ParametricsRadius(lconnected.ToArray(), selectAction.Frame, false);
+                        selectAction.Frame.SetAction(pr);
                         return true;
                     };
                     mh.OnSelected = (menuId, selected) =>
@@ -711,8 +774,8 @@ namespace CADability
                     MenuWithHandler mh = new MenuWithHandler("MenuId.AxisPosition");
                     mh.OnCommand = (menuId) =>
                     {
-                        ParametricsDistanceActionOld pd = new ParametricsDistanceActionOld(lconnected, axis, soa.Frame);
-                        soa.Frame.SetAction(pd);
+                        ParametricsDistanceActionOld pd = new ParametricsDistanceActionOld(lconnected, axis, selectAction.Frame);
+                        selectAction.Frame.SetAction(pd);
                         return true;
                     };
                     mh.OnSelected = (menuId, selected) =>
@@ -756,8 +819,8 @@ namespace CADability
                                     GeoObjectList feedbackArrow = currentView.Projection.MakeArrow(p1, p2, pls.Plane, Projection.ArrowMode.circleArrow);
                                     mh.OnCommand = (menuId) =>
                                     {
-                                        ParametricsDistanceActionOld pd = new ParametricsDistanceActionOld(o1, o2, feedback, pls.Plane, soa.Frame);
-                                        soa.Frame.SetAction(pd);
+                                        ParametricsDistanceActionOld pd = new ParametricsDistanceActionOld(o1, o2, feedback, pls.Plane, selectAction.Frame);
+                                        selectAction.Frame.SetAction(pd);
                                         return true;
                                     };
                                     mh.OnSelected = (m, selected) =>
