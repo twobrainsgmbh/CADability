@@ -1035,7 +1035,7 @@ namespace CADability
             PaintToSelect.SelectColor = Color.FromArgb(128, Color.Yellow);
             //PaintToSelect.SetColor (Color.Yellow);
             //PaintToSelect.UseZBuffer(false);
-            int wobbleWidth = 3; // i.e. also show faces which are behind other faces
+            int wobbleWidth = -1; // i.e. also show faces which are behind other faces
             if ((PaintToSelect.Capabilities & PaintCapabilities.ZoomIndependentDisplayList) != 0)
             {
                 PaintToSelect.OpenList("select-context");
