@@ -6435,12 +6435,45 @@ namespace CADability.GeoObject
             return res;
         }
         /// <summary>
+        /// Collect all edges, which are connected to the provided <paramref name="edges"/> and have the same geometry
+        /// </summary>
+        /// <param name="edges"></param>
+        /// <returns></returns>
+        internal static HashSet<Edge> connectedSameGeometryEdges(IEnumerable<Edge> edges)
+        {
+            HashSet<Edge> res = new HashSet<Edge>(edges);
+            IEnumerable<Edge> edgesToIterate = edges;
+            while (edgesToIterate.Any())
+            {
+                HashSet<Edge> added = new HashSet<Edge>();
+                foreach (Edge edge in edgesToIterate)
+                {
+                    HashSet<Edge> connectedEdges = new HashSet<Edge>(edge.Vertex1.Edges);
+                    connectedEdges.UnionWith(edge.Vertex2.Edges); // consider all edges connected to this edge
+                    connectedEdges.Remove(edge); // but not the edge itself
+                    connectedEdges.ExceptWith(res); // and not the already found edges
+                    foreach (Edge connectedEdge in connectedEdges)
+                    {
+                        if (((connectedEdge.PrimaryFace==edge.PrimaryFace || connectedEdge.PrimaryFace.SameSurface(edge.PrimaryFace)) &&
+                            (connectedEdge.SecondaryFace == edge.SecondaryFace || connectedEdge.SecondaryFace.SameSurface(edge.SecondaryFace))) ||
+                            ((connectedEdge.SecondaryFace == edge.PrimaryFace || connectedEdge.SecondaryFace.SameSurface(edge.PrimaryFace)) &&
+                            (connectedEdge.PrimaryFace == edge.SecondaryFace || connectedEdge.PrimaryFace.SameSurface(edge.SecondaryFace))))
+                        {
+                            if (res.Add(connectedEdge)) added.Add(connectedEdge);
+                        }
+                    }
+                }
+                edgesToIterate = added;
+            }
+            return res;
+        }
+        /// <summary>
         /// Collect all faces which are connected to the provided <paramref name="faces"/> and are part of the same surface geometry 
         /// (like two halves of a cylinder, which are connected by a "seam" edge)
         /// </summary>
         /// <param name="faces"></param>
         /// <returns></returns>
-        private static HashSet<Face> connectedSameGeometryFaces(IEnumerable<Face> faces)
+        internal static HashSet<Face> connectedSameGeometryFaces(IEnumerable<Face> faces)
         {
             HashSet<Face> res = new HashSet<Face>(faces);
             IEnumerable<Face> facesToIterate = faces;
@@ -6462,6 +6495,22 @@ namespace CADability.GeoObject
             }
             return res;
         }
+        /// <summary>
+        /// Tries to find a "feature" containing the faces <paramref name="facesToStartWith"/>. There is no simple way to find such a feature.
+        /// Maybe, the facesToStartWith already make a feature. This would be the case, when the outer connection edges of these faces
+        /// build a single closed loop. SameSurface
+        /// </summary>
+        /// <param name="facesToStartWith"></param>
+        /// <param name="featureFaces"></param>
+        /// <param name="connection"></param>
+        /// <param name="isGap"></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        public bool FeatureFromFaces(IEnumerable<Face> facesToStartWith, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Tries to find a "feature" which is disconnected from the remaining shell by the provided edges in <paramref name="loopEdges"/>.
         /// 
