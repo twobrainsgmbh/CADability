@@ -3637,7 +3637,7 @@ namespace CADability.Curve2D
         }
         public virtual bool HitTest(ref BoundingRect rect, bool includeControlPoints)
         {
-            ClipRect clr = new ClipRect(ref rect);
+            ClipRect clr = new ClipRect(rect);
             if (interpol == null) MakeTriangulation();
             for (int i = 0; i < interpol.Length - 1; ++i)
             {

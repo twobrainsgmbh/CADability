@@ -6515,7 +6515,7 @@ namespace CADability.GeoObject
                             double f = (axloc.y - domain1.Top) / axdir.y;
                             p2 = p2 - f * axdir;
                         }
-                        ClipRect clr = new ClipRect(ref domain1);
+                        ClipRect clr = new ClipRect(domain1);
                         if (clr.ClipLine(ref p1, ref p2))
                         {
                             GeoPoint2D pm = new GeoPoint2D(p1, p2);

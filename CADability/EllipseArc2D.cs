@@ -200,7 +200,7 @@ namespace CADability.Curve2D
             Angle majorang = majorAxis.Angle;
             double radiusx = majorAxis.Length;
             double radiusy = minorAxis.Length;
-            ClipRect clr = new ClipRect(ref Rect);
+            ClipRect clr = new ClipRect(Rect);
             if (clr.Contains(startPoint)) return true;
             if (clr.Contains(EndPoint)) return true;
 

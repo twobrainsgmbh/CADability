@@ -381,7 +381,7 @@ namespace CADability.GeoObject
             }
             else
             {
-                ClipRect clr = new ClipRect(ref rect);
+                ClipRect clr = new ClipRect(rect);
                 return clr.ParallelogramHitTest(projection.ProjectUnscaled(location), projection.ProjectUnscaled(directionWidth), projection.ProjectUnscaled(directionHeight));
             }
         }

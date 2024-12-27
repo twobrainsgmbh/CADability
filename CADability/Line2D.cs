@@ -34,7 +34,7 @@ namespace CADability.Curve2D
             double l = clippedBy.Width + clippedBy.Height;
             startPoint = c + l * direction;
             endPoint = c - l * direction;
-            ClipRect clr = new ClipRect(ref clippedBy);
+            ClipRect clr = new ClipRect(clippedBy);
             clr.ClipLine(ref startPoint, ref endPoint);
         }
         public override string ToString()
@@ -188,7 +188,7 @@ namespace CADability.Curve2D
         /// <returns></returns>
 		public override bool HitTest(ref BoundingRect Rect, bool IncludeControlPoints)
         {
-            ClipRect clr = new ClipRect(ref Rect);
+            ClipRect clr = new ClipRect(Rect);
             return clr.LineHitTest(startPoint, endPoint);
         }
         /// <summary>

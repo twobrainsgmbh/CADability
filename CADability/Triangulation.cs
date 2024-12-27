@@ -279,7 +279,7 @@ namespace CADability
 
             bool IQuadTreeInsertable.HitTest(ref BoundingRect rect, bool includeControlPoints)
             {
-                ClipRect clr = new ClipRect(ref rect);
+                ClipRect clr = new ClipRect(rect);
                 return clr.LineHitTest(vertex[edge.v1].p2d, vertex[edge.v2].p2d);
             }
 
