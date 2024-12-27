@@ -384,7 +384,7 @@ namespace CADability.Curve2D
             Angle majorang = majorAxis.Angle;
             double radiusx = majorAxis.Length;
             double radiusy = minorAxis.Length;
-            ClipRect clr = new ClipRect(ref Rect);
+            ClipRect clr = new ClipRect(Rect);
             if (clr.EllipseArcHitTest(center, radiusx, radiusy, majorang, 0, right, top)) return true;
             if (clr.EllipseArcHitTest(center, radiusx, radiusy, majorang, 1, top, left)) return true;
             if (clr.EllipseArcHitTest(center, radiusx, radiusy, majorang, 2, left, bottom)) return true;

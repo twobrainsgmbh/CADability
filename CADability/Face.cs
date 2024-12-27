@@ -5699,7 +5699,7 @@ namespace CADability.GeoObject
                     }
                     else
                     {
-                        ClipRect clr = new ClipRect(ref rect);
+                        ClipRect clr = new ClipRect(rect);
                         return clr.TriangleHitTest(p1, p2, p3);
                     }
                 }
@@ -7236,7 +7236,7 @@ namespace CADability.GeoObject
         public override bool HitTest(Projection projection, BoundingRect rect, bool onlyInside)
         {
             if (trianglePoint == null) return false; // this is only for selecting with the mouse
-            ClipRect clr = new ClipRect(ref rect);
+            ClipRect clr = new ClipRect(rect);
             if (onlyInside)
             {
                 lock (lockTriangulationData)
