@@ -391,13 +391,13 @@ namespace CADability
             {
                 if (clonedFaces.TryGetValue(facesToModify[i], out Face clone)) facesToModifyCloned.Add(clone);
             }
-            for (int i = 0; i < affectedObjects.Count; i++)
+            if (affectedObjects!=null) for(int i = 0; i < affectedObjects.Count; i++)
             {
                 if (affectedObjects[i] is Face face && clonedFaces.TryGetValue(face, out Face clonedFace)) affectedObjectsCloned.Add(clonedFace);
                 if (affectedObjects[i] is Edge edge && clonedEdges.TryGetValue(edge, out Edge clonedEdge)) affectedObjectsCloned.Add(clonedEdge);
                 if (affectedObjects[i] is Vertex vtx && clonedVertices.TryGetValue(vtx, out Vertex clonedVertex)) affectedObjectsCloned.Add(clonedVertex);
             }
-            return new ParametricRadiusProperty(Name, facesToModifyCloned, useDiameter, affectedObjects);
+            return new ParametricRadiusProperty(Name, facesToModifyCloned, useDiameter, affectedObjectsCloned);
         }
         public override void Modify(ModOp m)
         {   // there is nothing to do, all referred objects like facesToMove or fromHere are part of the shell and already modified

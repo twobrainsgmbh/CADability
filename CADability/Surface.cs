@@ -14852,7 +14852,7 @@ namespace CADability.GeoObject
                     GeoVector dir = eigenVectors[0, 1] * du + eigenVectors[1, 1] * dv;
                     if (eigenValues[1].Real != 0.0)
                     {
-                        double rad = 1.0 / eigenValues[0].Real;
+                        double rad = 1.0 / eigenValues[1].Real;
                         GeoPoint cnt = location + rad * n;
                         Ellipse elli = Ellipse.Construct();
                         elli.SetCirclePlaneCenterRadius(new Plane(cnt, n, dir), cnt, Math.Abs(rad));
