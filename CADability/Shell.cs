@@ -1255,6 +1255,13 @@ namespace CADability.GeoObject
                     edges[i].SetVerticesPositions();
                     edges[i].ReflectModification(); // ProjectedCurves must be updated
                 }
+                if (parametricProperties != null)
+                {
+                    for (int i = 0; i < parametricProperties.Count; i++)
+                    {
+                        parametricProperties[i].Modify(m);
+                    }
+                }
             }
         }
 

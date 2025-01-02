@@ -401,7 +401,6 @@ namespace CADability
         }
         public override void Modify(ModOp m)
         {   // there is nothing to do, all referred objects like facesToMove or fromHere are part of the shell and already modified
-            // with fromHere and toHere as GeoPoints we need to modify these points along with the modification of the Shell containing this parametric
         }
         private double currentValue;
         public override double Value
