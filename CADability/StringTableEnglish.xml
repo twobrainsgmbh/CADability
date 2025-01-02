@@ -7404,30 +7404,51 @@
 		<info>Display this object opaque (non-tranparent)</info>
 	</data>
 	<data name="MenuId.Solid.RemoveFrom">
-		<label>Remove this solid from ...</label>
+		<label>Subtract from Solid (Specify)</label>
+		<info>This solid will be subtracted from another solid you will specify in the next step</info>
 	</data>
 	<data name="MenuId.Solid.RemoveFromAll">
-		<label>Remove this solid from all overlapping</label>
+		<label>Subtract from Overlapping</label>
+		<info>Subtracts this solid from all overlapping or intersecting solids</info>
 	</data>
 	<data name="MenuId.Solid.RemoveAll">
-		<label>Remove all overlapping from this solid</label>
+		<label>Subtract Overlapping</label>
+		<info>Subtracts all overlapping or intersecting solids from this solid</info>
 	</data>
 	<data name="MenuId.Solid.UniteWith">
 		<label>Unite this solid with ...</label>
 	</data>
 	<data name="MenuId.Solid.UniteWithAll">
-		<label>Unite this solid with all overlapping</label>
+		<label>Unite with overlapping</label>
+		<info>Unites this solid with all overlapping or intersecting solids into a single body</info>
 	</data>
 	<data name="MenuId.Solid.IntersectWith">
-		<label>Intersect this solid with ...</label>
+		<label>Intersect with Solid (Specify)</label>
+		<info>Creates a new solid from the overlapping volume of this solid another solid to be specified</info>
+	</data>
+	<data name="MenuId.Solid.IntersectWith">
+		<label>Intersect with Overlapping</label>
+		<info>Creates a new solid from the overlapping volume of this solid and all intersecting solids</info>
 	</data>
 	<data name="MenuId.Solid.SplitWith">
-		<label>Split this solid with ...</label>
+		<label>Split with Solid (Specify)</label>
+		<info>Splits this solids with a solid to specify into separate parts, creating individual bodies for the overlapping and non-overlapping regions</info>
 	</data>
 	<data name="MenuId.Solid.SplitWithAll">
-		<label>Split this solid with all overlapping</label>
+		<label>Split with overlapping</label>
+		<info>Splits intersecting solids into separate parts, creating individual bodies for the overlapping and non-overlapping regions</info>
+	</data>
+	<data name="MenuId.Parametrics.Cylinder.Radius">
+		<label>Change radius</label>
+		<tip>Change radius of cylindrical faces</tip>
+		<info>Change radius of cylindrical faces</info>
 	</data>
 	<!--
-	MenuId.Solid.RemoveAllFromThis
+	"MenuId.Parametrics.Cylinder.Radius"
+	"MenuId.Parametrics.Cylinder.Diameter"
+	"Parametrics.Cylinder.Radius"
+	"Parametrics.Cylinder.Diameter"
+	"Parametrics.Cylinder.AssociateParametric"
+	"Parametrics.Cylinder.ParametricsName"
 	-->
 </root>
