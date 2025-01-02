@@ -238,6 +238,7 @@ namespace CADability.UserInterface
                         case Category.info: res = found.info; break;
                         case Category.tip: res = found.tip; break;
                     }
+                    if (cat == Category.tip && String.IsNullOrEmpty(res)) res = found.info;
                 }
                 else
                 {
@@ -249,6 +250,7 @@ namespace CADability.UserInterface
                             case Category.info: res = found.info; break;
                             case Category.tip: res = found.tip; break;
                         }
+                        if (cat == Category.tip && String.IsNullOrEmpty(res)) res = found.info;
                     }
                     else
                     {

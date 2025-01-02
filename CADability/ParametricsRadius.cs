@@ -20,12 +20,14 @@ namespace CADability
         private bool isFillet;
         private string parametricsName;
         private ParametricRadiusProperty parametricProperty;
+        private BooleanInput preserveInput;
 
         public ParametricsRadius(Face[] facesWithRadius, IFrame frame, bool useRadius)
         {
             this.facesWithRadius = facesWithRadius;
             this.frame = frame;
             this.useRadius = useRadius;
+            diameter = !useRadius;
             shell = facesWithRadius[0].Owner as Shell;
             // Prametrics class has a problem with subdevided edges, which are connected in CombineConnectedFaces via CombineConnectedSameSurfaceEdges
             // we call this here, because during the action there is a problem with changing a GeoObject of the model and continuous changes.
@@ -73,7 +75,8 @@ namespace CADability
 
         public override void OnSetAction()
         {
-            base.TitleId = "Constr.Parametrics.Cylinder.Radius";
+            if (useRadius) base.TitleId = "Constr.Parametrics.Cylinder.Radius";
+            else base.TitleId = "Constr.Parametrics.Cylinder.Diameter";
             base.ActiveObject = shell.Clone();
             List<InputObject> actionInputs = new List<InputObject>();
 
@@ -82,7 +85,7 @@ namespace CADability
                 radiusInput = new LengthInput("Parametrics.Cylinder.Radius");
                 radiusInput.GetLengthEvent += RadiusInput_GetLength;
                 radiusInput.SetLengthEvent += RadiusInput_SetLength;
-                radiusInput.Optional = diameter;
+                // radiusInput.Optional = diameter;
                 actionInputs.Add(radiusInput);
             }
             else
@@ -90,18 +93,20 @@ namespace CADability
                 diameterInput = new LengthInput("Parametrics.Cylinder.Diameter");
                 diameterInput.GetLengthEvent += DiameterInput_GetLength;
                 diameterInput.SetLengthEvent += DiameterInput_SetLength;
-                diameterInput.Optional = !diameter;
+                // diameterInput.Optional = !diameter;
                 actionInputs.Add(diameterInput);
             }
 
-            SeparatorInput separator = new SeparatorInput("Parametrics.Cylinder.AssociateParametric");
+            SeparatorInput separator = new SeparatorInput("Parametrics.AssociateParametric");
             actionInputs.Add(separator);
-            StringInput nameInput = new StringInput("Parametrics.Cylinder.ParametricsName");
+            StringInput nameInput = new StringInput("Parametrics.ParametricsName");
             nameInput.SetStringEvent += NameInput_SetStringEvent;
             nameInput.GetStringEvent += NameInput_GetStringEvent;
             nameInput.Optional = true;
             actionInputs.Add(nameInput);
 
+            preserveInput = new BooleanInput("Parametrics.PreserveValue", "YesNo.Values", false);
+            actionInputs.Add(preserveInput);
             SetInput(actionInputs.ToArray());
             base.OnSetAction();
 

@@ -7440,8 +7440,41 @@
 	</data>
 	<data name="MenuId.Parametrics.Cylinder.Radius">
 		<label>Change radius</label>
-		<tip>Change radius of cylindrical faces</tip>
-		<info>Change radius of cylindrical faces</info>
+		<info>Change radius of cylindrical features</info>
+	</data>
+	<data name="MenuId.Parametrics.Cylinder.Diameter">
+		<label>Change radius</label>
+		<info>Change radius of cylindrical features</info>
+	</data>
+	<data name="Constr.Parametrics.Cylinder.Radius">
+		<label>Change radius</label>
+		<info>Change radius of cylindrical features</info>
+	</data>
+	<data name="Constr.Parametrics.Cylinder.Diameter">
+		<label>Change radius</label>
+		<info>Change radius of cylindrical features</info>
+	</data>
+	<data name="Parametrics.Cylinder.Radius">
+		<label>Radius</label>
+		<info>Change radius of this feature</info>
+	</data>
+	<data name="Parametrics.Cylinder.Diameter">
+		<label>Diameter</label>
+		<info>Change diameter of this feature</info>
+	</data>
+	<data name="Parametrics.AssociateParametric">
+		<label>Use as parameter for the solid</label>
+	</data>
+	<data name="Parametrics.AssociateParametric">
+		<label>Use as parameter for the solid</label>
+	</data>
+	<data name="Parametrics.ParametricsName">
+		<label>Name</label>
+		<info>Name for the parameter. If provided, this will be a property of the solid</info>
+	</data>
+	<data name="Parametrics.PreserveValue">
+		<label>Preserve Value</label>
+		<info>If enabled, the parameter's value will remain unchanged when other parameters of the solid are modified</info>
 	</data>
 	<!--
 	"MenuId.Parametrics.Cylinder.Radius"
