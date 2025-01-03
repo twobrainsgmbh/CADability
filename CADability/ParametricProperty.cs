@@ -11,6 +11,7 @@ namespace CADability
     internal abstract class ParametricProperty : IJsonSerialize
     {
         public string Name { get; set; }
+        public bool Preserve { get; set; }
         public abstract double Value { get; set; } // the value of the property is kept here
         public ParametricProperty(string name)
         {
@@ -59,10 +60,12 @@ namespace CADability
         public virtual void GetObjectData(IJsonWriteData data)
         {
             data.AddProperty("Name", Name);
+            data.AddProperty("Preserve", Preserve);
         }
         public virtual void SetObjectData(IJsonReadData data)
         {
             Name = data.GetStringProperty("Name");
+            Preserve = data.GetPropertyOrDefault<bool>("Preserve");
         }
     }
     internal class ParametricDistanceProperty : ParametricProperty, IJsonSerialize, IJsonSerializeDone
@@ -325,7 +328,9 @@ namespace CADability
             fromHere = data.GetProperty("FromHere");
             toHere = data.GetProperty("ToHere");
             // there is a problem with objects been serialized as "JsonVersion.serializeAsStruct". fromHere and toHere should always be GeoPoints in future versions
+            if (fromHere is List<object> fh && fh.Count==3 && fh[0] is double) fromHere = data.GetProperty<GeoPoint>("FromHere");
             if (fromHere is double[]) fromHere = data.GetProperty<GeoPoint>("FromHere");
+            if (toHere is List<object> th && th.Count == 3 && th[0] is double) toHere = data.GetProperty<GeoPoint>("ToHere");
             if (toHere is double[]) toHere = data.GetProperty<GeoPoint>("ToHere");
             data.RegisterForSerializationDoneCallback(this);
         }

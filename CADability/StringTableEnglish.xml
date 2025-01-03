@@ -7451,8 +7451,8 @@
 		<info>Change radius of cylindrical features</info>
 	</data>
 	<data name="Constr.Parametrics.Cylinder.Diameter">
-		<label>Change radius</label>
-		<info>Change radius of cylindrical features</info>
+		<label>Change diameter</label>
+		<info>Change diameter of cylindrical features</info>
 	</data>
 	<data name="Parametrics.Cylinder.Radius">
 		<label>Radius</label>
@@ -7476,12 +7476,11 @@
 		<label>Preserve Value</label>
 		<info>If enabled, the parameter's value will remain unchanged when other parameters of the solid are modified</info>
 	</data>
+	<data name="MenuId.ParametricProperty.Preserve">
+		<label>Preserve Value</label>
+		<info>If enabled, the parameter's value will remain unchanged when other parameters of the solid are modified</info>
+	</data>
 	<!--
-	"MenuId.Parametrics.Cylinder.Radius"
-	"MenuId.Parametrics.Cylinder.Diameter"
-	"Parametrics.Cylinder.Radius"
-	"Parametrics.Cylinder.Diameter"
-	"Parametrics.Cylinder.AssociateParametric"
-	"Parametrics.Cylinder.ParametricsName"
+	MenuId.ParametricProperty.Preserve
 	-->
 </root>

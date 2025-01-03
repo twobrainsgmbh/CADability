@@ -2040,12 +2040,15 @@ namespace CADability
                 // there were some problems with this approach, now it seems to work
                 GeoPoint p1, p2;
                 GeoVector du1, dv1, du2, dv2, n1, n2;
-                surface1.DerivationAt(uv1, out p1, out du1, out dv1);
-                surface2.DerivationAt(uv2, out p2, out du2, out dv2);
-                n1 = (du1 ^ dv1).Normalized;
-                n2 = (du2 ^ dv2).Normalized;
+                //surface1.DerivationAt(uv1, out p1, out du1, out dv1);
+                //surface2.DerivationAt(uv2, out p2, out du2, out dv2);
+                n1 = surface1.GetNormal(uv1); // there is a problem with singularities (cone, sphere), but it seems GetNormal is working
+                n2 = surface2.GetNormal(uv2);
+                n1 = n1.Normalized;
+                n2 = n2.Normalized;
                 double sn1n2 = Math.Abs(Math.Sin((new SweepAngle(n1, n2)).Radian)); // bei gleicher Richtung, also tangential kleiner wert, bei senkrecht 1
-
+                p1 = surface1.PointAt(uv1);
+                p2 = surface2.PointAt(uv2);
                 double mindist = double.MaxValue;
                 d = (p1 | p2);
                 bool didntConvert = false;

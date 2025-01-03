@@ -7,6 +7,13 @@ using System.Text;
 
 namespace CADability
 {
+    /// <summary>
+    /// This class is the interactive way (<seealso cref="ConstructAction"/>) to define a <see cref="ParametricRadiusProperty"/>.
+    /// It is constructed with a list of faces, which have a Radius-property. The input of a radius or diameter creates a <see cref="Parametric"/> for this
+    /// shell and calls <see cref="Parametric.ModifyRadius(IEnumerable{Face}, double)"/> or <see cref="Parametric.ModifyFilletRadius(Face[], double)"/> to
+    /// apply these changes. Also a <see cref="ParametricRadiusProperty"/> is created. If a name is provided for this property, it will be attached to the shell,
+    /// so it can later be modified in the property grid of the solid, which wraps the shell.
+    /// </summary>
     class ParametricsRadius : ConstructAction
     {
         private Face[] facesWithRadius;
@@ -193,6 +200,7 @@ namespace CADability
                         if (!string.IsNullOrEmpty(parametricsName) && parametricProperty != null)
                         {
                             parametricProperty.Name = parametricsName;
+                            parametricProperty.Preserve = preserveInput.Value;
                             replacement.Shells[0].AddParametricProperty(parametricProperty);
                         }
                     }

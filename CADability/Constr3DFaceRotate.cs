@@ -69,7 +69,7 @@ namespace CADability.Actions
 
         public Constr3DFaceRotate(Constr3DFaceRotate autorepeat) : this()
         {
-            if (autorepeat.selectedMode) throw new ApplicationException();
+            // if (autorepeat.selectedMode) throw new ApplicationException();
             selectedMode = false;
         }
 

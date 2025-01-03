@@ -13,6 +13,7 @@ using Wintellect.PowerCollections;
 using MathNet.Numerics.LinearAlgebra.Factorization;
 using System.Collections;
 using System.Security.Cryptography;
+using static CADability.UserInterface.StateChangedArgs;
 
 #if WEBASSEMBLY
 using CADability.WebDrawing;
@@ -367,8 +368,8 @@ namespace CADability.GeoObject
                     pp.OnGetValue = delegate () { return GetParametricValue(capturedName); };
                     pp.OnSetValue = delegate (double val) { SetParametricValue(capturedName, val); };
                     pp.PropertyEntryChangedStateEvent += ParameterPropertyEntryChangedStateEvent;
-                    MenuWithHandler menu = new MenuWithHandler("MenuId.ParametricProperty.Remove");
-                    menu.OnCommand = delegate (string id)
+                    MenuWithHandler menuRemove = new MenuWithHandler("MenuId.ParametricProperty.Remove");
+                    menuRemove.OnCommand = delegate (string id)
                     {
                         RemoveParametricProperty(capturedName);
                         List<IPropertyEntry> items = new List<IPropertyEntry>(groupProperty.SubItems);
@@ -383,7 +384,31 @@ namespace CADability.GeoObject
                         groupProperty.SetSubEntries(items.ToArray());
                         return true;
                     };
-                    pp.PrependContextMenu = new MenuWithHandler[] { menu };
+                    MenuWithHandler menuPreserve = new MenuWithHandler("MenuId.ParametricProperty.Preserve");
+                    menuPreserve.OnUpdateCommand = delegate (string id, CommandState state)
+                    {
+                        for (int i = 0; i< parametricProperties.Count; ++i)
+                        {
+                            if (parametricProperties[i].Name == capturedName)
+                            {
+                                state.Checked = parametricProperties[i].Preserve; // multiple parametrics with different preserve status make no sense
+                            }
+                        }
+                        return true;
+                    };
+                    menuPreserve.OnCommand = delegate (string id)
+                    {
+                        for (int i = 0; i < parametricProperties.Count; ++i)
+                        {
+                            if (parametricProperties[i].Name == capturedName)
+                            {
+                                parametricProperties[i].Preserve = !parametricProperties[i].Preserve;
+                            }
+                        }
+                        return true;
+                    };
+
+                    pp.PrependContextMenu = new MenuWithHandler[] { menuPreserve, menuRemove };
                     var paintHandler = new PaintView(delegate (Rectangle Extent, IView View, IPaintTo3D PaintTo3D)
                     {
                         PaintParametricFeedback(capturedName, View, PaintTo3D);

@@ -506,10 +506,10 @@ namespace CADability
                 currentMenuSelection.AddRange(faces.ToArray());
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
             };
-            if (fc.Owner is Shell owningShell )
+            if (fc.Owner is Shell owningShell)
             {
                 double thickness = owningShell.GetGauge(fc, out HashSet<Face> frontSide, out HashSet<Face> backSide);
-                if (thickness != double.MaxValue && frontSide.Count > 0)
+                if (thickness != double.MaxValue && thickness > 0.0 && frontSide.Count > 0)
                 {
                     MenuWithHandler gauge = new MenuWithHandler("MenuId.Gauge");
                     gauge.OnCommand = (menuId) =>
@@ -910,7 +910,7 @@ namespace CADability
                     MenuWithHandler mh = new MenuWithHandler("MenuId.AxisPosition");
                     mh.OnCommand = (menuId) =>
                     {
-                        ParametricsDistanceActionOld pd = new ParametricsDistanceActionOld(lconnected, axis, selectAction.Frame);
+                        ParametricsDistanceAction pd = new ParametricsDistanceAction(lconnected, axis, selectAction.Frame);
                         selectAction.Frame.SetAction(pd);
                         return true;
                     };

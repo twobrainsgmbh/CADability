@@ -678,6 +678,10 @@ namespace CADability.Actions
         public override string GetID()
         { return "Constr.Solid.FaceExtrude"; }
 
+        public override bool AutoRepeat()
+        {
+            return false; // autorepeating this action seems not pracitcable
+        }
         /// <summary>
         /// Overrides <see cref="CADability.Actions.ConstructAction.OnDone ()"/>
         /// </summary>
