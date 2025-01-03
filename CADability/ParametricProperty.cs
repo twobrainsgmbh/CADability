@@ -35,7 +35,7 @@ namespace CADability
         /// make it consistent again
         /// </summary>
         /// <param name="parametrics"></param>
-        public abstract void Execute(Parametric parametrics);
+        public abstract bool Execute(Parametric parametrics);
         /// <summary>
         /// Returns the object on which serves as a anchorpoint for the operation
         /// </summary>
@@ -136,9 +136,12 @@ namespace CADability
         public override void Modify(ModOp m)
         {   // there is nothing to do, all referred objects like facesToMove or fromHere are part of the shell and already modified
             // with fromHere and toHere as GeoPoints we need to modify these points along with the modification of the Shell containing this parametric
-            if (fromHere is GeoPoint point1 && toHere is GeoPoint point2)
+            if (fromHere is GeoPoint point1) 
             {
                 fromHere = m * point1;
+            }
+            if (toHere is GeoPoint point2)
+            {
                 toHere = m * point2;
             }
         }
@@ -155,7 +158,7 @@ namespace CADability
                 currentValue = value;
             }
         }
-        public override void Execute(Parametric parametric)
+        public override bool Execute(Parametric parametric)
         {
             GetDistanceVector(out GeoPoint startPoint, out GeoPoint endPoint);
             GeoVector delta = (endPoint - startPoint);
@@ -181,7 +184,7 @@ namespace CADability
                 }
             }
             parametric.MoveFaces(facesToAffect, endPoint - startPoint, mode.HasFlag(Mode.connected));
-            parametric.Apply(); // the result may be inconsistent, but maybe further parametric operations make it consistent again
+            return parametric.Apply(); // the result may be inconsistent, but maybe further parametric operations make it consistent again
         }
         private void GetDistanceVector(out GeoPoint startPoint, out GeoPoint endPoint)
         {
@@ -421,12 +424,12 @@ namespace CADability
                 currentValue = value;
             }
         }
-        public override void Execute(Parametric parametric)
+        public override bool Execute(Parametric parametric)
         {
             double r = currentValue;
             if (useDiameter) r /= 2.0;
             parametric.ModifyRadius(facesToModify, r);
-            parametric.Apply(); // the result may be inconsistent, but maybe further parametric operations make it consistent again
+            return parametric.Apply(); // the result may be inconsistent, but maybe further parametric operations make it consistent again
         }
 
         public override GeoObjectList GetFeedback(Projection projection)

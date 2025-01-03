@@ -782,7 +782,7 @@ namespace CADability
                 {   // checks the topology of the bounds in 2d: no intersection or overlapping, holes inside the outline
                     if (!face.Check2DBounds())
                     {
-                        //return false;
+                        return false;
                     }
                 }
                 if (clonedShell.CheckConsistency())
