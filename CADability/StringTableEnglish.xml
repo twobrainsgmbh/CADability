@@ -7480,6 +7480,12 @@
 		<label>Preserve Value</label>
 		<info>If enabled, the parameter's value will remain unchanged when other parameters of the solid are modified</info>
 	</data>
+	<data name="TextToValue.Failed">
+		<label>Invalid input</label>
+	</data>
+	<data name="Parametrics.InvalidPropertyValue">
+		<label>Ensure the value is within valid limits to maintain design integrity</label>
+	</data>
 	<!--
 	MenuId.ParametricProperty.Preserve
 	-->

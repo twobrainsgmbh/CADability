@@ -864,6 +864,11 @@ namespace CADability.Actions
                     return GeoPoint.Origin;
                 }
             }
+            internal protected virtual void SetError(string errorMessage)
+            {
+                
+            }
+
             #endregion
         }
         public class SeparatorInput : InputObject, IInputObject
@@ -938,6 +943,11 @@ namespace CADability.Actions
 
             void IInputObject.SetFixed(bool isFixed)
             {
+            }
+
+            protected internal override void SetError(string errorMessage)
+            {
+                // no error on this input possible
             }
 
             #endregion
@@ -1062,6 +1072,10 @@ namespace CADability.Actions
 
             void IInputObject.SetFixed(bool isFixed)
             {
+            }
+            protected internal override void SetError(string errorMessage)
+            {
+
             }
 
             #endregion
@@ -1425,6 +1439,10 @@ namespace CADability.Actions
             void IInputObject.SetFixed(bool isFixed)
             {
                 Fixed = isFixed;
+            }
+            protected internal override void SetError(string errorMessage)
+            {
+                angleProperty.ErrorMessage = errorMessage;
             }
             #endregion
             private Angle AnglePropertyOnGetAngle()
@@ -1851,6 +1869,10 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
+            protected internal override void SetError(string errorMessage)
+            {
+                lengthProperty.ErrorMessage = errorMessage;
+            }
             #endregion
             private double LengthPropertyOnGetLength(LengthProperty sender)
             {
@@ -1880,6 +1902,7 @@ namespace CADability.Actions
                     (this as IInputObject).SetFixed(false);
                 }
             }
+
         }
         /// <summary>
         /// Defines an input object for an action derived from ConstructAction.
@@ -2180,6 +2203,10 @@ namespace CADability.Actions
             void IInputObject.SetFixed(bool isFixed)
             {
                 Fixed = isFixed;
+            }
+            protected internal override void SetError(string errorMessage)
+            {
+                doubleProperty.ErrorMessage = errorMessage;
             }
             #endregion
             private double DoublePropertyOnGetDouble(DoubleProperty sender)
@@ -2634,6 +2661,10 @@ namespace CADability.Actions
             void IInputObject.SetFixed(bool isFixed)
             {
                 Fixed = isFixed;
+            }
+            protected internal override void SetError(string errorMessage)
+            {
+                geoPointProperty.ErrorMessage = errorMessage;
             }
             #endregion
             private GeoPoint ShowPropertyOnGetGeoPoint(GeoPointProperty sender)
@@ -3107,6 +3138,10 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
+            protected internal override void SetError(string errorMessage)
+            {
+                geoVectorProperty.ErrorMessage = errorMessage;
+            }
             #endregion
             private GeoVector GeoVectorPropertyOnGetGeoVector(GeoVectorProperty sender)
             {
@@ -3421,6 +3456,9 @@ namespace CADability.Actions
             void IInputObject.SetFixed(bool isFixed)
             {
                 Fixed = isFixed;
+            }
+            protected internal override void SetError(string errorMessage)
+            {
             }
             #endregion
 
@@ -3750,6 +3788,10 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
+            protected internal override void SetError(string errorMessage)
+            {
+            }
+            #endregion
             private void BooleanChanged(object sender, bool NewValue)
             {	// Nachricht vom ShowProperty
                 if (SetBooleanEvent != null) SetBooleanEvent(NewValue);
@@ -4000,6 +4042,9 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
+            protected internal override void SetError(string errorMessage)
+            {
+            }
             private void PropertyOnValueChanged(object sender, object NewValue)
             {
                 int val = (sender as MultipleChoiceProperty).CurrentIndex;
@@ -4219,6 +4264,9 @@ namespace CADability.Actions
             void IInputObject.SetFixed(bool isFixed)
             {
                 Fixed = isFixed;
+            }
+            protected internal override void SetError(string errorMessage)
+            {
             }
             #endregion
             #region IIndexedGeoPoint Members
@@ -4725,7 +4773,9 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
-            #endregion
+            protected internal override void SetError(string errorMessage)
+            {
+            }
             private void OnSelectedCurveChanged(CurvesProperty cp, ICurve selectedCurve)
             {
                 if (CurveSelectionChangedEvent != null) CurveSelectionChangedEvent(this, selectedCurve);
@@ -5036,6 +5086,9 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
+            protected internal override void SetError(string errorMessage)
+            {
+            }
             #endregion
             private void OnSelectedGeoObjectChanged(GeoObjectProperty cp, IGeoObject selectedGeoObject)
             {
@@ -5283,6 +5336,10 @@ namespace CADability.Actions
             void IInputObject.SetFixed(bool isFixed)
             {
                 Fixed = isFixed;
+            }
+            protected internal override void SetError(string errorMessage)
+            {
+                stringProperty.ErrorMessage = errorMessage;
             }
             #endregion
             private string OnGetInputString(StringProperty sender)
@@ -5558,6 +5615,10 @@ namespace CADability.Actions
             {
                 isfixed = isFixed;
                 editBox.Highlight = !isFixed;
+            }
+            protected internal override void SetError(string errorMessage)
+            {
+                editBox.ErrorMessage = errorMessage;
             }
             #endregion
             private void OnEditboxStateChanged(IPropertyEntry sender, StateChangedArgs args)
@@ -5844,6 +5905,10 @@ namespace CADability.Actions
             void IInputObject.SetFixed(bool isFixed)
             {
                 Fixed = isFixed;
+            }
+            protected internal override void SetError(string errorMessage)
+            {
+                intProperty.ErrorMessage = errorMessage;
             }
             #endregion
 
@@ -6192,7 +6257,7 @@ namespace CADability.Actions
             // if (go.Style != null && go.Style.Check(go)) return go.Style; // der Stil stimmt
             // die Abfrage war schlecht: der Stil stimmte, die konkrete Ausführung an dem Objekt war aber anders
             Dictionary<Type, string> res = new Dictionary<Type, string>();
-            if (go.Layer!=null) res[typeof(Layer)] = go.Layer.Name;
+            if (go.Layer != null) res[typeof(Layer)] = go.Layer.Name;
             IColorDef icolorDef = go as IColorDef;
             if (icolorDef != null)
             {
@@ -6648,7 +6713,7 @@ namespace CADability.Actions
             else
             {
                 int ci = currentInputIndex;
-                
+
                 if (InputDefinitions[ci] != null && InputDefinitions[ci].GetShowProperty() != null && InputDefinitions[ci].GetShowProperty().Flags.HasFlag(PropertyEntryType.HasSubEntries))
                 {
                     propertyTreeView.OpenSubEntries(InputDefinitions[ci].GetShowProperty(), !InputDefinitions[ci].GetShowProperty().IsOpen);
@@ -7321,7 +7386,7 @@ namespace CADability.Actions
         }
         string IPropertyEntry.GetErrorText()
         {   // cannot be edited
-            throw new NotImplementedException(); 
+            throw new NotImplementedException();
         }
         void IPropertyEntry.Selected(IPropertyEntry previousSelected)
         {

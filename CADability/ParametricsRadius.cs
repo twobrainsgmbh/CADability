@@ -176,7 +176,13 @@ namespace CADability
         }
         private bool DiameterInput_SetLength(double length)
         {
-            return RadiusInput_SetLength(length / 2.0);
+            bool ok = RadiusInput_SetLength(length / 2.0);
+            if (ok) return true;
+            else
+            {
+                diameterInput.SetError(StringTable.GetString("Parametrics.InvalidPropertyValue", StringTable.Category.label));
+                return false;
+            }
         }
 
         private double DiameterInput_GetLength()
