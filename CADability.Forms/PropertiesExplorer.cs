@@ -174,6 +174,7 @@ namespace CADability.Forms
         #region textBox
         TextBox textBox; // there is only one TextBox for editing labels or values. It is normally hidden and moved, filled and activated when needed
         bool endEidtCalled;
+        private ErrorProvider errorProvider = new ErrorProvider();
         public void ShowTextBox(Rectangle screenLocation, string initialText, IPropertyEntry sender, Point screenClickPos)
         {
             if (EntryWithTextBox != null) EntryWithTextBox.EndEdit(true, textBox.Modified, textBox.Text);
@@ -225,7 +226,8 @@ namespace CADability.Forms
                 {
                     bool ok = EntryWithTextBox.EditTextChanged(textBox.Text);
                     textBox.Modified = false; // so on EndEdit we do not update the same value twice
-                    // curly red underlines when OK is false?
+                    if (ok) errorProvider.SetError(textBox, ""); // this mechanism allows to set an error to the input field. 
+                    else errorProvider.SetError(textBox, EntryWithTextBox.GetErrorText()); // Must be implemented in ConstructAction.IInputObject or EditableProperty
                 }
                 finally
                 {

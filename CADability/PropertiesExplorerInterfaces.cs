@@ -254,7 +254,12 @@ namespace CADability.UserInterface
         /// Is the lockable entry is currently locked
         /// </summary>
         bool IsLocked { get; set; }
-
+        /// <summary>
+        /// Will be called when <see cref="EditTextChanged"/> returned false. You can provide an error message, which is displayed when the mouse hovers over the 
+        /// error symbol.
+        /// </summary>
+        /// <returns></returns>
+        string GetErrorText();
     }
     public interface IPropertyPage
     {

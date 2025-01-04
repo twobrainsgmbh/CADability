@@ -798,6 +798,7 @@ namespace CADability.UserInterface
         public virtual void StartEdit(bool editValue) { }
         public virtual void EndEdit(bool aborted, bool modified, string newValue) { }
         public virtual bool EditTextChanged(string newValue) { return true; }
+        public virtual string GetErrorText(){ return ""; }
         int IPropertyEntry.Index { get; set; }
         int IPropertyEntry.IndentLevel { get; set; }
         public virtual void Selected(IPropertyEntry previousSelected)

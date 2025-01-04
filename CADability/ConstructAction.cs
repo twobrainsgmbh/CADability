@@ -7319,7 +7319,10 @@ namespace CADability.Actions
         {   // cannot be edited
             throw new NotImplementedException();
         }
-
+        string IPropertyEntry.GetErrorText()
+        {   // cannot be edited
+            throw new NotImplementedException(); 
+        }
         void IPropertyEntry.Selected(IPropertyEntry previousSelected)
         {
             // nothing to do
