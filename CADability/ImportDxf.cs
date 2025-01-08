@@ -534,7 +534,7 @@ namespace CADability.DXF
                         ICurve approxCurve = curve.Approximate(true, maxError);
 
                         int usedCurves = 0;
-                        if (approxCurve is GeoObject.Line)
+                        if (approxCurve is GeoObject.Line || approxCurve.SubCurves.Length == 1 && approxCurve.SubCurves[0] is GeoObject.Line)
                             usedCurves = 2;
                         else
                             usedCurves = approxCurve.SubCurves.Length;
