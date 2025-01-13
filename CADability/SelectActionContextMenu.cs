@@ -139,8 +139,8 @@ namespace CADability
                     }
                 }
                 foreach (Face fc in faces)
-                {
-                    bool extloop = FindExtensionLoops(fc, pa, out ICurve[] loopCurves, out Face[] loopFaces);
+                {   // build the menu with extrusions and rotations
+                    FindExtrusionLoops(fc, pa, out List<ICurve[]> loopCurves, out List<Face[]> loopFaces, out List<Edge[]> loopEdges, out List<Plane> loopPlanes);
                     // MenuWithHandler extendMenu 
                     // cm.Add(CreateFaceMenu(selectAction, vw, fc));
                 }
@@ -442,16 +442,27 @@ namespace CADability
             */
         }
         /// <summary>
-        /// There is a face <paramref name="fc"/> pointed at <paramref name="pa"/>. We try to find a loop of curves, which build a face, which could have been
-        /// the face for an extrusion operation, which made this face and all the connected faces
+        /// There is a face <paramref name="fc"/> pointed at by <paramref name="pa"/>. We try to find a loop of curves on faces
+        /// passing through pa. This loop msut be perpendicular to all edges it crosses, so that it could have been used 
+        /// in an extrusion operation to build all faces, which are touched by the loop curves. To each loop curve there is a face,
+        /// on which this curve resides. There may be several (or none) loops and sets of faces as a result. For each result there 
+        /// is also a plane, in which all loop curves reside and which is the plane at which the shell can be split to extent or shrink 
+        /// the shape along the edges.
         /// </summary>
         /// <param name="fc"></param>
         /// <param name="pa"></param>
         /// <param name="loopCurves"></param>
         /// <param name="loopFaces"></param>
+        /// <param name="loopEdges"></param>
+        /// <param name="loopPlanes"></param>
         /// <returns></returns>
-        private bool FindExtensionLoops(Face fc, Projection.PickArea pa, out ICurve[] loopCurves, out Face[] loopFaces)
+        private void FindExtrusionLoops(Face fc, Projection.PickArea pa, out List<ICurve[]> loopCurves, out List<Face[]> loopFaces,
+            out List<Edge[]> loopEdges, out List<Plane> loopPlanes)
         {
+            loopCurves = new List<ICurve[]>();
+            loopFaces = new List<Face[]>();
+            loopEdges = new List<Edge[]>();
+            loopPlanes = new List<Plane>();
             List<Plane> planeCandidates = new List<Plane>();
             List<Edge> edgeCandidates = new List<Edge>();
             // find the point, which was hit by the mouse
@@ -471,79 +482,116 @@ namespace CADability
                         }
                     }
                 }
+                // now find pairs of edges in a extrusion direction of the face, which are perpendicular intersected by a plane through ips[0]
                 Shell shell = fc.Owner as Shell;
+                HashSet<Edge> usedEdges = new HashSet<Edge>();
                 foreach (Edge edge in fc.OutlineEdges)
                 {
+                    if (usedEdges.Contains(edge)) continue; // not the same multiple times
                     if (edge.Curve3D is Line line && fc.Surface.IsExtruded(line.StartDirection))
                     {
                         Plane plane = new Plane(ips[0], line.StartDirection); // this plane might be a cross section for the extrusion
-                        bool alreadyUsed = false; // check, whether this direction is already used
-                        for (int i = 0; i < planeCandidates.Count; i++)
-                        {
-                            if (Precision.SameDirection(line.StartDirection, planeCandidates[i].Normal, false))
-                            {
-                                alreadyUsed = true;
-                                break;
-                            }
-                        }
-                        if (alreadyUsed) continue;
                         if (Math.Sign(plane.Distance(line.StartPoint)) != Math.Sign(plane.Distance(line.EndPoint)))
-                        {   // this edge crosses the plane. Now let's see, whether there is exactely one second edge, which crosses the plane in the opposite direction
-                            // so we can use this two edges as a start for findinf a loop
-                            foreach (Edge e in fc.OutlineEdges)
+                        {   // the line crosses the plane
+                            ICurve[] intcrvs = fc.GetPlaneIntersection(new PlaneSurface(plane));
+                            // all intersection curves with this plane
+                            for (int i = 0; i < intcrvs.Length; i++)
                             {
-                                if (e != edge && e.Curve3D is Line l)
+                                double pos = intcrvs[i].PositionOf(ips[0]);
+                                if (pos >= 0 && pos <= 1) // this curve contains the pick point
                                 {
-                                    if (Precision.SameDirection(l.StartDirection, line.StartDirection, false) && Math.Sign(plane.Distance(l.StartPoint)) != Math.Sign(plane.Distance(l.EndPoint)))
-                                    {
-                                        planeCandidates.Add(plane);
-                                        edgeCandidates.Add(edge); // two edges for each plane
-                                        edgeCandidates.Add(e);
-                                        break;
+                                    GeoPoint2D sp = fc.Surface.PositionOf(intcrvs[i].StartPoint);
+                                    GeoPoint2D ep = fc.Surface.PositionOf(intcrvs[i].StartPoint);
+                                    List<Edge> spEdges = fc.FindEdges(sp);
+                                    List<Edge> epEdges = fc.FindEdges(ep);
+                                    // since the plane is located at a mouse position, we do not expect ambiguous results here
+                                    if (spEdges.Count > 0 && epEdges.Count > 0)
+                                    {   // only consider the first result
+                                        if (spEdges[0].Curve3D is Line line1 && Precision.SameDirection(line.StartDirection, line1.StartDirection, false)
+                                            && epEdges[0].Curve3D is Line line2 && Precision.SameDirection(line.StartDirection, line2.StartDirection, false))
+                                        {
+                                            // spEdges[0] and epEdges[0] are parallel and lines, one of them is "edge"
+                                            usedEdges.Add(spEdges[0]);
+                                            usedEdges.Add(epEdges[0]);
+                                            planeCandidates.Add(plane);
+                                            edgeCandidates.Add(edge);
+                                            // edge must be one of spEdges[0] or epEdges[0]
+                                            break;
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
+                // planeCandidates contains possible extrusion planes, i.e. the normal of the plane could be an extrusion direction
                 for (int i = 0; i < planeCandidates.Count; i++)
                 {
                     List<ICurve> crvs = new List<ICurve>();
+                    List<Edge> edges = new List<Edge>();
                     List<Face> faces = new List<Face>();
                     Plane plane = planeCandidates[i];
                     PlaneSurface planeSurface = new PlaneSurface(plane);
-                    Edge finalEdge = edgeCandidates[2 * i + 1];
-                    Edge currentEdge = edgeCandidates[2 * i];
+                    Edge finalEdge = edgeCandidates[i];
+                    Edge currentEdge = null;
                     double[] pars = finalEdge.Curve3D.GetPlaneIntersection(plane);
-                    if (pars.Length != 1) break; // there must be exactely one intersection point
+                    if (pars.Length != 1) continue; // there must be exactely one intersection point, check with the next plane
                     GeoPoint sp = finalEdge.Curve3D.PointAt(pars[0]);
-                    pars = currentEdge.Curve3D.GetPlaneIntersection(plane);
-                    if (pars.Length != 1) break;
-                    GeoPoint ep = finalEdge.Curve3D.PointAt(pars[0]);
                     Face currentFace = fc;
-                    ICurve[] iCurves = currentFace.GetPlaneIntersection(planeSurface);
-                    for (int j = 0; j < iCurves.Length; j++)
+                    do
                     {
-                        if ((iCurves[j].StartPoint|ep)<Precision.eps)
+                        ICurve[] iCurves = currentFace.GetPlaneIntersection(planeSurface);
+                        bool found = false;
+                        for (int j = 0; j < iCurves.Length; j++)
                         {
-                            iCurves[j].Reverse();
-                            crvs.Add(iCurves[j]);
-                            faces.Add(currentFace);
-                            break;
+                            if ((iCurves[j].StartPoint | sp) < Precision.eps)
+                            {
+                                crvs.Add(iCurves[j]);
+                                faces.Add(currentFace);
+                                found = true;
+                                break;
+                            }
+                            else if ((iCurves[j].EndPoint | sp) < Precision.eps)
+                            {
+                                iCurves[j].Reverse();
+                                crvs.Add(iCurves[j]);
+                                faces.Add(currentFace);
+                                found = true;
+                                break;
+                            }
                         }
-                        else if ((iCurves[j].EndPoint | ep) < Precision.eps)
-                        {
-                            crvs.Add(iCurves[j]);
-                            faces.Add(currentFace);
-                            break;
+                        if (found)
+                        {   // find the edge on which this curve ends
+                            found = false;
+                            GeoPoint onEdge = crvs.Last().EndPoint;
+                            foreach (Edge edge in currentFace.OutlineEdges)
+                            {
+                                if (edge != currentEdge && edge.Curve3D is Line line
+                                    && Precision.SameDirection(line.StartDirection, plane.Normal, false)
+                                    && edge.Curve3D.DistanceTo(onEdge) < Precision.eps)
+                                {   // this is the edge we are looking for
+                                    currentFace = edge.OtherFace(currentFace);
+                                    found = true;
+                                    currentEdge = edge;
+                                    edges.Add(edge);
+                                    break;
+                                }
+                            }
                         }
-                    }
-                    currentFace = currentEdge.OtherFace(currentFace);
+                        if (!found) continue; // there is no valid edge in extrusion direction to go on with
+                        currentFace = currentEdge.OtherFace(currentFace);
+                        if (!currentFace.Surface.IsExtruded(plane.Normal)) continue; // all faces must be extrudable in this direction
+                        if (currentEdge == finalEdge)
+                        {   // we are done: 
+                            loopCurves.Add(crvs.ToArray());
+                            loopFaces.Add(faces.ToArray());
+                            loopEdges.Add(edges.ToArray());
+                            loopPlanes.Add(plane);
+
+                        }
+                    } while (currentEdge != finalEdge);
                 }
             }
-            loopCurves = null;
-            loopFaces = null;
-            return false;
         }
 
         private MenuWithHandler CreateSolidMenu(SelectObjectsAction selectAction, IView vw, Solid sld)

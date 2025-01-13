@@ -4566,7 +4566,7 @@ namespace CADability.GeoObject
         {   // find the edge(s) that are close to this 2d point on the surface
             List<Edge> res = new List<Edge>();
             GeoPoint p = Surface.PointAt(uv);
-            foreach (Edge edg in AllEdgesIterated())
+            foreach (Edge edg in Edges)
             {
                 ICurve2D c2d = edg.Curve2D(this);
                 double d = c2d.MinDistance(uv);
