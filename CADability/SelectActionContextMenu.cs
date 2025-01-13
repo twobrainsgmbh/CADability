@@ -140,6 +140,12 @@ namespace CADability
                 }
                 foreach (Face fc in faces)
                 {
+                    bool extloop = FindExtensionLoops(fc, pa, out ICurve[] loopCurves, out Face[] loopFaces);
+                    // MenuWithHandler extendMenu 
+                    // cm.Add(CreateFaceMenu(selectAction, vw, fc));
+                }
+                foreach (Face fc in faces)
+                {
                     cm.Add(CreateFaceMenu(selectAction, vw, fc));
                 }
                 foreach (Edge edg in edges)
@@ -435,6 +441,110 @@ namespace CADability
             vw.Canvas.ShowContextMenu(cm.ToArray(), mousePoint, ContextMenuCollapsed);
             */
         }
+        /// <summary>
+        /// There is a face <paramref name="fc"/> pointed at <paramref name="pa"/>. We try to find a loop of curves, which build a face, which could have been
+        /// the face for an extrusion operation, which made this face and all the connected faces
+        /// </summary>
+        /// <param name="fc"></param>
+        /// <param name="pa"></param>
+        /// <param name="loopCurves"></param>
+        /// <param name="loopFaces"></param>
+        /// <returns></returns>
+        private bool FindExtensionLoops(Face fc, Projection.PickArea pa, out ICurve[] loopCurves, out Face[] loopFaces)
+        {
+            List<Plane> planeCandidates = new List<Plane>();
+            List<Edge> edgeCandidates = new List<Edge>();
+            // find the point, which was hit by the mouse
+            GeoPoint[] ips = fc.GetLineIntersection(pa.FrontCenter, pa.Direction);
+            if (ips.Length > 0)
+            {
+                if (ips.Length > 1)
+                {   // find the intersection closest to pa.FrontCenter
+                    double dist = ips[0] | pa.FrontCenter;
+                    for (int i = 1; i < ips.Length; i++)
+                    {
+                        double d = ips[i] | pa.FrontCenter;
+                        if (d < dist)
+                        {
+                            dist = d;
+                            ips[0] = ips[i];
+                        }
+                    }
+                }
+                Shell shell = fc.Owner as Shell;
+                foreach (Edge edge in fc.OutlineEdges)
+                {
+                    if (edge.Curve3D is Line line && fc.Surface.IsExtruded(line.StartDirection))
+                    {
+                        Plane plane = new Plane(ips[0], line.StartDirection); // this plane might be a cross section for the extrusion
+                        bool alreadyUsed = false; // check, whether this direction is already used
+                        for (int i = 0; i < planeCandidates.Count; i++)
+                        {
+                            if (Precision.SameDirection(line.StartDirection, planeCandidates[i].Normal, false))
+                            {
+                                alreadyUsed = true;
+                                break;
+                            }
+                        }
+                        if (alreadyUsed) continue;
+                        if (Math.Sign(plane.Distance(line.StartPoint)) != Math.Sign(plane.Distance(line.EndPoint)))
+                        {   // this edge crosses the plane. Now let's see, whether there is exactely one second edge, which crosses the plane in the opposite direction
+                            // so we can use this two edges as a start for findinf a loop
+                            foreach (Edge e in fc.OutlineEdges)
+                            {
+                                if (e != edge && e.Curve3D is Line l)
+                                {
+                                    if (Precision.SameDirection(l.StartDirection, line.StartDirection, false) && Math.Sign(plane.Distance(l.StartPoint)) != Math.Sign(plane.Distance(l.EndPoint)))
+                                    {
+                                        planeCandidates.Add(plane);
+                                        edgeCandidates.Add(edge); // two edges for each plane
+                                        edgeCandidates.Add(e);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                for (int i = 0; i < planeCandidates.Count; i++)
+                {
+                    List<ICurve> crvs = new List<ICurve>();
+                    List<Face> faces = new List<Face>();
+                    Plane plane = planeCandidates[i];
+                    PlaneSurface planeSurface = new PlaneSurface(plane);
+                    Edge finalEdge = edgeCandidates[2 * i + 1];
+                    Edge currentEdge = edgeCandidates[2 * i];
+                    double[] pars = finalEdge.Curve3D.GetPlaneIntersection(plane);
+                    if (pars.Length != 1) break; // there must be exactely one intersection point
+                    GeoPoint sp = finalEdge.Curve3D.PointAt(pars[0]);
+                    pars = currentEdge.Curve3D.GetPlaneIntersection(plane);
+                    if (pars.Length != 1) break;
+                    GeoPoint ep = finalEdge.Curve3D.PointAt(pars[0]);
+                    Face currentFace = fc;
+                    ICurve[] iCurves = currentFace.GetPlaneIntersection(planeSurface);
+                    for (int j = 0; j < iCurves.Length; j++)
+                    {
+                        if ((iCurves[j].StartPoint|ep)<Precision.eps)
+                        {
+                            iCurves[j].Reverse();
+                            crvs.Add(iCurves[j]);
+                            faces.Add(currentFace);
+                            break;
+                        }
+                        else if ((iCurves[j].EndPoint | ep) < Precision.eps)
+                        {
+                            crvs.Add(iCurves[j]);
+                            faces.Add(currentFace);
+                            break;
+                        }
+                    }
+                    currentFace = currentEdge.OtherFace(currentFace);
+                }
+            }
+            loopCurves = null;
+            loopFaces = null;
+            return false;
+        }
 
         private MenuWithHandler CreateSolidMenu(SelectObjectsAction selectAction, IView vw, Solid sld)
         {
@@ -485,14 +595,20 @@ namespace CADability
 
         private MenuWithHandler CreateFaceMenu(SelectObjectsAction selectAction, IView vw, Face fc)
         {
+            HashSet<Face> faces = Shell.connectedSameGeometryFaces(new Face[] { fc });
             MenuWithHandler mh = new MenuWithHandler();
             mh.ID = "MenuId.Face";
             mh.Text = StringTable.GetString("MenuId.Face", StringTable.Category.label);
+            mh.OnSelected = (menuId, selected) =>
+            {   // show the provided face and the "same geometry connected" faces as feedback
+                currentMenuSelection.Clear();
+                currentMenuSelection.AddRange(faces.ToArray());
+                vw.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+            };
+
             List<MenuWithHandler> lmh = new List<MenuWithHandler>();
             MenuWithHandler selectMoreFaces = new MenuWithHandler("MenuId.SelectMoreFaces");
             lmh.Add(selectMoreFaces);
-            Face faceI = fc;
-            HashSet<Face> faces = Shell.connectedSameGeometryFaces(new Face[] { fc });
             selectMoreFaces.OnCommand = (menuId) =>
             {
                 selectAction.SetSelectedObjects(new GeoObjectList(faces.ToArray()));
@@ -500,12 +616,6 @@ namespace CADability
                 return true;
             };
             lmh.AddRange(GetFacesSubmenus(fc));
-            mh.OnSelected = (menuId, selected) =>
-            {   // show the provided face and the "same geometry connected" faces as feedback
-                currentMenuSelection.Clear();
-                currentMenuSelection.AddRange(faces.ToArray());
-                vw.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
-            };
             if (fc.Owner is Shell owningShell)
             {
                 double thickness = owningShell.GetGauge(fc, out HashSet<Face> frontSide, out HashSet<Face> backSide);
@@ -869,7 +979,6 @@ namespace CADability
                 res.Add(fch);
             }
             IEnumerable<Face> connected = face.GetSameSurfaceConnected();
-
             // if (connected.Any())
             {
                 List<Face> lconnected = new List<Face>(connected);
