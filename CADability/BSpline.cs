@@ -2032,8 +2032,8 @@ namespace CADability.GeoObject
         /// <returns>The resulting point</returns>
         public GeoPoint PointAtParam(double param)
         {
-            if (param == knots[0]) return poles[0];
-            if (param == knots[knots.Length - 1]) return poles[poles.Length - 1];
+            if (Math.Abs(param - knots[0]) < Precision.eps) return poles[0];
+            if (Math.Abs(param - knots[knots.Length - 1]) < Precision.eps) return poles[poles.Length - 1];
             lock (this)
             {
                 if (!nurbsHelper) MakeNurbsHelper();
