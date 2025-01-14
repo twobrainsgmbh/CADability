@@ -49,9 +49,6 @@
     <RemoveFiles Include="Tangulation.cs" />
 
     <RemoveFiles Include="log.txt" />
-    <RemoveFiles Include="MenuResource.xml" />
-    <RemoveFiles Include="StringTableDeutsch.xml" />
-    <RemoveFiles Include="StringTableEnglish.xml" />
     <RemoveFiles Include="_ToDo.txt" />
 
     <RemoveFiles Include="WebDrawing.cs" Condition="'$(Configuration)'!='WebDebug'"/>
