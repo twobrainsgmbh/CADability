@@ -204,5 +204,43 @@ namespace CADability
             foreach (T item in e) r.Add(item);
             return r.ToArray();
         }
+
+        public static TSource MinBy<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> selector) where TKey : IComparable<TKey>
+        {
+            bool first = true;
+            TSource minElement = default;
+            TKey minValue = default;
+
+            foreach (var item in source)
+            {
+                var value = selector(item);
+                if (first || value.CompareTo(minValue) < 0)
+                {
+                    first = false;
+                    minValue = value;
+                    minElement = item;
+                }
+            }
+            return minElement;
+        }
+        public static (TSource Element, TKey Value) MinByElementAndValue<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> selector) where TKey : IComparable<TKey>
+        {
+            bool first = true;
+            TSource minElement = default;
+            TKey minValue = default;
+
+            foreach (var item in source)
+            {
+                var value = selector(item);
+                if (first || value.CompareTo(minValue) < 0)
+                {
+                    first = false;
+                    minValue = value;
+                    minElement = item;
+                }
+            }
+            return (minElement, minValue);
+        }
+
     }
 }

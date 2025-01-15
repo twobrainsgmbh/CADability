@@ -1541,9 +1541,7 @@ namespace CADability
                 {
                     Plane arrowPlane = new Plane(p1, p2 - p1, (p2 - p1) ^ plane.Normal);
                     double headx = arrowPlane.Project(p2).x;
-                    double arrowSize = (Height + Width) * 0.005 * DeviceToWorldFactor; // 1% of the display size 
-                                                                                       //Circle2D start = new Circle2D(GeoPoint2D.Origin,arrowSize);
-                                                                                       //Polyline2D head = new Polyline2D(new GeoPoint2D[] { new GeoPoint2D(headx, 0), new GeoPoint2D(headx - arrowSize, arrowSize), new GeoPoint2D(headx - arrowSize, -arrowSize), new GeoPoint2D(headx, 0) });
+                    double arrowSize = (Height + Width) * 0.008 * DeviceToWorldFactor; // 1% of the display size 
                     res.Add(Line.TwoPoints(p1, p2));
                     res.Add(Face.MakeFace(new PlaneSurface(arrowPlane), new SimpleShape(Border.MakeCircle(GeoPoint2D.Origin, arrowSize))));
                     res.Add(Face.MakeFace(new PlaneSurface(arrowPlane), new SimpleShape(Border.MakePolygon(new GeoPoint2D[] { new GeoPoint2D(headx, 0), new GeoPoint2D(headx - arrowSize, arrowSize), new GeoPoint2D(headx - arrowSize, -arrowSize) }))));

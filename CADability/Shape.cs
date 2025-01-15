@@ -4,6 +4,7 @@ using CADability.GeoObject;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
 
@@ -145,6 +146,13 @@ namespace CADability.Shapes
             get
             {
                 return (Border[])holes.Clone(); // kopie des Arrays, somit unveränderlich
+            }
+        }
+        public IEnumerable<ICurve2D> Segments
+        {
+            get
+            {
+                return outline.Segments.Concat(holes.SelectMany(h => h.Segments));
             }
         }
         /// <summary>
