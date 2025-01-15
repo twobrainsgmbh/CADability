@@ -620,6 +620,12 @@ namespace CADability
                 precision = value;
             }
         }
+
+        internal BoundingRect GetPlacement(Rectangle Destination)
+        {
+            return new BoundingRect(DrawingPlanePoint(new System.Drawing.Point(Destination.Left, Destination.Bottom)).To2D(), DrawingPlanePoint(new System.Drawing.Point(Destination.Right, Destination.Top)).To2D());
+        }
+
         /// <summary>
         /// Stellt die Platzierung im Zweidimensionalen ein: Das Quellrechteck 
         /// soll in das Zielrechteck passen.
@@ -628,42 +634,7 @@ namespace CADability
         /// <param name="Source">Das Quellrechteck in 2-dimensionalen Weltkoordinaten</param>
         public void SetPlacement(Rectangle Destination, BoundingRect Source)
         {
-            // Höhe und Breite==0 soll einen Fehler liefern!
-            if (isPerspective)
-            {   // Source ist im 2d system der projektionsebene
-                // Destination ist i.A. das ClientRect
-                GeoPoint2D ll = World2DToWindow(new GeoPoint2D(Source.Left, Source.Bottom));
-                GeoPoint2D ur = World2DToWindow(new GeoPoint2D(Source.Right, Source.Top));
-                GeoPoint center = ProjectionPlane.ToGlobal(Source.GetCenter());
-                double width = ur.x - ll.x;
-                double height = ll.y - ur.y;
-                double f = Math.Min(Destination.Width / width, Destination.Height / height);
-                placementFactor *= f;
-                SetCoefficients();
-                GeoPoint2D c2d = WorldToWindow(center);
-                placementX += (Destination.Left + Destination.Right) / 2.0 - c2d.x;
-                placementY += (Destination.Bottom + Destination.Top) / 2.0 - c2d.y;
-                SetCoefficients();
-                return;
-            }
-            else
-            {
-                if (Source.Height == 0.0) placementFactor = Destination.Width / Source.Width;
-                else if (Source.Width == 0.0) placementFactor = Destination.Height / Source.Height;
-                else
-                {
-                    placementFactor = Math.Min(Destination.Width / Source.Width, Destination.Height / Source.Height);
-                }
-                if (placementFactor == 0.0) placementFactor = 1.0; // this happens, when the Destination is 0 in one direction
-                // wie ist das mit der Y-Richtung in Destination?
-                placementX = (Destination.Right + Destination.Left) / 2.0 - (Source.Right + Source.Left) / 2.0 * placementFactor;
-                placementY = (Destination.Top + Destination.Bottom) / 2.0 + (Source.Top + Source.Bottom) / 2.0 * placementFactor;
-                SetCoefficients();
-            }
-        }
-        internal BoundingRect GetPlacement(Rectangle Destination)
-        {
-            return new BoundingRect(DrawingPlanePoint(new System.Drawing.Point(Destination.Left, Destination.Bottom)).To2D(), DrawingPlanePoint(new System.Drawing.Point(Destination.Right, Destination.Top)).To2D());
+            SetPlacement(new RectangleF(Destination.X, Destination.Y, Destination.Width, Destination.Height), Source);
         }
 
         public void SetPlacement(RectangleF Destination, BoundingRect Source)
@@ -694,12 +665,14 @@ namespace CADability
                 {
                     placementFactor = Math.Min(Destination.Width / Source.Width, Destination.Height / Source.Height);
                 }
+                if (placementFactor == 0.0) placementFactor = 1.0;
                 // wie ist das mit der Y-Richtung in Destination?
                 placementX = (Destination.Right + Destination.Left) / 2.0 - (Source.Right + Source.Left) / 2.0 * placementFactor;
                 placementY = (Destination.Top + Destination.Bottom) / 2.0 + (Source.Top + Source.Bottom) / 2.0 * placementFactor;
                 SetCoefficients();
             }
         }
+
         public void SetPlacement(double factor, double dx, double dy)
         {
             placementFactor = factor;
