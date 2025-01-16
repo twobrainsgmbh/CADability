@@ -7486,7 +7486,22 @@
 	<data name="Parametrics.InvalidPropertyValue">
 		<label>Ensure the value is within valid limits to maintain design integrity</label>
 	</data>
+	<data name="MenuId.ExtrusionLength">
+		<label>Dimension</label>
+		<info>Set the length or width dimension of an extrusion in this direction</info>
+	</data>
+	<data name="Extrude.Distance">
+		<label>Extrusion Dimension</label>
+		<info>Set the length or width dimension of an extrusion in this direction</info>
+	</data>
+	<data name="Extrude.MeassureForwardObject">
+		<label>Meassure to</label>
+		<info>Meassuer to this object</info>
+	</data>
+	<data name="Extrude.MeassureBackwardObject">
+		<label>Meassure from</label>
+		<info>Meassure from this object</info>
+	</data>
 	<!--
-	MenuId.ParametricProperty.Preserve
 	-->
 </root>

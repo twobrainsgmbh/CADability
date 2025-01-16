@@ -105,7 +105,7 @@ namespace CADability
                 else
                 {
                     modifiedFaces.Add(faceToMove);
-                    foreach (Edge edge in faceToMove.AllEdgesIterated())
+                    foreach (Edge edge in faceToMove.Edges)
                     {
                         Face otherFace = edge.OtherFace(faceToMove);
                         bool tangential = edge.IsTangentialEdge();

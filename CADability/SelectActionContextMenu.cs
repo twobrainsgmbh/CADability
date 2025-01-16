@@ -163,6 +163,15 @@ namespace CADability
                             currentMenuSelection.AddRange(feedbackArrow);
                             currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
                         };
+                        Face[] lfaces = loopFaces[i];
+                        Edge[] ledges = loopEdges[i];
+                        Plane lplane = loopPlanes[i];
+                        extrudeMenu.OnCommand = (menuId) =>
+                        {
+                            ParametricsExtrudeAction pea = new ParametricsExtrudeAction(lfaces, ledges, lplane, selectAction.Frame);
+                            selectAction.Frame.SetAction(pea);
+                            return true;
+                        };
                         menus.Add(extrudeMenu);
                     }
                     if (menus.Count > 0)

@@ -7115,5 +7115,28 @@ namespace CADability.GeoObject
             return res.ToArray();
         }
 
+        internal static void CombineFaces(HashSet<Face> faces, HashSet<Edge> barrier)
+        {
+            HashSet<Face> toAdd = new HashSet<Face>(faces);
+            bool first = true;
+            while (toAdd.Any())
+            {
+                HashSet<Face> next = new HashSet<Face>();
+                if (!first) faces.UnionWith(toAdd);
+                else first = false;
+                foreach (Face face in toAdd)
+                {
+                    foreach (Edge edge in face.Edges)
+                    {
+                        if (!barrier.Contains(edge))
+                        {
+                            Face otherFace = edge.OtherFace(face);
+                            if (!faces.Contains(otherFace)) next.Add(otherFace);
+                        }
+                    }
+                }
+                toAdd = next;
+            }
+        }
     }
 }
