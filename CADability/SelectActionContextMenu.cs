@@ -153,6 +153,23 @@ namespace CADability
                         GeoPoint zmin = loopPlanes[i].CoordSys.LocalToGlobal * new GeoPoint(0, 0, ext.Zmin);
                         Plane arrowPlane = new Plane(loopPlanes[i].Location, fc.Surface.GetNormal(fc.PositionOf(loopPlanes[i].Location)));
                         GeoObjectList feedbackArrow = currentView.Projection.MakeArrow(zmin, zmax, arrowPlane, Projection.ArrowMode.circleArrow);
+                        // which part of the face is used for meassurement? Try to fingd an edge or a vertex with the appropriate distance
+                        object maxObject = null, minObject = null;
+                        foreach (Edge edg in fc.Edges)
+                        {
+                            if (Math.Abs(loopPlanes[i].Distance(edg.Vertex1.Position)- ext.Zmax) <Precision.eps && maxObject==null) maxObject= edg.Vertex1;
+                            if (Math.Abs(loopPlanes[i].Distance(edg.Vertex1.Position)- ext.Zmin) <Precision.eps && minObject==null) minObject= edg.Vertex1;
+                            if (Math.Abs(loopPlanes[i].Distance(edg.Vertex2.Position) - ext.Zmax) < Precision.eps && maxObject == null) maxObject = edg.Vertex2;
+                            if (Math.Abs(loopPlanes[i].Distance(edg.Vertex2.Position) - ext.Zmin) < Precision.eps && minObject == null) minObject = edg.Vertex2;
+                        }
+                        if (minObject==null)
+                        {   // nothing found, maybe it is an edge like an arc, where we use the maximum or minimum distance
+                            minObject = fc.Edges.MinBy(e => loopPlanes[i].Distance(e.Vertex1.Position)).Vertex1;
+                        }
+                        if (maxObject == null)
+                        {   // nothing found, maybe it is an edge like an arc, where we use the maximum or minimum distance
+                            maxObject = fc.Edges.MinBy(e => -loopPlanes[i].Distance(e.Vertex1.Position)).Vertex1;
+                        }
                         MenuWithHandler extrudeMenu = new MenuWithHandler();
                         extrudeMenu.ID = "MenuId.ExtrusionLength";
                         extrudeMenu.Text = StringTable.GetString("MenuId.ExtrusionLength", StringTable.Category.label);
@@ -168,7 +185,7 @@ namespace CADability
                         Plane lplane = loopPlanes[i];
                         extrudeMenu.OnCommand = (menuId) =>
                         {
-                            ParametricsExtrudeAction pea = new ParametricsExtrudeAction(lfaces, ledges, lplane, selectAction.Frame);
+                            ParametricsExtrudeAction pea = new ParametricsExtrudeAction(minObject, maxObject, lfaces, ledges, lplane, selectAction.Frame);
                             selectAction.Frame.SetAction(pea);
                             return true;
                         };

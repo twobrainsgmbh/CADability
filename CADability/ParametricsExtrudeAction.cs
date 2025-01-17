@@ -12,23 +12,30 @@ namespace CADability.Actions
         public HashSet<Face> Faces { get; } // the faces beeing stretched
         public HashSet<Edge> Edges { get; } // the edges in the extrusion direction
         public Plane Plane { get; } // the seperating plane
-        HashSet<Face> forwardMovingFaces = new HashSet<Face>(); // faces to be pushed forward (or staying fixed depending on mode)
-        HashSet<Face> backwardMovingFaces = new HashSet<Face>(); // faces to be pushed backward (or staying fixed depending on mode)
-        object forwardMeasureBound; // an edge, face or vertex for the distance in forward direction
-        object backwardMeasureBound; // an edge, face or vertex for the distance in backward direction
+        
+        private HashSet<Face> forwardMovingFaces = new HashSet<Face>(); // faces to be pushed forward (or staying fixed depending on mode)
+        private HashSet<Face> backwardMovingFaces = new HashSet<Face>(); // faces to be pushed backward (or staying fixed depending on mode)
+        private object forwardMeasureBound; // an edge, face or vertex for the distance in forward direction
+        private object backwardMeasureBound; // an edge, face or vertex for the distance in backward direction
+        private GeoPoint startPoint, endPoint; // of the feedback arrow 
+        private Plane feedbackPlane; // Plane to display the feedback arrow
+        private GeoObjectList offsetFeedBack; // an arrow to indicate the distance
+        private ParametricDistanceProperty parametricProperty;
 
         private LengthInput distanceInput; // the current distance
         private MultipleChoiceInput modeInput; // forward, backward, symmetric
-        private GeoObjectInput forwardMeassureInput; // to define the object for meassuring the distance in forward direction
-        private GeoObjectInput backwardMeassureInput; // to define the object for meassuring the distance in backward direction
+        private BRepObjectInput forwardMeassureInput; // to define the object for meassuring the distance in forward direction
+        private BRepObjectInput backwardMeassureInput; // to define the object for meassuring the distance in backward direction
         private StringInput nameInput; // Name for the Parametrics when added to the shell
         private BooleanInput preserveInput; // preserve this value, when other parametrics are applied
         private bool validResult; // inputs are ok and produce a valid result
+        private enum Mode { forward, symmetric, backward };
+        private Mode mode;
 
         private string name = "";
         private double distance;
 
-        public ParametricsExtrudeAction(IEnumerable<Face> faces, IEnumerable<Edge> edges, Plane plane, IFrame frame)
+        public ParametricsExtrudeAction(object meassureFrom, object meassureTo, IEnumerable<Face> faces, IEnumerable<Edge> edges, Plane plane, IFrame frame)
         {
             Faces = new HashSet<Face>(faces);
             Edges = new HashSet<Edge>(edges);
@@ -59,10 +66,15 @@ namespace CADability.Actions
                     }
                 }
             }
+            forwardMeasureBound = meassureTo;
+            backwardMeasureBound = meassureFrom;  
             // now forwardMovingFaces contain all the faces connectd to the faces to be streched in the forward direction
             Shell.CombineFaces(forwardMovingFaces, forwardBarrier);
             Shell.CombineFaces(backwardMovingFaces, backwardBarrier);
             // forwardMovingFaces and backwardMovingFaces must be disjunct!
+            bool isDisjunct = !forwardMovingFaces.Intersect(backwardMovingFaces).Any();
+            offsetFeedBack = new GeoObjectList();
+
         }
 
         public override string GetID()
@@ -74,21 +86,27 @@ namespace CADability.Actions
             base.TitleId = "Constr.Parametrics.Extrude";
             base.ActiveObject = shell.Clone();
             if (shell.Layer != null) shell.Layer.Transparency = 128;
+            if (offsetFeedBack != null) FeedBack.AddSelected(offsetFeedBack);
+            if (forwardMovingFaces != null) FeedBack.AddSelected(forwardMovingFaces);
+            if (backwardMovingFaces != null) FeedBack.AddSelected(backwardMovingFaces);
+
             List<InputObject> actionInputs = new List<InputObject>();
+
+            CalcDistance();
 
             distanceInput = new LengthInput("Extrude.Distance");
             distanceInput.GetLengthEvent += DistanceInput_GetLengthEvent;
             distanceInput.SetLengthEvent += DistanceInput_SetLengthEvent;
             actionInputs.Add(distanceInput);
 
-            forwardMeassureInput = new GeoObjectInput("Extrude.MeassureForwardObject");
+            forwardMeassureInput = new BRepObjectInput("Extrude.MeassureForwardObject");
             forwardMeassureInput.Optional = true;
-            forwardMeassureInput.MouseOverGeoObjectsEvent += new GeoObjectInput.MouseOverGeoObjectsDelegate(OnMouseOverForwardObject);
+            forwardMeassureInput.MouseOverBRepObjectsEvent += new BRepObjectInput.MouseOverBRepObjectsDelegate(OnMouseOverForwardObject);
             actionInputs.Add(forwardMeassureInput);
 
-            backwardMeassureInput = new GeoObjectInput("Extrude.MeassureBackwardObject");
+            backwardMeassureInput = new BRepObjectInput("Extrude.MeassureBackwardObject");
             backwardMeassureInput.Optional = true;
-            backwardMeassureInput.MouseOverGeoObjectsEvent += new GeoObjectInput.MouseOverGeoObjectsDelegate(OnMouseOverBackwardObject);
+            backwardMeassureInput.MouseOverBRepObjectsEvent += new BRepObjectInput.MouseOverBRepObjectsDelegate(OnMouseOverBackwardObject);
             actionInputs.Add(backwardMeassureInput);
 
             modeInput = new MultipleChoiceInput("DistanceTo.Mode", "DistanceTo.Mode.Values", 0);
@@ -112,7 +130,22 @@ namespace CADability.Actions
 
             FeedBack.SelectOutline = false;
             validResult = false;
+            forwardMeassureInput.SetBRepObject(new object[] { forwardMeasureBound }, forwardMeasureBound);
+            backwardMeassureInput.SetBRepObject(new object[] { backwardMeasureBound }, backwardMeasureBound);
 
+        }
+
+        private void CalcDistance()
+        {
+            if (forwardMeasureBound is Vertex fvtx && backwardMeasureBound is Vertex bvtx)
+            {
+                double d2 = Plane.Distance(fvtx.Position); // should be >0
+                double d1 = Plane.Distance(bvtx.Position); // should be <0
+                distance = d2 - d1;
+                startPoint = Plane.Location + d1 * Plane.Normal;
+                endPoint = Plane.Location + d2 * Plane.Normal;
+            }
+            // need to implement distance Plane->Curve and Plane->Face
         }
 
         private string NameInput_GetStringEvent()
@@ -125,24 +158,145 @@ namespace CADability.Actions
             name = val;
         }
 
+        private int ModeInput_GetChoiceEvent()
+        {
+            return (int)mode;
+        }
+
         private void ModeInput_SetChoiceEvent(int val)
         {
+            mode = (Mode)val;
+            Refresh();
         }
 
-        private bool OnMouseOverBackwardObject(GeoObjectInput sender, IGeoObject[] TheGeoObjects, bool up)
+        private bool OnMouseOverBackwardObject(BRepObjectInput sender, object[] bRepObjects, bool up)
         {
             return false;
         }
 
-        private bool OnMouseOverForwardObject(GeoObjectInput sender, IGeoObject[] TheGeoObjects, bool up)
+        private bool OnMouseOverForwardObject(BRepObjectInput sender, object[] bRepObjects, bool up)
         {
             return false;
         }
 
-        private bool DistanceInput_SetLengthEvent(double Length)
+        private bool DistanceInput_SetLengthEvent(double length)
         {
-            distance = Length;
+            validResult = false;
+            if (forwardMeasureBound!=null && backwardMeasureBound!= null)
+            {
+                distance = length;
+                return Refresh();
+            }
             return false;
+        }
+
+        private bool Refresh()
+        {
+            FeedBack.ClearSelected();
+            feedbackPlane = new Plane(Plane.Location, Plane.Normal, Frame.ActiveView.Projection.Direction ^ Plane.Normal);
+            GeoVector dir = Plane.Normal;
+            double originalDistance = endPoint | startPoint;
+            switch (mode)
+            {
+                case Mode.forward:
+                    endPoint = endPoint + (distance - originalDistance) * dir;
+                    offsetFeedBack = Frame.ActiveView.Projection.MakeArrow(startPoint, endPoint, feedbackPlane, Projection.ArrowMode.circleArrow);
+                    break;
+                case Mode.backward:
+                    startPoint = startPoint - (distance - originalDistance) * dir;
+                    offsetFeedBack = Frame.ActiveView.Projection.MakeArrow(endPoint, startPoint, feedbackPlane, Projection.ArrowMode.circleArrow);
+                    break;
+                case Mode.symmetric:
+                    startPoint = startPoint - 0.5 * (distance - originalDistance) * dir;
+                    endPoint = endPoint + 0.5 * (distance - originalDistance) * dir;
+                    GeoPoint mp = new GeoPoint(startPoint, endPoint);
+                    offsetFeedBack = Frame.ActiveView.Projection.MakeArrow(mp, startPoint, feedbackPlane, Projection.ArrowMode.circleArrow);
+                    offsetFeedBack.AddRange(Frame.ActiveView.Projection.MakeArrow(mp, endPoint, feedbackPlane, Projection.ArrowMode.circleArrow));
+                    break;
+            }
+            offsetFeedBack.AddRange(forwardMovingFaces);
+            offsetFeedBack.AddRange(backwardMovingFaces);
+            FeedBack.AddSelected(offsetFeedBack);
+            Shell sh = null;
+            for (int m = 0; m <= 1; m++)
+            {   // first try without moving connected faces, if this yields no result, try with moving connected faced
+                Parametric parametric = new Parametric(shell);
+                Dictionary<Face, GeoVector> allFacesToMove = new Dictionary<Face, GeoVector>();
+                GeoVector offset = (distance - originalDistance) * dir;
+                switch (mode)
+                {
+                    case Mode.forward:
+                        foreach (Face face in forwardMovingFaces)
+                        {
+                            allFacesToMove[face] = offset;
+                        }
+                        foreach (Face face in backwardMovingFaces)
+                        {
+                            allFacesToMove[face] = GeoVector.NullVector;
+                        }
+                        break;
+                    case Mode.symmetric:
+                        foreach (Face face in forwardMovingFaces)
+                        {
+                            allFacesToMove[face] = 0.5 * offset;
+                        }
+                        foreach (Face face in backwardMovingFaces)
+                        {
+                            allFacesToMove[face] = -0.5 * offset;
+                        }
+                        break;
+                    case Mode.backward:
+                        foreach (Face face in backwardMovingFaces)
+                        {
+                            allFacesToMove[face] = -offset;
+                        }
+                        foreach (Face face in forwardMovingFaces)
+                        {
+                            allFacesToMove[face] = GeoVector.NullVector;
+                        }
+                        break;
+                }
+                parametric.MoveFaces(allFacesToMove, offset, m == 1);
+                if (parametric.Apply())
+                {
+                    sh = parametric.Result();
+                    if (sh != null)
+                    {
+                        ParametricDistanceProperty.Mode pmode = 0;
+                        if (m == 1) pmode |= ParametricDistanceProperty.Mode.connected;
+                        if (mode == Mode.symmetric) pmode |= ParametricDistanceProperty.Mode.symmetric;
+                        // create the ParametricDistanceProperty here, because here we have all the information
+                        parametric.GetDictionaries(out Dictionary<Face, Face> faceDict, out Dictionary<Edge, Edge> edgeDict, out Dictionary<Vertex, Vertex> vertexDict);
+                        // facesToKeep etc. contains original objects of the shell, affectedObjects contains objects of the sh = pm.Result()
+                        // the parametricProperty will be applied to sh, so we need the objects from sh
+                        if (mode == Mode.backward)
+                        {
+                            parametricProperty = new ParametricDistanceProperty("", Extensions.LookUp(forwardMovingFaces, faceDict),
+                                Extensions.LookUp(backwardMovingFaces, faceDict),
+                                parametric.GetAffectedObjects(), pmode, endPoint, startPoint);
+                        }
+                        else
+                        {
+                            parametricProperty = new ParametricDistanceProperty("", Extensions.LookUp(backwardMovingFaces, faceDict),
+                                Extensions.LookUp(forwardMovingFaces, faceDict),
+                                parametric.GetAffectedObjects(), pmode, startPoint, endPoint);
+                        }
+                        break;
+                    }
+                }
+            }
+            if (sh != null)
+            {
+                ActiveObject = sh;
+                validResult = true;
+                return true;
+            }
+            else
+            {
+                ActiveObject = shell.Clone();
+                return false;
+            }
+
         }
 
         private double DistanceInput_GetLengthEvent()

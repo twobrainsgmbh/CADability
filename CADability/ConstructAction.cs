@@ -5099,6 +5099,297 @@ namespace CADability.Actions
                 constructAction.RefreshDependantProperties();
             }
         }
+        public class BRepObjectInput : InputObject, IInputObject
+        {
+            private string hitCursor, failCursor;
+            private BRepObjectProperty bRepObjectProperty; // the property grid display
+            Dictionary<Vertex, GeoObject.Point> vertexRepresentations = new Dictionary<Vertex, GeoObject.Point>(); // to disply vertices as selected
+            /// <summary>
+            /// Creates a BRepObjectInput object.
+            /// </summary>
+            /// <param name="resourceId">the resource id to specify a string from the StringTable.
+            /// ResourceId+".Label": the Label left of the
+            /// edit box. ResourceId+".ShortInfo": a short tooltip text ResourceId+"DetailedInfo":
+            /// a longer tooltip text.
+            /// </param>
+            public BRepObjectInput(string resourceId)
+                : base(resourceId)
+            {
+                hitCursor = "Hand";
+                failCursor = "Arrow";
+                MultipleInput = false;
+            }
+            /// <summary>
+            /// Sets the cursor that will be displayed when a curve is hit
+            /// </summary>
+            public string HitCursor
+            {
+                set { hitCursor = value; }
+            }
+            /// <summary>
+            /// Sets the cursor that will be displayed when no curve is hit
+            /// </summary>
+            public string FailCursor
+            {
+                set { failCursor = value; }
+            }
+            public bool MultipleInput;
+            public Point currentMousePoint;
+            private object[] bRepObjects;
+            private object selectedBRepObject;
+            private IGeoObject BRepObjectToGeoObject(object brep)
+            {
+                if (this.selectedBRepObject is Vertex vtx)
+                {
+                    if (!vertexRepresentations.TryGetValue(vtx, out GeoObject.Point actVertexDisplay)) vertexRepresentations[vtx] = actVertexDisplay = GeoObject.Point.MakePoint(vtx.Position);
+                    return actVertexDisplay;
+                }
+                if (brep is Face) return brep as IGeoObject;
+                if (brep is Edge edge) return edge.Curve3D as IGeoObject;
+                if (brep is Line line)
+                {
+                    if (line.UserData.ContainsData("CADability.AxisOf")) return line; // axis are also allowed a brep objects
+                }
+                return null;
+            }
+            /// <summary>
+            /// Forces the given geoObjects to be displayed
+            /// </summary>
+            /// <param name="GeoObjects">array of GeoObjects</param>
+            /// <param name="selectedGeoObject">currently selected GeoObject</param>
+            public void SetBRepObject(object[] objects, object selectedBRepObject)
+            {
+                if (this.selectedBRepObject != null) constructAction.feedBack.RemoveSelected(BRepObjectToGeoObject(this.selectedBRepObject));
+                this.bRepObjects = objects;
+                this.selectedBRepObject = selectedBRepObject;
+                if (this.selectedBRepObject != null) constructAction.feedBack.AddSelected(BRepObjectToGeoObject(this.selectedBRepObject));
+                if (bRepObjectProperty != null)
+                {
+                    bRepObjectProperty.SetBRepObjects(objects, selectedBRepObject);
+                }
+            }
+            /// <summary>
+            /// Set the selected GeoObject
+            /// </summary>
+            /// <param name="curve">this curve should be selected</param>
+            public void SetSelectedBRepObject(object bRepObject)
+            {
+                bRepObjectProperty.SetSelectedBRepObject(bRepObject);
+            }
+            /// <summary>
+            ///  Gets the currently selected brep objects.
+            /// </summary>
+            /// <returns></returns>
+            public object[] GetBRepObjects()
+            {
+                return bRepObjects;
+            }
+            /// <summary>
+            /// Delegate definition for <see cref="MouseOverGeoObjectsEvent"/>
+            /// </summary>
+            /// <param name="sender">this object</param>
+            /// <param name="TheGeoObjects">GeoObjects under the cursor</param>
+            /// <param name="up">mous was clicked</param>
+            /// <returns>true, if you accept (one of the) GeoObjects</returns>
+            public delegate bool MouseOverBRepObjectsDelegate(BRepObjectInput sender, object[] bRepObjects, bool up);
+            /// <summary>
+            /// Provide a method here to react on the user moving the cursor over GeoObjects.
+            /// </summary>
+            public event MouseOverBRepObjectsDelegate MouseOverBRepObjectsEvent;
+            /// <summary>
+            /// Delegate definition for <see cref="CurveSelectionChangedEvent"/>
+            /// </summary>
+            /// <param name="sender">this object</param>
+            /// <param name="SelectedGeoObject">the user selected GeoObject</param>
+            public delegate void BRepObjectSelectionChangedDelegate(BRepObjectInput sender, object SelectedBRepObject);
+            /// <summary>
+            /// Provide a method here to react on the user selecting a different curve
+            /// </summary>
+            public event BRepObjectSelectionChangedDelegate BRepObjectSelectionChangedEvent;
+            private IInputObject[] forwardMouseInputTo;
+            /// <summary>
+            /// Mouse input should be forwarded to another input object and only processed
+            /// by this input, when the other input object is fixed.
+            /// </summary>
+            public object ForwardMouseInputTo
+            {
+                set
+                {
+                    if (value is IInputObject)
+                    {
+                        forwardMouseInputTo = new IInputObject[] { value as IInputObject };
+                    }
+                    else if (value is object[])
+                    {
+                        object[] v = value as object[];
+                        forwardMouseInputTo = new IInputObject[v.Length];
+                        for (int i = 0; i < v.Length; ++i)
+                        {
+                            forwardMouseInputTo[i] = v[i] as IInputObject;
+                        }
+                    }
+                }
+                get
+                {
+                    return forwardMouseInputTo;
+                }
+            }
+            #region IInputObject implementation
+            void IInputObject.Init(ConstructAction a)
+            {
+                constructAction = a;
+            }
+            void IInputObject.Refresh()
+            {
+            }
+            IPropertyEntry IInputObject.BuildShowProperty()
+            {
+                bRepObjectProperty = new BRepObjectProperty(ResourceId, constructAction.Frame);
+                bRepObjectProperty.PropertyEntryChangedStateEvent += new PropertyEntryChangedStateDelegate(constructAction.ShowPropertyStateChanged);
+                bRepObjectProperty.SelectionChangedEvent += new CADability.UserInterface.BRepObjectProperty.SelectionChangedDelegate(OnSelectedBRepObjectChanged);
+                if (bRepObjects != null) bRepObjectProperty.SetBRepObjects(bRepObjects, selectedBRepObject);
+                if (!Optional && !Fixed)
+                {
+                    bRepObjectProperty.Highlight = true;
+                }
+                return bRepObjectProperty;
+            }
+            void IInputObject.OnMouse(MouseEventArgs e, MouseState mouseState, IView vw)
+            {
+                if (forwardMouseInputTo != null)
+                {	// ggf. weiterleiten an einen anderen Input
+                    for (int i = 0; i < forwardMouseInputTo.Length; ++i)
+                    {
+                        if (!forwardMouseInputTo[i].IsFixed())
+                        {
+                            forwardMouseInputTo[i].OnMouse(e, mouseState, vw);
+                            return;
+                        }
+                    }
+                }
+                Point MousePoint = new Point(e.X, e.Y);
+                currentMousePoint = MousePoint;
+                GeoObjectList l = constructAction.Frame.ActiveView.PickObjects(MousePoint, PickMode.children);
+                List<object> bRepObjectsUnderCursor = new List<object>();
+                for (int i = 0; i < l.Count; ++i)
+                {
+                    if (l[i] is Face) bRepObjectsUnderCursor.Add(l[i]);
+                    if (l[i] is ICurve)
+                    {
+                        if ((l[i] as IGeoObject).Owner is Edge edge)
+                        {
+                            GeoPoint p = constructAction.SnapPoint(e, vw, out SnapPointFinder.DidSnapModes didSnap);
+                            int cnt = bRepObjectsUnderCursor.Count;
+                            if (didSnap == SnapPointFinder.DidSnapModes.DidSnapToObjectSnapPoint)
+                            {   // check, whether this is the start- or endpoint of an edge
+                                if (Precision.IsEqual(edge.Vertex1.Position, p)) bRepObjectsUnderCursor.Add(edge.Vertex1);
+                                if (Precision.IsEqual(edge.Vertex2.Position, p)) bRepObjectsUnderCursor.Add(edge.Vertex2);
+                            }
+                            if (cnt==bRepObjectsUnderCursor.Count) bRepObjectsUnderCursor.Add(edge); // no vertex added
+                        }
+                        if (l[i] is Line line)
+                        {
+                            if (line.UserData.ContainsData("CADability.AxisOf")) bRepObjectsUnderCursor.Add(line); // axis are also allowed a brep objects
+                        }
+                    }
+                }
+                if (MouseOverBRepObjectsEvent != null)
+                {
+                    IGeoObject[] underCursor = new IGeoObject[bRepObjectsUnderCursor.Count];
+                    for (int i = 0; i < bRepObjectsUnderCursor.Count; i++)
+                    {
+                        underCursor[i] = BRepObjectToGeoObject(bRepObjectsUnderCursor[i]);
+                    }
+
+                    bool next = MouseOverBRepObjectsEvent(this, underCursor, mouseState == MouseState.ClickUp);
+                    if (constructAction.AutoCursor)
+                    {
+                        if (next) vw.SetCursor(hitCursor);
+                        else vw.SetCursor(failCursor);
+                    }
+                    if (next && (mouseState == MouseState.ClickUp) && !MultipleInput)
+                    {
+                        (this as IInputObject).SetFixed(true);
+                        constructAction.SetNextInputIndex(true);
+                    }
+                }
+                constructAction.RefreshDependantProperties();
+            }
+            void IInputObject.Activate(ActivationMode activationMode)
+            {
+                switch (activationMode)
+                {
+                    case ActivationMode.Inactivate:
+                        break;
+                    case ActivationMode.BySelection:
+                        break;
+                    case ActivationMode.ByHotspot:
+                        break;
+                }
+            }
+            bool IInputObject.AcceptInput(bool acceptOptional)
+            {
+                return base.AcceptInput(acceptOptional);
+            }
+            void IInputObject.MouseLeft() { }
+            bool IInputObject.HasHotspot
+            {
+                get
+                {
+                    return false;
+                }
+            }
+            GeoPoint IInputObject.HotspotPosition
+            {
+                get
+                {
+                    return GeoPoint.Origin;
+                }
+            }
+            Image IInputObject.HotSpotIcon { get { return null; } }
+            void IInputObject.OnActionDone()
+            {
+                if (this.selectedBRepObject != null) constructAction.feedBack.RemoveSelected(BRepObjectToGeoObject( this.selectedBRepObject));
+            }
+            IPropertyEntry IInputObject.GetShowProperty()
+            {
+                return bRepObjectProperty;
+            }
+            bool IInputObject.OnEnter(IPropertyEntry sender, KeyEventArgs args)
+            {
+                if (MultipleInput)
+                {
+                    (this as IInputObject).SetFixed(true);
+                    constructAction.SetNextInputIndex(true);
+                    return true;
+                }
+                return false;
+            }
+            bool IInputObject.IsFixed()
+            {
+                return Fixed;
+            }
+            protected override void AdjustHighlight()
+            {
+                if (bRepObjectProperty != null) bRepObjectProperty.Highlight = !Optional && !Fixed && !ReadOnly;
+            }
+            void IInputObject.SetFixed(bool isFixed)
+            {
+                Fixed = isFixed;
+            }
+            protected internal override void SetError(string errorMessage)
+            {
+            }
+            #endregion
+            private void OnSelectedBRepObjectChanged(BRepObjectProperty cp, object selectedGeoObject)
+            {
+                if (BRepObjectSelectionChangedEvent != null) BRepObjectSelectionChangedEvent(this, selectedGeoObject);
+                if (this.selectedBRepObject != null) constructAction.feedBack.RemoveSelected(BRepObjectToGeoObject( this.selectedBRepObject));
+                this.selectedBRepObject = selectedGeoObject;
+                if (this.selectedBRepObject != null) constructAction.feedBack.AddSelected(BRepObjectToGeoObject(this.selectedBRepObject));
+                constructAction.RefreshDependantProperties();
+            }
+        }
         /// <summary>
         /// Defines an input object for an action derived from ConstructAction.
         /// This input object extpects the user to enter a string in a edit field.
