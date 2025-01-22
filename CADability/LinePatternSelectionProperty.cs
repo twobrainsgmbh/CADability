@@ -33,11 +33,11 @@ namespace CADability.UserInterface
                 choices[0] = undef;
                 if (select != null)
                 {
-                    base.selectedText = select.Name;
+                    base.SelectedText = select.Name;
                 }
                 else
                 {
-                    base.selectedText = undef;
+                    base.SelectedText = undef;
                 }
             }
             else
@@ -49,7 +49,7 @@ namespace CADability.UserInterface
                 }
                 if (select != null)
                 {
-                    base.selectedText = select.Name;
+                    base.SelectedText = select.Name;
                 }
             }
         }
@@ -71,11 +71,11 @@ namespace CADability.UserInterface
                 choices[0] = undef;
                 if (select != null)
                 {
-                    base.selectedText = select.Name;
+                    base.SelectedText = select.Name;
                 }
                 else
                 {
-                    base.selectedText = undef;
+                    base.SelectedText = undef;
                 }
             }
             else
@@ -87,7 +87,7 @@ namespace CADability.UserInterface
                 }
                 if (select != null)
                 {
-                    base.selectedText = select.Name;
+                    base.SelectedText = select.Name;
                 }
             }
             this.iLinePattern = iLinePattern;
@@ -127,8 +127,8 @@ namespace CADability.UserInterface
                 if ((Change as GeoObjectChange).MethodOrPropertyName == "LinePattern" ||
                     (Change as GeoObjectChange).MethodOrPropertyName == "Style")
                 {
-                    if ((toWatch as ILinePattern).LinePattern != null) base.selectedText = (toWatch as ILinePattern).LinePattern.Name;
-                    else base.selectedText = null;
+                    if ((toWatch as ILinePattern).LinePattern != null) base.SelectedText = (toWatch as ILinePattern).LinePattern.Name;
+                    else base.SelectedText = null;
                     propertyPage.Refresh(this);
                 }
             }

@@ -539,7 +539,7 @@ namespace CADability.Attribute
                 choices[i] = lay.Name;
                 i++;
             }
-            if (select != null) base.selectedText = select.Name;
+            if (select != null) base.SelectedText = select.Name;
         }
 
         public LayerSelectionProperty(ILayer ObjectWithLayer, string resourceId, LayerList ll) :
@@ -565,11 +565,11 @@ namespace CADability.Attribute
                 objectWithLayer = ObjectWithLayer;
                 if (objectWithLayer != null && objectWithLayer.Layer != null)
                 {
-                    selectedText = objectWithLayer.Layer.Name;
+                    SelectedText = objectWithLayer.Layer.Name;
                 }
                 else
                 {
-                    selectedText = undef;
+                    SelectedText = undef;
                 }
             }
             else
@@ -583,7 +583,7 @@ namespace CADability.Attribute
                 }
                 objectWithLayer = ObjectWithLayer;
                 if (objectWithLayer != null && objectWithLayer.Layer != null)
-                    selectedText = objectWithLayer.Layer.Name;
+                    SelectedText = objectWithLayer.Layer.Name;
             }
             toWatch = objectWithLayer as IGeoObject;
         }
@@ -623,8 +623,8 @@ namespace CADability.Attribute
                 if ((Change as GeoObjectChange).MethodOrPropertyName == "Layer" ||
                     (Change as GeoObjectChange).MethodOrPropertyName == "Style")
                 {
-                    if (toWatch.Layer != null) base.selectedText = toWatch.Layer.Name;
-                    else base.selectedText = null;
+                    if (toWatch.Layer != null) base.SelectedText = toWatch.Layer.Name;
+                    else base.SelectedText = null;
                     propertyPage.Refresh(this);
                 }
             }
