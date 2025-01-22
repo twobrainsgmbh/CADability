@@ -757,7 +757,7 @@ namespace CADability.Attribute
             choices = styleList.Names;
             if (objectWithStyle != null && objectWithStyle.Style != null)
             {
-                base.selectedText = objectWithStyle.Style.Name;
+                base.SelectedText = objectWithStyle.Style.Name;
             }
             toWatch = objectWithStyle as IGeoObject;
             if (toWatch != null && objectWithStyle.Style != null)
@@ -768,7 +768,7 @@ namespace CADability.Attribute
                 }
                 else
                 {
-                    base.selectedText = null;
+                    base.SelectedText = null;
                     base.unselectedText = (toWatch as IStyle).Style.Name;
                 }
             }
@@ -807,13 +807,13 @@ namespace CADability.Attribute
                 {
                     if ((toWatch as IStyle).Style.Check(toWatch))
                     {
-                        base.selectedText = (toWatch as IStyle).Style.Name;
+                        base.SelectedText = (toWatch as IStyle).Style.Name;
                         base.unselectedText = null;
                     }
                     else
                     {
                         base.unselectedText = (toWatch as IStyle).Style.Name;
-                        base.selectedText = null;
+                        base.SelectedText = null;
                     }
                     propertyPage.Refresh(this);
                 }

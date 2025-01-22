@@ -74,7 +74,7 @@ namespace CADability
 
             base.propertyLabelText = StringTable.GetString(this.resourceId);
             base.choices = StringTable.GetSplittedStrings(resourceId + ".Values");
-            if (selected >= 0 && selected < base.choices.Length) base.selectedText = base.choices[selected];
+            if (selected >= 0 && selected < base.choices.Length) base.SelectedText = base.choices[selected];
         }
         /// <summary>
         /// Implements <see cref="ISerializable.GetObjectData"/>
@@ -101,7 +101,7 @@ namespace CADability
 
             base.propertyLabelText = StringTable.GetString(this.resourceId);
             base.choices = StringTable.GetSplittedStrings(resourceId + ".Values");
-            if (selected >= 0 && selected < base.choices.Length) base.selectedText = base.choices[selected];
+            if (selected >= 0 && selected < base.choices.Length) base.SelectedText = base.choices[selected];
         }
         protected MultipleChoiceSetting() { }
         #endregion

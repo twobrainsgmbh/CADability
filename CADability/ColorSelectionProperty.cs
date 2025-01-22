@@ -29,11 +29,11 @@ namespace CADability.UserInterface
             ExtendChoices();
             if (select != null)
             {
-                selectedText = select.Name;
+                SelectedText = select.Name;
             }
             else
             {
-                selectedText = unselectedText;
+                SelectedText = unselectedText;
             }
             unselectedText = StringTable.GetString("ColorDef.Undefined");
             showUnselectedGray = true;
@@ -51,11 +51,11 @@ namespace CADability.UserInterface
             ExtendChoices();
             if (selectedColor != null)
             {
-                selectedText = selectedColor.Name;
+                SelectedText = selectedColor.Name;
             }
             else
             {
-                selectedText = unselectedText;
+                SelectedText = unselectedText;
             }
             toWatch = iColorDef as IGeoObject; // may be null
             showUnselectedGray = true;
@@ -96,7 +96,7 @@ namespace CADability.UserInterface
             ColorDef selectedColor = (ColorDef)mi.Invoke(objectWithProperty, prm);
             if (selectedColor != null)
             {
-                selectedText = selectedColor.Name;
+                SelectedText = selectedColor.Name;
             }
             selectedCD = selectedColor;
             clrTable.Usage = flags;
@@ -160,10 +160,10 @@ namespace CADability.UserInterface
             }
             if (selectedColor != null)
             {
-                selectedText = selectedColor.Name;
+                SelectedText = selectedColor.Name;
             }
             else if (selectedCD != null)
-                selectedText = selectedCD.Name;
+                SelectedText = selectedCD.Name;
         }
         public delegate void ColorDefChangedDelegate(ColorDef selected);
         public event ColorDefChangedDelegate ColorDefChangedEvent;

@@ -57,8 +57,8 @@ namespace CADability.UserInterface
             MethodInfo mi = propertyInfo.GetGetMethod();
             object[] prm = new Object[0];
             bool val = (bool)mi.Invoke(objectWithProperty, prm);
-            if (val) selectedText = BooleanTextTrue;
-            else selectedText = BooleanTextFalse;
+            if (val) SelectedText = BooleanTextTrue;
+            else SelectedText = BooleanTextFalse;
         }
         public delegate void SetBooleanDelegate(bool val);
         public delegate bool GetBooleanDelegate();
@@ -108,7 +108,7 @@ namespace CADability.UserInterface
             }
             base.choices = new string[] { BooleanTextTrue, BooleanTextFalse };
             base.propertyLabelText = StringTable.GetString(resourceId + ".Label");
-            selectedText = BooleanTextTrue;
+            SelectedText = BooleanTextTrue;
         }
         /// <summary>
         /// Erzeugt eine BooleanProperty, welches einen eigenen boolean Wert enthält und
