@@ -1,0 +1,8 @@
+<Project>
+	<PropertyGroup>
+		<!-- "Ignores" Dependency Validation Warnings. NoWarn doesn't work for some reason. -->
+		<MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);DV2001</MSBuildWarningsAsMessages>
+	</PropertyGroup>
+
+	<Import Project="CADability-patch.targets" Condition="$(MSBuildProjectName) == 'CADability'"  />
+</Project>
