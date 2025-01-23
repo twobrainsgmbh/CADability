@@ -2669,6 +2669,7 @@ namespace CADability
         #region IEnumerable
         public void Add(object toAdd)
         {
+            throw new NotImplementedException();
         }
         IEnumerator IEnumerable.GetEnumerator()
         {
