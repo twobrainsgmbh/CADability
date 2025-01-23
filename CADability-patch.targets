@@ -1,0 +1,81 @@
+<Project>
+
+    <!-- With this file, we can change msbuild, without changing anything in the project file itself. -->
+    <!-- We cant change the original cadability since its maintained by someone else and we still want fixes from the orignal cadability -->
+
+    <PropertyGroup>
+        <SonarQubeExclude>true</SonarQubeExclude>
+        <!-- https://community.sonarsource.com/t/sonarlints-exclude-from-analysis-does-not-work/33685 -->
+        <RunAnalyzersDuringLiveAnalysis>False</RunAnalyzersDuringLiveAnalysis>
+        <SignAssembly>False</SignAssembly>
+        <NoWarn>
+            $(NoWarn)
+            <!-- never used -->
+            ;CS0067
+            ;CS0168
+            ;CS0169
+            ;CS0219
+            ;CS0414
+            ;CS0649
+            <!-- unreachable -->
+            ;CS0162
+            <!-- obsolete -->
+            ;CS0618
+            <!-- not CLS-complient -->
+            ;CS3001
+            ;CS3003
+            ;CS3005
+            ;CS3006
+            <!-- access modifiers -->
+            ;CS0108
+            ;CS0109
+            ;CS0114
+            <!-- Weird Logic or inconsistant -->
+            ;CS0184
+            ;CS0660
+            ;CS0661
+            ;CS0693
+            ;CS0728
+            ;CS1058
+            ;CS1717
+            ;CS1718
+        </NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Reference Remove="Microsoft.VisualStudio.DebuggerVisualizers" />
+        <PackageReference Remove="docfx.console" />
+    </ItemGroup>
+
+    <!--  RemoveFiles removes an file from the build, HiddenFiles just hides file in visual studio -->
+    <ItemGroup>
+        <RemoveFiles Include="CADabilityKey.snk" />
+
+        <RemoveFiles Include="Icons.bmp;Hotspots.bmp;PointSymbols.bmp;PointSymbolsB.bmp" />
+        <RemoveFiles Include="CADability.xml;MenuResource.xml" />
+
+        <RemoveFiles Include="index.md" />
+        <RemoveFiles Include="docfx.json" />
+        <RemoveFiles Include="toc.yml;articles/toc.yml" />
+
+        <!-- api doesnt contain anything... -->
+        <RemoveFiles Include="api/*" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <EmbeddedResource Remove="@(RemoveFiles)" />
+        <EmbeddedFiles Remove="@(RemoveFiles)" />
+        <Resource Remove="@(RemoveFiles)" />
+        <Compile Remove="@(RemoveFiles)" />
+        <Content Remove="@(RemoveFiles)" />
+        <None Remove="@(RemoveFiles)" />
+    </ItemGroup>
+
+    <!-- Remove editorconfig completely from this project -->
+    <Target Name="RemoveEditorConfigFile" BeforeTargets="GenerateMSBuildEditorConfigFile">
+        <ItemGroup>
+            <EditorConfigFiles Remove="@(EditorConfigFiles)" />
+        </ItemGroup>
+    </Target>
+
+</Project>
