@@ -1,0 +1,22 @@
+# This workflow will build a .NET project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+
+name: DevOps Integration
+
+on:
+  push:
+    tags:
+      - 'sw92\_*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Trigger DevOps pipeline
+      uses: Azure/pipelines@v1.2
+      with:
+        azure-devops-project-url: 'https://dev.azure.com/trumpf-laser/LDM'
+        azure-pipeline-name: 'CADability' # name of the Azure pipeline to be triggered
+        azure-devops-token: '${{ secrets.TB_DEVOPS_TOKEN }}'
+        azure-pipeline-variables:  '{"GITHUB_REF": "${{ github.ref_name }}", "GITHUB_SHA": "${{ github.sha }}"}' # optional stringified json
+        
