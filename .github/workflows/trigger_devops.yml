@@ -6,7 +6,7 @@ name: DevOps Integration
 on:
   push:
     tags:
-      - 'sw92_**'
+      - 'sw92\_*'
 
 jobs:
   build:
