@@ -1433,13 +1433,6 @@ namespace CADability.Curve2D
         }
         #endregion
 
-#if (DEBUG)
-        public void Debug(string Title)
-        {
-            System.Diagnostics.Trace.WriteLine(Title + ": (GeneralCurve2D) (" + (this as ICurve2D).StartPoint.ToString() + ") --> (" + (this as ICurve2D).EndPoint.ToString() + ")");
-        }
-#endif
-
         GeoPoint2D[] I2DIntersectable.IntersectWith(I2DIntersectable other)
         {
             if (other is ICurve2D curve2D)
@@ -1456,17 +1449,13 @@ namespace CADability.Curve2D
             return other.IntersectWith(this);
         }
 #if DEBUG
-        public GeoObjectList debug
+        public void DebugWriteInfo(string title)
         {
-            get
-            {
-                return new GeoObjectList(this.MakeGeoObject(Plane.XYPlane));
-            }
+            System.Diagnostics.Trace.WriteLine(title + ": (GeneralCurve2D) (" + (this as ICurve2D).StartPoint.ToString() + ") --> (" + (this as ICurve2D).EndPoint.ToString() + ")");
         }
-#endif
 
-        #region ICndHlp2DBuddy Members
-        #endregion
+        public GeoObjectList Debug => new GeoObjectList(this.MakeGeoObject(Plane.XYPlane));
+#endif
     }
 
     /// <summary>
