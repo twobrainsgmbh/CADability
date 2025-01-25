@@ -2826,12 +2826,12 @@ namespace CADability.Curve2D
             {
                 if ((fromHere | sp) < Precision.eps)
                 {
-                    par = 0.0;
+                    par = spar; // was 0.0, but I am pretty sure it should be spar
                     return true;
                 }
                 if ((fromHere | ep) < Precision.eps)
                 {
-                    par = 1.0;
+                    par = epar; // was 0.0, but I am pretty sure it should be epar
                     return true;
                 }
             }

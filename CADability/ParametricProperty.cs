@@ -5,6 +5,7 @@ using CADability;
 using System.Xml.Linq;
 using CADability.GeoObject;
 using CADability.UserInterface;
+using MathNet.Numerics;
 
 namespace CADability
 {
@@ -73,6 +74,7 @@ namespace CADability
         private List<Face> facesToKeep, facesToMove; // if mode is symmetric, both faces will be moved
         private List<object> affectedObjects; // faces which are affected by this parametric
         private object fromHere, toHere; // vertices, edges or faces. they specify the direction, in which to move and the position of the arrow
+
         [Flags]
         public enum Mode
         {
@@ -134,9 +136,9 @@ namespace CADability
             return new ParametricDistanceProperty(Name, facesToKeepCloned, facesToMoveCloned, affectedObjectsCloned, mode, fromHereCloned, toHereCloned);
         }
         public override void Modify(ModOp m)
-        {   // there is nothing to do, all referred objects like facesToMove or fromHere are part of the shell and already modified
+        {   // all referred objects like facesToMove or fromHere are part of the shell and already modified
             // with fromHere and toHere as GeoPoints we need to modify these points along with the modification of the Shell containing this parametric
-            if (fromHere is GeoPoint point1) 
+            if (fromHere is GeoPoint point1)
             {
                 fromHere = m * point1;
             }
@@ -144,6 +146,7 @@ namespace CADability
             {
                 toHere = m * point2;
             }
+            if (!ExtrusionDirection.IsNullVector()) ExtrusionDirection = m * ExtrusionDirection; // change the direction, e.g. after a rotation of the shell
         }
         private double currentValue;
         public override double Value
@@ -151,6 +154,14 @@ namespace CADability
             get
             {
                 GetDistanceVector(out GeoPoint startPoint, out GeoPoint endPoint);
+                if (!ExtrusionDirection.IsNullVector())
+                {
+                    Plane pln = new Plane(GeoPoint.Origin, ExtrusionDirection); // a plane perpendicular to this direction
+                    double d1 = pln.Distance(startPoint);
+                    double d2 = pln.Distance(endPoint);
+                    // return Math.Abs(d1 + d2); not sure whether to use abs here
+                    return d1 - d2;
+                }
                 return startPoint | endPoint;
             }
             set
@@ -158,10 +169,21 @@ namespace CADability
                 currentValue = value;
             }
         }
+        /// <summary>
+        /// if != NullVector, this is the direction of the extrusion. This is used by the distance calculation.
+        /// </summary>
+        public GeoVector ExtrusionDirection { get; set; } = GeoVector.NullVector;
         public override bool Execute(Parametric parametric)
         {
             GetDistanceVector(out GeoPoint startPoint, out GeoPoint endPoint);
             GeoVector delta = (endPoint - startPoint);
+            if (!ExtrusionDirection.IsNullVector())
+            {
+                Plane pln = new Plane(GeoPoint.Origin, ExtrusionDirection); // a plane perpendicular to this direction
+                double d1 = pln.Distance(startPoint);
+                double d2 = pln.Distance(endPoint);
+                delta = (d1 - d2) * ExtrusionDirection.Normalized;
+            }
             double diff = currentValue - delta.Length;
             delta = diff * delta.Normalized;
             Dictionary<Face, GeoVector> facesToAffect = new Dictionary<Face, GeoVector>();
@@ -183,7 +205,7 @@ namespace CADability
                     facesToAffect[face] = delta;
                 }
             }
-            parametric.MoveFaces(facesToAffect, endPoint - startPoint, mode.HasFlag(Mode.connected));
+            parametric.MoveFaces(facesToAffect, delta, mode.HasFlag(Mode.connected));
             return parametric.Apply(); // the result may be inconsistent, but maybe further parametric operations make it consistent again
         }
         private void GetDistanceVector(out GeoPoint startPoint, out GeoPoint endPoint)
@@ -319,6 +341,7 @@ namespace CADability
             data.AddProperty("Mode", mode);
             data.AddProperty("FromHere", fromHere);
             data.AddProperty("ToHere", toHere);
+            data.AddProperty("ExtrusionDirection", ExtrusionDirection);
         }
 
         public override void SetObjectData(IJsonReadData data)
@@ -331,10 +354,11 @@ namespace CADability
             fromHere = data.GetProperty("FromHere");
             toHere = data.GetProperty("ToHere");
             // there is a problem with objects been serialized as "JsonVersion.serializeAsStruct". fromHere and toHere should always be GeoPoints in future versions
-            if (fromHere is List<object> fh && fh.Count==3 && fh[0] is double) fromHere = data.GetProperty<GeoPoint>("FromHere");
+            if (fromHere is List<object> fh && fh.Count == 3 && fh[0] is double) fromHere = data.GetProperty<GeoPoint>("FromHere");
             if (fromHere is double[]) fromHere = data.GetProperty<GeoPoint>("FromHere");
             if (toHere is List<object> th && th.Count == 3 && th[0] is double) toHere = data.GetProperty<GeoPoint>("ToHere");
             if (toHere is double[]) toHere = data.GetProperty<GeoPoint>("ToHere");
+            ExtrusionDirection = data.GetPropertyOrDefault<GeoVector>("ExtrusionDirection");
             data.RegisterForSerializationDoneCallback(this);
         }
 
@@ -399,12 +423,12 @@ namespace CADability
             {
                 if (clonedFaces.TryGetValue(facesToModify[i], out Face clone)) facesToModifyCloned.Add(clone);
             }
-            if (affectedObjects!=null) for(int i = 0; i < affectedObjects.Count; i++)
-            {
-                if (affectedObjects[i] is Face face && clonedFaces.TryGetValue(face, out Face clonedFace)) affectedObjectsCloned.Add(clonedFace);
-                if (affectedObjects[i] is Edge edge && clonedEdges.TryGetValue(edge, out Edge clonedEdge)) affectedObjectsCloned.Add(clonedEdge);
-                if (affectedObjects[i] is Vertex vtx && clonedVertices.TryGetValue(vtx, out Vertex clonedVertex)) affectedObjectsCloned.Add(clonedVertex);
-            }
+            if (affectedObjects != null) for (int i = 0; i < affectedObjects.Count; i++)
+                {
+                    if (affectedObjects[i] is Face face && clonedFaces.TryGetValue(face, out Face clonedFace)) affectedObjectsCloned.Add(clonedFace);
+                    if (affectedObjects[i] is Edge edge && clonedEdges.TryGetValue(edge, out Edge clonedEdge)) affectedObjectsCloned.Add(clonedEdge);
+                    if (affectedObjects[i] is Vertex vtx && clonedVertices.TryGetValue(vtx, out Vertex clonedVertex)) affectedObjectsCloned.Add(clonedVertex);
+                }
             return new ParametricRadiusProperty(Name, facesToModifyCloned, useDiameter, affectedObjectsCloned);
         }
         public override void Modify(ModOp m)

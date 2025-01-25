@@ -570,7 +570,7 @@ namespace CADability
         }
         public Shell Result()
         {
-            foreach (Face face in modifiedFaces)
+            foreach (Face face in clonedShell.Faces)
             {   // checks the topology of the bounds in 2d: no intersection or overlapping, holes inside the outline
                 if (!face.Check2DBounds())
                 {

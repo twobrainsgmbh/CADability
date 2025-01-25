@@ -1867,8 +1867,44 @@ namespace CADability.GeoObject
                     }
                 }
                 else if (Precision.SameDirection(pln.Normal, GeoVector.ZAxis, false))
-                {   // Schnittpunkt mit den beiden Großkreisen noch implementieren
-                    // horizontale Ebene
+                {   // the ellipse is horizontal in respect to the system of the torus
+                    // we need to intersect with the two horizontal circles of the torus
+                    List<GeoPoint> lips = new List<GeoPoint>();
+                    List<GeoPoint2D> luvOnFaces = new List<GeoPoint2D>();
+                    List<double> luOnCurve3Ds = new List<double>();
+                    Plane epln = new Plane(Plane.StandardPlane.XYPlane, uelli.Center.z);
+                    double s = pln.Location.z / minorRadius;
+                    if (s >= -1.0 && s <= 1.0)
+                    {
+                        double v = Math.Asin(s);
+                        ImplicitPSurface dbg = (this as IImplicitPSurface).GetImplicitPSurface();
+
+                        //ICurve bigCircle1 = FixedV(v, 0, Math.PI * 2);
+                        //ICurve bigCircle2 = FixedV(Math.PI - v, 0, Math.PI * 2);
+                        // two big circles on the torus are in the plane of the ellipse uelli
+                        ICurve2D prelli = uelli.GetProjectedCurve(epln);
+                        double r1 = (1 + minorRadius * Math.Cos(v));
+                        double r2 = (1 + minorRadius * Math.Cos(Math.PI - v));
+                        foreach (Circle2D c2d in new Circle2D[] { new Circle2D(GeoPoint2D.Origin, r1), new Circle2D(GeoPoint2D.Origin, r2) })
+                        {
+                            GeoPoint2DWithParameter[] ips2d = prelli.Intersect(c2d);
+                            for (int i = 0; i < ips2d.Length; i++)
+                            {
+                                GeoPoint ip = epln.ToGlobal(ips2d[i].p);
+                                ip = toTorus * ip;
+                                lips.Add(ip);
+                                GeoPoint2D uv = PositionOf(ip);
+                                SurfaceHelper.AdjustPeriodic(this, uvExtent, ref uv);
+                                luvOnFaces.Add(uv);
+                                luOnCurve3Ds.Add(curve.PositionOf(ip));
+                            }
+                        }
+                    } // otherwise the ellipse is above or below the torus
+
+                    ips = lips.ToArray();
+                    uvOnFaces = luvOnFaces.ToArray();
+                    uOnCurve3Ds = luOnCurve3Ds.ToArray();
+                    return;
                 }
             }
             // ImplicitPSurface().Intersect ist nicht zuverlässig, bei Ellipsen wird der Grad x^8 und die Lösungen ungenau, so dass manche Lösungen verloren gehen

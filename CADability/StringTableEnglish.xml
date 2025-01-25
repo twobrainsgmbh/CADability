@@ -7515,8 +7515,5 @@
 		<info>A face of this shape</info>
 	</data>
 	<!--
-                        if (brepObjects[i] is Vertex) name = StringTable.GetString("Vertex.Displayname", StringTable.Category.label);
-                        else if (brepObjects[i] is Edge) name = StringTable.GetString("Edge.Displayname", StringTable.Category.label);
-                        if (brepObjects[i] is Face) name = StringTable.GetString("Face.Displayname", StringTable.Category.label);
 	-->
 </root>

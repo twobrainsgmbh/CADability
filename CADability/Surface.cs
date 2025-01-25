@@ -11190,7 +11190,8 @@ namespace CADability.GeoObject
                 {
                     BoundingCube bc = cubes[j].BoundingCube;
                     if (cubes[j].uvPatch.Interferes(ref uvExtent) && (curve as IOctTreeInsertable).HitTest(ref bc, 0.0))
-                    {   // es werden zu viele Würfel geliefert, GetCurveIntersection macht den Test nicht
+                    {   // only check the relevant cubes
+                        // there is a bug: GetCurveIntersection only finds single intersection points where there might be multiple intersections
                         GetCurveIntersection(curve as ISimpleCurve, cubes[j], lips, luvOnFace, luOnCurve);
                     }
                 }

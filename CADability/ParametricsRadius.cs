@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace CADability
+namespace CADability.Actions
 {
     /// <summary>
     /// This class is the interactive way (<seealso cref="ConstructAction"/>) to define a <see cref="ParametricRadiusProperty"/>.
