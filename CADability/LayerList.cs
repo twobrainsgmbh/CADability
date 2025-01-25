@@ -31,7 +31,7 @@ namespace CADability.Attribute
         public LayerList()
         {
             entries = new SortedList();
-            resourceId = "LayerList";
+            resourceIdInternal = "LayerList";
         }
         /// <summary>
         /// Fügt einen neuen Layer der Liste zu.
@@ -636,7 +636,7 @@ namespace CADability.Attribute
             {
                 this.checkedLayers = new List<Layer>(checkedLayers);
             }
-            this.resourceId = resourceId;
+            this.resourceIdInternal = resourceId;
             layerList.LayerAddedEvent += new LayerList.LayerAddedDelegate(OnLayerAdded);
             layerList.LayerRemovedEvent += new LayerList.LayerRemovedDelegate(OnLayerRemoved);
             layerList.DidModifyEvent += new DidModifyDelegate(OnLayerModified);
@@ -839,7 +839,7 @@ namespace CADability.Attribute
         #region ISerializable Members
         protected CheckedLayerList(SerializationInfo info, StreamingContext context)
         {
-            resourceId = info.GetString("ResourceId");
+            resourceIdInternal = info.GetString("ResourceId");
             try
             {
                 deserializedCheckedLayers = info.GetValue("CheckedLayers", typeof(Layer[])) as Layer[];
@@ -857,7 +857,7 @@ namespace CADability.Attribute
         }
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            info.AddValue("ResourceId", resourceId);
+            info.AddValue("ResourceId", resourceIdInternal);
             info.AddValue("CheckedLayers", checkedLayers.ToArray(), typeof(Layer[]));
             info.AddValue("LayerList", layerList, typeof(LayerList));
         }

@@ -38,7 +38,7 @@ namespace CADability.Actions
         public static SelectObjectsSettings GetDefault()
         {	// erzeuge eine Default Version des Objektes
             SelectObjectsSettings res = new SelectObjectsSettings();
-            res.resourceId = "SelectObjects.Settings";
+            res.resourceIdInternal = "SelectObjects.Settings";
 
             IntegerProperty HandleSizeIntegerProperty = new IntegerProperty("Select.HandleSize", "HandleSize");
             HandleSizeIntegerProperty.IntegerValue = 3;

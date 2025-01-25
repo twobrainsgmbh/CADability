@@ -24,7 +24,7 @@ namespace CADability.Attribute
         public DimensionStyleList()
         {
             entries = new SortedList();
-            resourceId = "DimensionStyleList";
+            resourceIdInternal = "DimensionStyleList";
         }
 
         public DimensionStyle this[int Index]

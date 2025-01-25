@@ -28,7 +28,7 @@ namespace CADability.GeoObject
         public ShowPropertyFace(Face face, IFrame frame)
             : base(frame)
         {
-            resourceId = "Face.Object";
+            resourceIdInternal = "Face.Object";
             this.face = face;
             attributeProperties = face.GetAttributeProperties(frame);
         }

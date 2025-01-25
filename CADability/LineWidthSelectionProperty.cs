@@ -18,7 +18,7 @@ namespace CADability.UserInterface
         public LineWidthSelectionProperty(string ResourceId, LineWidthList lineWidthList, LineWidth select, bool includeUndefined)
         {
             this.lineWidthList = lineWidthList;
-            resourceId = ResourceId;
+            resourceIdInternal = ResourceId;
             if (includeUndefined)
             {
                 choices = new string[lineWidthList.Count + 1];
@@ -55,7 +55,7 @@ namespace CADability.UserInterface
         public LineWidthSelectionProperty(string ResourceId, LineWidthList lineWidthList, ILineWidth iLineWidth, bool includeUndefined)
         {
             this.lineWidthList = lineWidthList;
-            resourceId = ResourceId;
+            resourceIdInternal = ResourceId;
             LineWidth select = iLineWidth.LineWidth;
             if (includeUndefined)
             {

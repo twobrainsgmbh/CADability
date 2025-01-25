@@ -17,14 +17,14 @@ namespace CADability.UserInterface
 
         public CheckProperty(string resourceID, CheckState state)
         {
-            base.resourceId = resourceID;
+            base.resourceIdInternal = resourceID;
             this.state = (int)state;
         }
         public CheckProperty(object ObjectWithProperty, string PropertyName, string resourceId)
         {
 
             objectWithProperty = ObjectWithProperty;
-            base.resourceId = resourceId;
+            base.resourceIdInternal = resourceId;
 
             propertyInfoBool = objectWithProperty.GetType().GetProperty(PropertyName, typeof(bool));
             propertyInfoCheckState = objectWithProperty.GetType().GetProperty(PropertyName, typeof(CheckState));

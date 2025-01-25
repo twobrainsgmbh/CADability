@@ -356,7 +356,7 @@ namespace CADability.Attribute
         public override void Added(IPropertyPage propertyPage)
         {
             base.Added(propertyPage);
-            base.resourceId = "LayerName";
+            base.resourceIdInternal = "LayerName";
         }
         /*	public override void Removed(IPropertyTreeView propertyPage)
             {
@@ -531,7 +531,7 @@ namespace CADability.Attribute
         public LayerSelectionProperty(string resourceId, LayerList layerList, Layer select)
         {
             this.layerList = layerList;
-            base.resourceId = resourceId;
+            base.resourceIdInternal = resourceId;
             choices = new string[layerList.Count];
             int i = 0;
             foreach (Layer lay in layerList)
@@ -548,7 +548,7 @@ namespace CADability.Attribute
         public LayerSelectionProperty(ILayer ObjectWithLayer, string resourceId, LayerList ll, bool includeUndefined)
         {
             layerList = ll;
-            base.resourceId = resourceId;
+            base.resourceIdInternal = resourceId;
             if (includeUndefined)
             {
                 choices = new string[ll.Count + 1];

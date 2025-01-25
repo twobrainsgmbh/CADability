@@ -24,7 +24,7 @@ namespace CADability
         public ColorSetting(string settingName, string resourceId)
         {
             this.settingName = settingName;
-            this.resourceId = resourceId;
+            this.resourceIdInternal = resourceId;
         }
         public Color Color
         {
@@ -40,7 +40,7 @@ namespace CADability
             return cs.color;
         }
         #region IShowPropertyImpl Overrides
-        public override string Label { get => StringTable.GetString(resourceId); }
+        public override string Label { get => StringTable.GetString(resourceIdInternal); }
         public override string Value
         {
             get
@@ -77,7 +77,7 @@ namespace CADability
             {
                 color = Color.Black;
             }
-            resourceId = (string)info.GetValue("ResourceIdLabel", typeof(string));
+            resourceIdInternal = (string)info.GetValue("ResourceIdLabel", typeof(string));
             settingName = (string)info.GetValue("SettingName", typeof(string));
         }
 
@@ -117,7 +117,7 @@ namespace CADability
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             info.AddValue("Color", color, color.GetType());
-            info.AddValue("ResourceIdLabel", resourceId, resourceId.GetType());
+            info.AddValue("ResourceIdLabel", resourceIdInternal, resourceIdInternal.GetType());
             info.AddValue("SettingName", settingName, settingName.GetType());
         }
         #endregion

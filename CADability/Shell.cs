@@ -28,7 +28,7 @@ namespace CADability.GeoObject
         public ShowPropertyShell(Shell shell, IFrame frame)
             : base(frame)
         {
-            resourceId = "Shell.Object";
+            resourceIdInternal = "Shell.Object";
             this.shell = shell;
             attributeProperties = shell.GetAttributeProperties(frame);
         }

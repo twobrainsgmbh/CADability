@@ -508,7 +508,7 @@ namespace CADability.GeoObject
         {
             this.picture = picture;
             attributeProperties = picture.GetAttributeProperties(Frame);
-            base.resourceId = "Picture.Object";
+            base.resourceIdInternal = "Picture.Object";
 
             location = new GeoPointProperty("Picture.Location", Frame, true);
             location.GetGeoPointEvent += new CADability.UserInterface.GeoPointProperty.GetGeoPointDelegate(OnGetRefPoint);

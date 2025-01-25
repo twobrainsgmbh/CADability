@@ -1662,7 +1662,7 @@ namespace CADability.Attribute
         public override void Added(IPropertyPage propertyTreeView)
         {	// erfolgt als erster Aufruf, hier werden die subentries erzeugt
             base.Added(propertyTreeView); // schon hier, damit Frame gesetzt ist
-            base.resourceId = "DimensionStyleName";
+            base.resourceIdInternal = "DimensionStyleName";
 
         }
         /// <summary>

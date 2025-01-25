@@ -273,7 +273,7 @@ namespace CADability.UserInterface
         protected IPropertyPage propertyTreeView => propertyPage;
         /// <summary>
         /// Overrides the label text, which is normally retrieved from the <see cref="StringTable"/>
-        /// with the <see cref="resourceId"/>
+        /// with the <see cref="resourceIdInternal"/>
         /// </summary>
         protected string labelTextInternal;
         
@@ -284,7 +284,7 @@ namespace CADability.UserInterface
         /// You may extend the StringTable and ues your own resourceId values according to this scheme. (see
         /// <see cref="StringTable.AddStrings"/>)
         /// </summary>
-        protected string resourceId;
+        protected string resourceIdInternal;
         private bool hidden; // default: false!
         private bool readOnly; // default: false!
         protected ShowPropertyLabelFlags flagsToSuppress = (ShowPropertyLabelFlags)0;
@@ -432,7 +432,7 @@ namespace CADability.UserInterface
             get
             {
                 if (labelTextInternal != null) return labelTextInternal;
-                return StringTable.GetString(resourceId + ".Label");
+                return StringTable.GetString(resourceIdInternal + ".Label");
             }
             set
             {
@@ -448,15 +448,15 @@ namespace CADability.UserInterface
         {
             get
             {
-                if (resourceId != null) return StringTable.GetString(resourceId + ".DetailedInfo");
+                if (resourceIdInternal != null) return StringTable.GetString(resourceIdInternal + ".DetailedInfo");
                 return null;
             }
         }
         /// <summary>
         /// Implementation of <see cref="IShowProperty.HelpLink"/>, returns 
-        /// <see cref="resourceId"/>.
+        /// <see cref="resourceIdInternal"/>.
         /// </summary>
-        public virtual string HelpLink { get { return resourceId; } }
+        public virtual string HelpLink { get { return resourceIdInternal; } }
         /// <summary>
         /// Implementation of <see cref="IShowProperty.LabelType"/>.
         /// Returns <see cref="ShowPropertyLabelFlags.Selectable"/>
@@ -826,7 +826,7 @@ namespace CADability.UserInterface
     {
         public ShowPropertyGroup(string resourceId)
         {
-            base.resourceId = resourceId;
+            base.resourceIdInternal = resourceId;
             subEntriesInternal = new IPropertyEntry[0];
         }
         protected IPropertyEntry[] subEntriesInternal;

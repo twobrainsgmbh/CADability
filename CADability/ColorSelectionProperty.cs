@@ -23,7 +23,7 @@ namespace CADability.UserInterface
             selectedCD = select;
             useFlags = flags;
             clrTable.Usage = flags;
-            base.resourceId = resourceId;
+            base.resourceIdInternal = resourceId;
             colorList = clrTable;
             choices = clrTable.Names;
             ExtendChoices();
@@ -42,7 +42,7 @@ namespace CADability.UserInterface
         {
             useFlags = flags;
             clrTable.Usage = flags;
-            base.resourceId = resourceId;
+            base.resourceIdInternal = resourceId;
             colorList = clrTable;
             ColorDef selectedColor = iColorDef.ColorDef;
             selectedCD = selectedColor;
@@ -85,7 +85,7 @@ namespace CADability.UserInterface
             useFlags = flags;
             flags = clrTable.Usage;
             clrTable.Usage = useFlags;
-            base.resourceId = resourceId;
+            base.resourceIdInternal = resourceId;
             colorList = clrTable;
             choices = clrTable.Names;
 
