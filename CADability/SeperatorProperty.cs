@@ -8,7 +8,7 @@
     {
         public SeperatorProperty(string resourceId)
         {
-            base.resourceId = resourceId;
+            base.resourceIdInternal = resourceId;
         }
         #region IShowProperty Members
         public override ShowPropertyLabelFlags LabelType

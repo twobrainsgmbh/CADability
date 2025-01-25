@@ -16,7 +16,7 @@ namespace CADability.UserInterface
         public NameProperty(object ObjectWithName, string PropertyName, string resourceId)
         {
             this.ObjectWithName = ObjectWithName;
-            base.resourceId = resourceId;
+            base.resourceIdInternal = resourceId;
             TheProperty = ObjectWithName.GetType().GetProperty(PropertyName);
             if (TheProperty == null) TheProperty = ObjectWithName.GetType().BaseType.GetProperty(PropertyName); // besser rekursiv
         }

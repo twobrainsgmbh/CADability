@@ -331,7 +331,7 @@ namespace CADability
 
             filterList = new FilterList(); // auch aus globale settings?
             filterList.AttributeListContainer = this;
-            base.resourceId = "ProjectSettings";
+            base.resourceIdInternal = "ProjectSettings";
 
             UserData = new UserData();
             UserData.UserDataAddedEvent += new UserData.UserDataAddedDelegate(OnUserDataAdded);
@@ -2340,7 +2340,7 @@ namespace CADability
                 {
                 }
             }
-            base.resourceId = "ProjectSettings";
+            base.resourceIdInternal = "ProjectSettings";
         }
         void OnUserDataRemoved(string name, object value)
         {

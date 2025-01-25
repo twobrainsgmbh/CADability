@@ -153,7 +153,7 @@ namespace CADability
             dragWidth = Frame.GetIntSetting("Select.DragWidth", 5);
             projection = new Projection(Projection.StandardProjection.Isometric);
             highlightWidth = 0;
-            base.resourceId = "AnimatedView";
+            base.resourceIdInternal = "AnimatedView";
         }
         /// <summary>
         /// Creates a new AnimatedView object. In oder to display this view on the screen you need to add this view to a

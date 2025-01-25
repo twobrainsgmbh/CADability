@@ -278,7 +278,7 @@ namespace CADability.GeoObject
         {
             this.icon = icon;
             attributeProperties = icon.GetAttributeProperties(Frame);
-            base.resourceId = "Icon.Object";
+            base.resourceIdInternal = "Icon.Object";
         }
         #region IPropertyEntry overrides
         public override PropertyEntryType Flags => PropertyEntryType.ContextMenu | PropertyEntryType.Selectable | PropertyEntryType.GroupTitle | PropertyEntryType.HasSubEntries;

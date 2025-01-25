@@ -23,7 +23,7 @@ namespace CADability.UserInterface
         public HatchStyleSelectionProperty(string ResourceId, HatchStyleList hsl, HatchStyle preselect, bool includeUndefined)
         {
             hatchStyleList = hsl;
-            resourceId = ResourceId;
+            resourceIdInternal = ResourceId;
             if (includeUndefined)
             {
                 base.choices = new string[hatchStyleList.Count + 1];

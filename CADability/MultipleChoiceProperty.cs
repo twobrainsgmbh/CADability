@@ -35,14 +35,14 @@ namespace CADability.UserInterface
         public MultipleChoiceProperty(string resourceId, string[] Choices, string InitialSelection)
             : this()
         {
-            base.resourceId = resourceId;
+            base.resourceIdInternal = resourceId;
             choices = Choices;
             SelectedText = InitialSelection;
         }
         public MultipleChoiceProperty(string resourceId, int InitialSelection)
             : this()
         {
-            base.resourceId = resourceId;
+            base.resourceIdInternal = resourceId;
             choices = StringTable.GetSplittedStrings(resourceId + ".Values");
             if (InitialSelection >= choices.Length) InitialSelection = 0;
             SelectedText = choices[InitialSelection];

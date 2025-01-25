@@ -33,7 +33,7 @@ namespace CADability.UserInterface
         }
         public DimensionStyleSelectionProperty(string resourceId, DimensionStyleList list, IDimensionStyle dimensionStyle, Dimension.EDimType dimType, bool includeUndefined) : base()
         {
-            base.resourceId = resourceId;
+            base.resourceIdInternal = resourceId;
             this.dimensionStyle = dimensionStyle;
             List<DimensionStyle> al = new List<DimensionStyle>();
             for (int i = 0; i < list.Count; ++i)

@@ -31,7 +31,7 @@ namespace CADability.GeoObject
         {
             text = t;
             //			PropertyDescription = StringTable.GetString("Text.Font.Format");
-            resourceId = "Text.Font.Format";
+            resourceIdInternal = "Text.Font.Format";
         }
 
         private MultipleChoiceProperty initFontList()
@@ -105,7 +105,7 @@ namespace CADability.GeoObject
         {
             text = t;
             //			PropertyDescription = StringTable.GetString("Text.Label");
-            resourceId = "Text";
+            resourceIdInternal = "Text";
 
             locationProperty = new GeoPointProperty(text, "Location", "Text.Location", Frame, true);
 

@@ -43,7 +43,7 @@ namespace CADability.Attribute
         public HatchStyleList()
         {
             entries = new SortedList();
-            resourceId = "HatchStyleList";
+            resourceIdInternal = "HatchStyleList";
             needsUpdate = false;
         }
 
@@ -244,7 +244,7 @@ namespace CADability.Attribute
                 entries = (SortedList)info.GetValue("Entries", typeof(SortedList));
             }
             current = (HatchStyle)InfoReader.Read(info, "Current", typeof(HatchStyle));
-            resourceId = "HatchStyleList";
+            resourceIdInternal = "HatchStyleList";
         }
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {

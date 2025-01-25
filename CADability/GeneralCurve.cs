@@ -28,7 +28,7 @@ namespace CADability.GeoObject
         {
             this.generalCurve = GeneralCurve;
             attributeProperties = generalCurve.GetAttributeProperties(Frame);
-            base.resourceId = "General.Curve";
+            base.resourceIdInternal = "General.Curve";
         }
         #region PropertyEntryImpl Overrides
         public override PropertyEntryType Flags

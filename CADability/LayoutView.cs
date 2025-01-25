@@ -66,7 +66,7 @@ namespace CADability
             this.project = project;
             this.layout = layout;
             screenToLayout = layoutToScreen = ModOp2D.Null;
-            base.resourceId = "LayoutView";
+            base.resourceIdInternal = "LayoutView";
             // printDocument = project.printDocument;
             printDocument = new PrintDocument();
 

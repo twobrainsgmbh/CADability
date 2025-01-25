@@ -19,7 +19,7 @@ namespace CADability.UserInterface
         public LinePatternSelectionProperty(string ResourceID, LinePatternList linePatternList, LinePattern select, bool includeUndefined)
         {
             this.linePatternList = linePatternList;
-            resourceId = ResourceID;
+            resourceIdInternal = ResourceID;
             if (includeUndefined)
             {
                 choices = new string[linePatternList.Count + 1];
@@ -56,7 +56,7 @@ namespace CADability.UserInterface
         public LinePatternSelectionProperty(string ResourceID, LinePatternList linePatternList, ILinePattern iLinePattern, bool includeUndefined)
         {
             this.linePatternList = linePatternList;
-            resourceId = ResourceID;
+            resourceIdInternal = ResourceID;
             LinePattern select = iLinePattern.LinePattern;
             if (includeUndefined)
             {

@@ -119,7 +119,7 @@ namespace CADability.Attribute
         }
         public HatchStyleContour()
         {
-            resourceId = "HatchStyleNameContour";
+            resourceIdInternal = "HatchStyleNameContour";
         }
         /// <summary>
         /// Gets or stes the line distance. This is the distance between adjacent contours.
