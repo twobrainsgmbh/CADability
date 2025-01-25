@@ -275,7 +275,8 @@ namespace CADability.UserInterface
         /// Overrides the label text, which is normally retrieved from the <see cref="StringTable"/>
         /// with the <see cref="resourceId"/>
         /// </summary>
-        protected string labelText;
+        protected string labelTextInternal;
+        
         /// <summary>
         /// The resourceId specifies both the label text and the tooltip text. The label text
         /// is loaded from the <see cref="StringTable"/> with the ID resourceId+".Label" the 
@@ -423,19 +424,19 @@ namespace CADability.UserInterface
         }
         /// <summary>
         /// Implementation of <see cref="IShowProperty.LabelText"/>, returns either
-        /// <see cref="labelText"/> (if not null) or <see cref="StringTable.GetString"/>(resourceId+".Label")
-        /// Whe set, <see cref="labelText"/> is set.
+        /// <see cref="labelTextInternal"/> (if not null) or <see cref="StringTable.GetString"/>(resourceId+".Label")
+        /// Whe set, <see cref="labelTextInternal"/> is set.
         /// </summary>
         public virtual string LabelText
         {
             get
             {
-                if (labelText != null) return labelText;
+                if (labelTextInternal != null) return labelTextInternal;
                 return StringTable.GetString(resourceId + ".Label");
             }
             set
             {
-                labelText = value;
+                labelTextInternal = value;
             }
         }
         /// <summary>
@@ -805,7 +806,7 @@ namespace CADability.UserInterface
 
         public virtual IPropertyEntry FindSubItem(string helpResourceID)
         {   // also check for LabeText, which would be the name of an item in the list
-            if (ResourceId == helpResourceID || (string.IsNullOrEmpty(ResourceId) && labelText == helpResourceID)) return this;
+            if (ResourceId == helpResourceID || (string.IsNullOrEmpty(ResourceId) && labelTextInternal == helpResourceID)) return this;
             for (int i = 0; i < SubItems.Length; i++)
             {
                 IPropertyEntry found = SubItems[i].FindSubItem(helpResourceID);
@@ -826,24 +827,24 @@ namespace CADability.UserInterface
         public ShowPropertyGroup(string resourceId)
         {
             base.resourceId = resourceId;
-            subEntries = new IPropertyEntry[0];
+            subEntriesInternal = new IPropertyEntry[0];
         }
-        protected IPropertyEntry[] subEntries;
+        protected IPropertyEntry[] subEntriesInternal;
         public void ClearSubEntries()
         {
-            subEntries = new IPropertyEntry[0];
+            subEntriesInternal = new IPropertyEntry[0];
         }
         public void AddSubEntry(IPropertyEntry ToAdd)
         {
-            ArrayList al = new ArrayList(subEntries);
+            ArrayList al = new ArrayList(subEntriesInternal);
             al.Add(ToAdd);
-            subEntries = (IPropertyEntry[])al.ToArray(typeof(IPropertyEntry));
+            subEntriesInternal = (IPropertyEntry[])al.ToArray(typeof(IPropertyEntry));
         }
         public void AddSubEntries(params IPropertyEntry[] ToAdd)
         {
-            ArrayList al = new ArrayList(subEntries);
+            ArrayList al = new ArrayList(subEntriesInternal);
             al.AddRange(ToAdd);
-            subEntries = (IPropertyEntry[])al.ToArray(typeof(IPropertyEntry));
+            subEntriesInternal = (IPropertyEntry[])al.ToArray(typeof(IPropertyEntry));
         }
         public override PropertyEntryType Flags => PropertyEntryType.GroupTitle | PropertyEntryType.HasSubEntries;
         /// <summary>
@@ -854,7 +855,7 @@ namespace CADability.UserInterface
         {
             get
             {
-                return subEntries;
+                return subEntriesInternal;
             }
         }
 

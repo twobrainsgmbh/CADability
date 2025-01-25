@@ -8,7 +8,7 @@ namespace CADability.UserInterface
     public abstract class PropertyEntryImpl : IPropertyEntry, IShowProperty
     {
         protected string resourceId;
-        protected string labelText;
+        private string labelText;
         private IFrame frame;
         private readonly IShowPropertyImpl dumy = null; // will never be set. Dummy implementation of IShowProperty
 
