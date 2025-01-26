@@ -5,18 +5,12 @@ using CADability.WebDrawing;
 using Point = CADability.WebDrawing.Point;
 #else
 using System.Drawing;
-using System.Numerics;
 using Point = System.Drawing.Point;
 #endif
 
 namespace CADability.Actions
 {
-    internal interface IConstructPlane
-    {
-        Plane ConstructedPlane { get; }
-    }
-
-    class ConstructTangentialPlane : ConstructAction, IIntermediateConstruction, IConstructPlane
+    class ConstructPlaneOfCurve : ConstructAction, IIntermediateConstruction, IConstructPlane
     {
         private Plane plane;
         private Plane fplane;
@@ -36,13 +30,13 @@ namespace CADability.Actions
         }
         public delegate void PlaneChangedDelegate(Plane plane);
         public event PlaneChangedDelegate PlaneChangedEvent;
-        public ConstructTangentialPlane(string resourceId)
+        public ConstructPlaneOfCurve(string resourceId)
         {
             base.TitleId = resourceId;
         }
         public override string GetID()
         {
-            return "Construct.Plane.Tangential";
+            return "Construct.Plane.OfCurve";
         }
 
         public override void OnSetAction()
@@ -55,11 +49,10 @@ namespace CADability.Actions
             height = Frame.ActiveView.Projection.DeviceToWorldFactor * rect.Height / 2.0;
             feedBackplane = new FeedBackPlane(plane, width, height);
             RecalcFeedbackPolyLine();
-            GeoObjectInput input = new GeoObjectInput("Construct.Plane.Tangential.Face");
-            input.FacesOnly = true;
+            GeoObjectInput input = new GeoObjectInput("Construct.Plane.OfCurve");
+            input.EdgesOnly = true;
             input.MouseOverGeoObjectsEvent += new GeoObjectInput.MouseOverGeoObjectsDelegate(OnMouseOverGeoObjects);
             base.SetInput(input);
-            //base.FeedBack.Add(feedBackPolyLine);
             base.FeedBack.Add(feedBackplane);
             base.OnSetAction();
         }
@@ -81,17 +74,11 @@ namespace CADability.Actions
             GeoPoint p = base.CurrentMousePosition;
             for (int i = 0; i < TheGeoObjects.Length; ++i)
             {
-                if (TheGeoObjects[i] is Face)
+                if (TheGeoObjects[i] is ICurve cv)
                 {
-                    Face fc = TheGeoObjects[i] as Face;
-                    // man könnte hier den Tangentialpunkt bestimmen, vorläufig nur mit Ebenen Flächen
-                    //BoundingCube bc = fc.GetBoundingCube();
-                    //bc.GetCenter();
-                    //Edge e = new Edge(null,
-                    //fc.Intersect(
-                    if (fc.Surface is PlaneSurface)
+                    if (cv.GetPlanarState()==PlanarState.Planar)
                     {
-                        plane = (fc.Surface as PlaneSurface).Plane;
+                        plane = cv.GetPlane();
                         CheckPlane();
                         return true;
                     }
