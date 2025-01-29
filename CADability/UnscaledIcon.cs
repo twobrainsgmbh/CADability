@@ -272,7 +272,7 @@ namespace CADability.GeoObject
 
     internal class ShowPropertyUnscaledIcon : PropertyEntryImpl, ICommandHandler, IGeoObjectShowProperty
     {
-        private readonly IPropertyEntry[] attributeProperties; // Anzeigen für die Attribute (Ebene, Farbe u.s.w)
+        private readonly IPropertyEntry[] attributeProperties; //Show properties (Layer, color, etc.)
         private IPropertyEntry[] subEntries;
         private readonly Icon icon;
         public ShowPropertyUnscaledIcon(Icon icon, IFrame frame) : base(frame)
