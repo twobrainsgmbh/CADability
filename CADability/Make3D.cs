@@ -768,6 +768,8 @@ namespace CADability.GeoObject
             {
                 secondPath.Set(secondPath.Split(0.5));
             }
+            firstPath.Flatten();
+            secondPath.Flatten();
             if (makeSolid && firstPath.IsClosed && secondPath.IsClosed && firstPath.GetPlanarState() == PlanarState.Planar && secondPath.GetPlanarState() == PlanarState.Planar)
             {
                 Plane firstpln = firstPath.GetPlane();
@@ -915,7 +917,9 @@ namespace CADability.GeoObject
                     {
                         Line l1 = Line.TwoPoints(e1.Center, e2.Center);
                         Line l2 = Line.TwoPoints(e1.StartPoint, e2.StartPoint);
-                        if (Curves.GetCommonPlane(new ICurve[] { l1, l2 }, out Plane pln))
+                        Line l3 = Line.TwoPoints(e1.EndPoint, e2.EndPoint);
+                        // ensure the arcs start and end at the same angle
+                        if (Curves.GetCommonPlane(new ICurve[] { l1, l2 }, out Plane pln) && Curves.GetCommonPlane(new ICurve[] { l1, l3 }, out _))
                         {
                             double[] ips = Curves.Intersect(l1, l2, false);
                             if (ips.Length == 1)
