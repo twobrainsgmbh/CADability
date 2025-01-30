@@ -37,7 +37,7 @@ namespace CADability.UserInterface
         {
             this.ellipse = ellipse;
 
-            centerProperty = önew GeoPointProperty(Frame, "Ellipse.Center");
+            centerProperty = new GeoPointProperty(Frame, "Ellipse.Center");
             centerProperty.OnSetValue = OnSetCenter;
             centerProperty.OnGetValue = OnGetCenter;
             centerProperty.ModifyWithMouse += ModifyCenterWithMouse;
