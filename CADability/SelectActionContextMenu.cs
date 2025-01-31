@@ -11,6 +11,7 @@ using Wintellect.PowerCollections;
 using static CADability.Actions.SelectObjectsAction;
 using CADability.Curve2D;
 using CADability.Shapes;
+using MathNet.Numerics.LinearAlgebra.Factorization;
 #if WEBASSEMBLY
 using CADability.WebDrawing;
 using Point = CADability.WebDrawing.Point;
@@ -104,11 +105,20 @@ namespace CADability
             }
             else
             {
-                // we are not in accumulation mode. Nothing is selected when the right click occurred
+                GeoObjectList fl;
                 int pickRadius = selectAction.Frame.GetIntSetting("Select.PickRadius", 5);
                 Projection.PickArea pa = vw.Projection.GetPickSpace(new Rectangle(mousePoint.X - pickRadius, mousePoint.Y - pickRadius, pickRadius * 2, pickRadius * 2));
-                IActionInputView pm = vw as IActionInputView;
-                GeoObjectList fl = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), PickMode.singleFaceAndCurve, null); // returns all the face under the cursor
+                if (selectedObjects.Count == 0)
+                {
+                    // we are not in accumulation mode. Nothing was selected when the right click occurred
+                    IActionInputView pm = vw as IActionInputView;
+                    fl = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), PickMode.singleFaceAndCurve, null); // returns all the face under the cursor
+                }
+                else
+                {
+                    // work with the already selected objects
+                    fl = new GeoObjectList(selectedObjects);
+                }
 
                 List<Face> faces = new List<Face>();
                 List<Shell> shells = new List<Shell>(); // only Shells, which are not part of a Solid
@@ -116,6 +126,7 @@ namespace CADability
                 List<Face> axis = new List<Face>();
                 //private List<(IEnumerable<Face> faces, IEnumerable<Face> lids, bool isGap)> features;
                 List<Edge> edges = new List<Edge>();
+                List<ICurve> curves = new List<ICurve>();
 
                 for (int i = 0; i < fl.Count; i++)
                 {
@@ -128,13 +139,17 @@ namespace CADability
                             else shells.Add(sh);
                         }
                     }
-                    if (fl[i] is ICurve)
+                    if (fl[i] is ICurve crv)
                     {
                         if (fl[i].Owner is Edge edge) edges.Add(edge);
-                        if (fl[i].UserData.Contains("CADability.AxisOf"))
+                        else if (fl[i].UserData.Contains("CADability.AxisOf"))
                         {
                             Face faceWithAxis = (fl[i]).UserData.GetData("CADability.AxisOf") as Face;
                             if (faceWithAxis != null) axis.Add(faceWithAxis);
+                        }
+                        else
+                        {
+                            curves.Add(crv);
                         }
                     }
                 }
@@ -157,12 +172,12 @@ namespace CADability
                         object maxObject = null, minObject = null;
                         foreach (Edge edg in fc.Edges)
                         {
-                            if (Math.Abs(loopPlanes[i].Distance(edg.Vertex1.Position)- ext.Zmax) <Precision.eps && maxObject==null) maxObject= edg.Vertex1;
-                            if (Math.Abs(loopPlanes[i].Distance(edg.Vertex1.Position)- ext.Zmin) <Precision.eps && minObject==null) minObject= edg.Vertex1;
+                            if (Math.Abs(loopPlanes[i].Distance(edg.Vertex1.Position) - ext.Zmax) < Precision.eps && maxObject == null) maxObject = edg.Vertex1;
+                            if (Math.Abs(loopPlanes[i].Distance(edg.Vertex1.Position) - ext.Zmin) < Precision.eps && minObject == null) minObject = edg.Vertex1;
                             if (Math.Abs(loopPlanes[i].Distance(edg.Vertex2.Position) - ext.Zmax) < Precision.eps && maxObject == null) maxObject = edg.Vertex2;
                             if (Math.Abs(loopPlanes[i].Distance(edg.Vertex2.Position) - ext.Zmin) < Precision.eps && minObject == null) minObject = edg.Vertex2;
                         }
-                        if (minObject==null)
+                        if (minObject == null)
                         {   // nothing found, maybe it is an edge like an arc, where we use the maximum or minimum distance
                             minObject = fc.Edges.MinBy(e => loopPlanes[i].Distance(e.Vertex1.Position)).Vertex1;
                         }
@@ -215,6 +230,24 @@ namespace CADability
                 foreach (Solid sld in solids)
                 {
                     cm.Add(CreateSolidMenu(selectAction, vw, sld));
+                }
+                if (curves.Count > 1)
+                {
+                    if (CanMakePath(curves)) cm.AddIfNotNull(CreateMakePathMenu(selectAction, vw, curves));
+                }
+                bool suppresRuledSolid = false;
+                if (curves.Count == 2 && curves[0] is Path path1 && curves[1] is Path path2)
+                {
+                    if (Constr3DRuledSolid.ruledSolidTest(path1, path2))
+                    {
+                        cm.AddIfNotNull(SimpleAction("MenuId.Constr.Solid.RuledSolid", 161, selectAction.Frame, 
+                            (() => Constr3DRuledSolid.ruledSolidDo(path1, path2, selectAction.Frame)), curves));
+                        suppresRuledSolid = true;
+                    }
+                }
+                for (int i = 0; i < curves.Count; i++)
+                {
+                    cm.AddIfNotNull(CreateCurveMenu(selectAction, vw, curves[i], suppresRuledSolid));
                 }
             }
             cm.AddRange(CreateGeneralContextMenus(vw)); // the menu "Show"
@@ -501,6 +534,138 @@ namespace CADability
             vw.Canvas.ShowContextMenu(cm.ToArray(), mousePoint, ContextMenuCollapsed);
             */
         }
+        private MenuWithHandler SimpleAction(string menuId, int imageIndex, IFrame frame, ConstructAction actionToSet, object feedback)
+        {
+            MenuWithHandler mh = new MenuWithHandler();
+            mh.ID = menuId;
+            mh.Text = StringTable.GetString(menuId, StringTable.Category.label);
+            mh.ImageIndex = imageIndex;
+            mh.OnSelected = (mId, selected) =>
+            {   // show the selected curves as feedback
+                currentMenuSelection.Clear();
+                if (feedback is IGeoObject go) currentMenuSelection.Add(go);
+                else if (feedback is GeoObjectList gol) currentMenuSelection.AddRange(gol);
+                frame.ActiveView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+            };
+            mh.OnCommand = (mId) =>
+            {
+                selectAction.Frame.SetAction(actionToSet);
+                return true;
+            };
+            mh.OnUpdateCommand = (mId, cs) =>
+            {
+                return true;
+            };
+            return mh;
+        }
+        private MenuWithHandler SimpleAction(string menuId, int imageIndex, IFrame frame, Func<bool> doIt, object feedback)
+        {
+            MenuWithHandler mh = new MenuWithHandler();
+            mh.ID = menuId;
+            mh.Text = StringTable.GetString(menuId, StringTable.Category.label);
+            mh.ImageIndex = imageIndex;
+            mh.OnSelected = (mId, selected) =>
+            {   // show the selected curves as feedback
+                currentMenuSelection.Clear();
+                if (feedback is IGeoObject go) currentMenuSelection.Add(go);
+                else if (feedback is GeoObjectList gol) currentMenuSelection.AddRange(gol);
+                frame.ActiveView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+            };
+            mh.OnCommand = (mId) =>
+            {
+                return doIt();
+            };
+            mh.OnUpdateCommand = (mId, cs) =>
+            {
+                return true;
+            };
+            return mh;
+        }
+        private MenuWithHandler CreateCurveMenu(SelectObjectsAction selectAction, IView vw, ICurve curve, bool noRuledSurface)
+        {
+            List<MenuWithHandler> lmh = new List<MenuWithHandler>();
+            if (curve.IsClosed && curve.GetPlanarState() == PlanarState.Planar)
+            {
+                Plane plane = curve.GetPlane();
+                Face fc = Face.MakeFace(new GeoObjectList(curve as IGeoObject));
+                if (fc != null)
+                {
+                    MenuWithHandler extrude = SimpleAction("MenuId.Constr.Solid.FaceExtrude", 159, selectAction.Frame, new Constr3DFaceExtrude(fc), curve);
+                    lmh.Add(extrude);
+                    MenuWithHandler rotate = SimpleAction("MenuId.Constr.Solid.FaceRotate", 160, selectAction.Frame, new Constr3DFaceRotate(new GeoObjectList(fc)), curve);
+                    lmh.Add(rotate);
+                    if (!noRuledSurface)
+                    {
+                        MenuWithHandler ruled = SimpleAction("MenuId.Constr.Solid.RuledSolid", 161, selectAction.Frame, new Constr3DRuledSolid(new GeoObjectList(curve as IGeoObject), selectAction.Frame), curve);
+                        lmh.Add(ruled);
+                    }
+                }
+            }
+            if (lmh.Count > 0)
+            {
+                if (lmh.Count == 1) return lmh[0];
+                else
+                {
+                    MenuWithHandler mh = new MenuWithHandler();
+                    mh.ID = "MenuId.ConstrSelected.Solid";
+                    mh.Text = (curve as IGeoObject).Description; // StringTable.GetString("MenuId.ConstrSelected.Solid", StringTable.Category.label);
+                    mh.SubMenus = lmh.ToArray();
+                    return mh;
+                }
+            }
+            return null;
+        }
+
+        private MenuWithHandler CreateMakePathMenu(SelectObjectsAction selectAction, IView vw, List<ICurve> curves)
+        {
+            MenuWithHandler mh = new MenuWithHandler();
+            mh.ID = "MenuId.Object.MakePath";
+            mh.Text = StringTable.GetString("MenuId.Object.MakePath", StringTable.Category.label);
+            mh.OnSelected = (menuId, selected) =>
+            {   // show the selected curves as feedback
+                currentMenuSelection.Clear();
+                for (int i = 0; i < curves.Count; i++)
+                {
+                    currentMenuSelection.Add(curves[i] as IGeoObject);
+                }
+                vw.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+            };
+            mh.OnCommand = (menuId) =>
+            {
+                using (vw.Canvas.Frame.Project.Undo.UndoFrame)
+                {
+                    List<Path> created = Path.FromSegments(curves);
+                    vw.Model.Add(created.ToArray());
+                    selectAction.SetSelectedObjects(new GeoObjectList(created as IEnumerable<IGeoObject>));
+                }
+                return true;
+            };
+            mh.OnUpdateCommand = (menuId, cs) =>
+            {
+                return true;
+            };
+            return mh;
+        }
+
+        private bool CanMakePath(List<ICurve> curves)
+        {
+            List<GeoPoint> points = new List<GeoPoint>();
+            for (int i = 0; i < curves.Count; i++)
+            {
+                if (!curves[i].IsClosed)
+                {
+                    for (int j = 0; j < points.Count; j++)
+                    {
+                        if (Precision.IsEqual(curves[i].StartPoint, points[j])) return true;
+                        if (Precision.IsEqual(curves[i].EndPoint, points[j])) return true;
+                    }
+                    points.Add(curves[i].StartPoint);
+                    points.Add(curves[i].EndPoint);
+                }
+            }
+            return false;
+        }
+
         /// <summary>
         /// Class to enable Edges to reside in an <see cref="OctTree{T}"/>
         /// </summary>

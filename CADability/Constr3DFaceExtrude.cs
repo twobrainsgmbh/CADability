@@ -114,6 +114,13 @@ namespace CADability.Actions
             };
         }
 
+        public Constr3DFaceExtrude(Face face)
+            : this()
+        {
+            selectedMode = true;
+            this.selectedObjectsList = new GeoObjectList(face);
+            ListDefault(this.selectedObjectsList.Count); // setzt alle Listen auf gleiche Länge, Inhalte "null"
+        }
         public Constr3DFaceExtrude(Constr3DFaceExtrude autorepeat)
             : this()
         {

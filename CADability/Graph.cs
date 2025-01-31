@@ -7,6 +7,26 @@ namespace CADability
 {
     internal class Graph
     {
+        internal static void Debug()
+        {   // test for the GetAllLoops algorithm: a heavily connected graph.
+            // I am not sure, whether it might end in an infinite loop
+            Dictionary<int, List<int>> adjacencyList = new Dictionary<int, List<int>>();
+            adjacencyList[1] = new List<int>(new int[] { 3, 4, 5, 6, 14 });
+            adjacencyList[2] = new List<int>(new int[] { 3, 4, 5, 6, 14 });
+            adjacencyList[7] = new List<int>(new int[] { 3, 4, 5, 6, 14 });
+            adjacencyList[8] = new List<int>(new int[] { 3, 4, 5, 6, 14 });
+            adjacencyList[5] = new List<int>(new int[] { 7, 8, 9, 15 });
+            adjacencyList[6] = new List<int>(new int[] { 7, 8, 9, 15 });
+            adjacencyList[10] = new List<int>(new int[] { 7, 8, 9, 15 });
+            adjacencyList[3] = new List<int>(new int[] { 1, 2, 10, 16 });
+            adjacencyList[4] = new List<int>(new int[] { 1, 2, 10, 16 });
+            adjacencyList[9] = new List<int>(new int[] { 1, 2, 10, 16 });
+            adjacencyList[11] = new List<int>(new int[] { 1, 2, 10, 16 });
+            adjacencyList[12] = new List<int>(new int[] { 3, 4, 5, 6, 14 });
+            adjacencyList[13] = new List<int>(new int[] { 7, 8, 9, 15 });
+            // 11 to 16 are dead ends, 11, 12, 13 incomming, 14, 15, 16 outgoing
+            List<List<int>> res = GetAllLoops(adjacencyList); // this Test returns the correct cycles
+        }
         /// <summary>
         /// Returns all closed loops or cycles in the provided directed graph. The graph is defined by edges of type T. For each edge the <paramref name="adjacencyList"/>
         /// defines the following edges. In the resulting loops edges may be part of more than one loop.
@@ -32,7 +52,7 @@ namespace CADability
                         available.Remove(t);
                         currentLoop.Add(t);
                     }
-                    else break; // exit the loop: no more edges available and queue is empty
+                    else break; // exit the loop: no more edges available and queue is empty, probably never reached
                 }
                 // now cuurentLoop contains at least one object and we try to follow this path
                 while (currentLoop != null)
@@ -44,14 +64,24 @@ namespace CADability
                             // maybe the loop is closed somwhere in the middle, not at the beginning: we have to remove the first part of the current loop
                             // up to the point, where it was closed
                             while (!followedBy.Contains(currentLoop.First())) currentLoop.RemoveAt(0);
-                            res.Add(currentLoop);
+                            // there might be duplicates. maybe there is a better way to avoid them.
+                            bool duplicateFound = false;
+                            HashSet<T> cl = new HashSet<T>(currentLoop);
+                            for (int i = 0; i < res.Count; i++)
+                            {
+                                if (res[i].Count == currentLoop.Count && cl.SetEquals(res[i]))
+                                {
+                                    duplicateFound = true;
+                                    break;
+                                }
+                            }
+                            if (!duplicateFound) res.Add(currentLoop);
                             currentLoop = null;
                         }
                         else
                         {
                             if (followedBy.Count > 0)
                             {
-                                followedBy.Reverse(); // DEBUG!
                                 for (int i = 1; i < followedBy.Count; i++)
                                 {   // maybe there are other branches, we push them into the queue for later processing
                                     List<T> otherBranch = new List<T>(currentLoop); // a clone of the current loop
