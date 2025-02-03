@@ -369,7 +369,7 @@ namespace CADability.DXF
             return new netDxf.Entities.Insert(block);
         }
 
-        private EntityObject[] ExportPathWithoutBlock(Path path)
+        private EntityObject[] ExportPathWithoutBlock(GeoObject.Path path)
         {
             List<EntityObject> entities = new List<EntityObject>();
             for (int i = 0; i < path.Curves.Length; i++)

@@ -16,7 +16,7 @@ namespace CADability.UserInterface
         public event SelectionChangedDelegate SelectionChangedEvent;
         public BRepObjectProperty(string resourceId, IFrame frame)
         {
-            this.resourceId = resourceId;
+            this.resourceIdInternal = resourceId;
             this.frame = frame;
             brepObjects = new object[0]; // leer initialisieren
         }
