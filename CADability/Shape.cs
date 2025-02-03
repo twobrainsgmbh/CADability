@@ -904,6 +904,14 @@ namespace CADability.Shapes
             // Alle Fälle abgedeckt, hierhin gehts nicht
             return Position.disjunct;
         }
+        public static SimpleShape MakeCircle(GeoPoint2D center, double radius)
+        {
+            return new SimpleShape(Border.MakeCircle(center, radius));
+        }
+        public static SimpleShape MakePolygon(GeoPoint2D center, double radius, int numberOfSides)
+        {
+            return new SimpleShape(Border.MakePolygon(center, radius, numberOfSides));
+        }
         public static SimpleShape MakeLongHole(ICurve2D centerLine, double halfWidth, double precision)
         {
             if (!(centerLine is Path2D)) centerLine = new Path2D(new ICurve2D[] { centerLine });

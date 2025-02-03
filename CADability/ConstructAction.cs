@@ -3483,54 +3483,32 @@ namespace CADability.Actions
                         return true;
                     case "MenuId.Plane.2PointsDrawingPlane":
                         ConstructPlane2PointsDrawingPlane cp2 = new ConstructPlane2PointsDrawingPlane();
-                        cp2.ActionDoneEvent += new ActionDoneDelegate(OnConstructPlane2PointsDrawingPlaneDone);
+                        cp2.ActionDoneEvent += new ActionDoneDelegate(OnConstructPlaneDone);
                         constructAction.Frame.SetAction(cp2);
                         return true;
                     case "MenuId.Plane.OriginNormalPoint":
                         ConstructPlaneOriginNormalPoint cp3 = new ConstructPlaneOriginNormalPoint();
-                        cp3.ActionDoneEvent += new ActionDoneDelegate(OnConstructPlaneOriginNormalPointDone);
+                        cp3.ActionDoneEvent += new ActionDoneDelegate(OnConstructPlaneDone);
                         constructAction.Frame.SetAction(cp3);
                         return true;
                     case "MenuId.DrawingPlane.Tangential":
                         ConstructTangentialPlane ct = new ConstructTangentialPlane("Construct.DrawingPlane");
-                        ct.ActionDoneEvent += new ConstructAction.ActionDoneDelegate(OnConstructTangentialPlaneDone);
+                        ct.ActionDoneEvent += new ConstructAction.ActionDoneDelegate(OnConstructPlaneDone);
                         constructAction.Frame.SetAction(ct);
+                        return true;
+                    case "MenuId.Plane.OfCurve":
+                        ConstructPlaneOfCurve cpc = new ConstructPlaneOfCurve("Construct.Plane.OfCurve");
+                        cpc.ActionDoneEvent += new ConstructAction.ActionDoneDelegate(OnConstructPlaneDone);
+                        constructAction.Frame.SetAction(cpc);
                         return true;
                 }
                 return false;
-            }
-            void OnConstructTangentialPlaneDone(ConstructAction ca, bool success)
-            {
-                if (success)
-                {
-                    ForceValue((ca as ConstructTangentialPlane).ConstructedPlane);
-                    (this as IInputObject).SetFixed(true);
-                    constructAction.SetNextInputIndex(true);
-                }
             }
             void OnConstructPlaneDone(ConstructAction ca, bool success)
             {
                 if (success)
                 {
-                    ForceValue((ca as ConstructPlane).ConstructedPlane);
-                    (this as IInputObject).SetFixed(true);
-                    constructAction.SetNextInputIndex(true);
-                }
-            }
-            void OnConstructPlane2PointsDrawingPlaneDone(ConstructAction ca, bool success)
-            {
-                if (success)
-                {
-                    ForceValue((ca as ConstructPlane2PointsDrawingPlane).ConstructedPlane);
-                    (this as IInputObject).SetFixed(true);
-                    constructAction.SetNextInputIndex(true);
-                }
-            }
-            void OnConstructPlaneOriginNormalPointDone(ConstructAction ca, bool success)
-            {
-                if (success)
-                {
-                    ForceValue((ca as ConstructPlaneOriginNormalPoint).ConstructedPlane);
+                    ForceValue((ca as IConstructPlane).ConstructedPlane);
                     (this as IInputObject).SetFixed(true);
                     constructAction.SetNextInputIndex(true);
                 }

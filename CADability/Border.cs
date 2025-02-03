@@ -29,7 +29,7 @@ namespace CADability.Shapes
     /// If a border is closed, then it is oriented counterclockwise. A border may be
     /// produced by the BorderBuilder object (or by its constructors).
     /// </summary>   
-    [Serializable()]    
+    [Serializable()]
     public class Border : ISerializable, IDeserializationCallback, IJsonSerialize, IJsonSerializeDone
     {
         static private int idCounter = 0;
@@ -1337,6 +1337,18 @@ namespace CADability.Shapes
         {
             ICurve2D[] segments = new ICurve2D[1];
             segments[0] = new Circle2D(center, radius);
+            return new Border(segments);
+        }
+        public static Border MakePolygon(GeoPoint2D center, double radius, int numberOfSides)
+        {
+            ICurve2D[] segments = new ICurve2D[numberOfSides];
+            double step = Math.PI * 2.0 / numberOfSides;
+            GeoPoint2D lastPoint = center + radius * GeoVector2D.XAxis;
+            for (int i = 0; i<numberOfSides;++i)
+            {
+                segments[i] = new Line2D(lastPoint, center + radius * GeoVector2D.FromAngle(i * step));
+                lastPoint = segments[i].EndPoint;
+            }
             return new Border(segments);
         }
         internal static Border MakeHole(GeoPoint2D center, double radius)
@@ -4479,7 +4491,7 @@ namespace CADability.Shapes
                     }
                 }
             } while (found);
-            
+
             do
             {   // now remove all inner loops
                 found = false;
@@ -4522,7 +4534,7 @@ namespace CADability.Shapes
                     }
                 }
             } while (found);
-            
+
             return new Border(segments.ToArray());
         }
         /// <summary>

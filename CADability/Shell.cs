@@ -1023,7 +1023,7 @@ namespace CADability.GeoObject
                     if (i < 50)
                     {
                         Path[] pths = sh.MakePaths(Plane.XYPlane);
-                        double pathleft = (new GeoObjectList(pths)).GetExtent().Xmin;
+                        double pathleft = (new GeoObjectList(pths as IGeoObject[])).GetExtent().Xmin;
                         double left = 0.0;
                         if (dbg.Count > 0) left = dbg.GetExtent().Xmax;
                         ModOp mv = ModOp.Translate(left - pathleft, 0, 0);
@@ -1034,7 +1034,7 @@ namespace CADability.GeoObject
                             dbg.Add(pths[j]);
                         }
                         pths = res.MakePaths(Plane.XYPlane);
-                        pathleft = (new GeoObjectList(pths)).GetExtent().Xmin;
+                        pathleft = (new GeoObjectList(pths as IGeoObject[])).GetExtent().Xmin;
                         left = dbg.GetExtent().Xmax;
                         mv = ModOp.Translate(left - pathleft, 0, 0);
                         for (int j = 0; j < pths.Length; j++)
@@ -1179,7 +1179,7 @@ namespace CADability.GeoObject
                     if (i < 50)
                     {
                         Path[] pths = sh.MakePaths(Plane.XYPlane);
-                        double pathleft = (new GeoObjectList(pths)).GetExtent().Xmin;
+                        double pathleft = (new GeoObjectList(pths as IGeoObject[])).GetExtent().Xmin;
                         double left = 0.0;
                         if (dbg.Count > 0) left = dbg.GetExtent().Xmax;
                         ModOp mv = ModOp.Translate(left - pathleft, 0, 0);
@@ -1190,7 +1190,7 @@ namespace CADability.GeoObject
                             dbg.Add(pths[j]);
                         }
                         pths = res.MakePaths(Plane.XYPlane);
-                        pathleft = (new GeoObjectList(pths)).GetExtent().Xmin;
+                        pathleft = (new GeoObjectList(pths as IGeoObject[])).GetExtent().Xmin;
                         left = dbg.GetExtent().Xmax;
                         mv = ModOp.Translate(left - pathleft, 0, 0);
                         for (int j = 0; j < pths.Length; j++)

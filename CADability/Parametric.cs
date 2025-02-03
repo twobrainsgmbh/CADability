@@ -303,6 +303,83 @@ namespace CADability
             //}
             return false;
         }
+        public void RotateFaces(Dictionary<Face, ModOp> toRotate, Axis rotationAxis, bool moveConnected = false)
+        {
+            Dictionary<Face, ModOp> nextLevel = new Dictionary<Face, ModOp>();
+            foreach (KeyValuePair<Face, ModOp> item in toRotate)
+            {
+                Face tm = item.Key;
+                if (!faceDict.TryGetValue(tm, out Face faceToRotate)) faceToRotate = tm; // toMove may be from the original shell or from the cloned shell
+                ModOp rotate = item.Value;
+                if (modifiedFaces.Contains(faceToRotate))
+                {
+                    constrainedFaces.Add(faceToRotate);
+                }
+                else
+                {
+                    modifiedFaces.Add(faceToRotate);
+                    foreach (Edge edge in faceToRotate.Edges)
+                    {
+                        Face otherFace = edge.OtherFace(faceToRotate);
+                        bool tangential = edge.IsTangentialEdge();
+                        if (!modifiedFaces.Contains(otherFace) && tangential)
+                        {
+                            tangentialEdgesModified[edge] = edge.Curve3D.CloneModified(rotate); // these edges play a role in calculating the new vertices
+                                                                                              // the edges will be recalculated in "Result()", but here we need the already modified curve for intersection purposes
+                            if (!otherFace.Surface.IsRotated(rotationAxis))
+                            {
+                                if (nextLevel.ContainsKey(otherFace) && (nextLevel[otherFace]*rotate.GetInverse()).IsIdentity(Precision.eps))
+                                {   // there are two different requirements to move this face. This face may not propagate its movement and must be modified
+                                    // according to the constraints by the surrounding faces
+                                    nextLevel.Remove(otherFace);
+                                    constrainedFaces.Add(otherFace);
+                                }
+                                else
+                                {
+                                    nextLevel[otherFace] = rotate; // 
+                                }
+                            }
+                        }
+                        else if (tangential && !tangentialEdgesModified.ContainsKey(edge))
+                        {
+                            tangentialEdgesModified[edge] = edge.Curve3D.CloneModified(rotate); // these edges play a role in calculating the new vertices
+                        }
+                        else if (!tangential && moveConnected && !modifiedFaces.Contains(otherFace) && !otherFace.Surface.IsRotated(rotationAxis))
+                        {   // should we move nontangential connected faces or not. both cases make sense. Now decided by parameter
+                            nextLevel[otherFace] = rotate; // only if offset is not the extrusion direction of the otherFace
+                        }
+                        verticesToRecalculate.Add(edge.Vertex1);
+                        verticesToRecalculate.Add(edge.Vertex2);
+                        edgesToRecalculate.UnionWith(edge.Vertex1.AllEdges);
+                        edgesToRecalculate.UnionWith(edge.Vertex2.AllEdges);
+                    }
+                    if (moveConnected)
+                    {
+                        foreach (Vertex vertex in faceToRotate.Vertices)
+                        {   // there might be a face which only shares a vertex with faceToMove but not an edge (typically when there are 4 or more edges in a vertex)
+                            HashSet<Face> facesToTest = vertex.InvolvedFaces;
+                            facesToTest.ExceptWith(modifiedFaces);
+                            facesToTest.ExceptWith(constrainedFaces);
+                            facesToTest.ExceptWith(nextLevel.Keys);
+                            foreach (Face face in facesToTest)
+                            {
+                                if (!(new HashSet<Edge>(face.AllEdges)).Intersect(faceToRotate.AllEdges).Any())
+                                {   // this face has a common vertex with faceToMove, but no common edge
+                                    if (!face.Surface.IsRotated(rotationAxis)) nextLevel[face] = rotate;
+                                }
+                            }
+                        }
+                    }
+                    if (!rotate.IsIdentity(Precision.eps)) faceToRotate.ModifySurfaceOnly(rotate); // rotate after all tangential test have been made, otherwise the tangential tests fail
+                }
+            }
+            foreach (Face item in modifiedFaces)
+            {   // remove those faces from nextLevel and constrainedFaces which already have been modified
+                nextLevel.Remove(item);
+                constrainedFaces.Remove(item);
+            }
+            if (nextLevel.Any()) RotateFaces(nextLevel, rotationAxis, moveConnected);
+        }
 
         private void followCrosswayTangential(Edge edge, ICurve axis, double newRadius)
         {   // one of the faces of edge has been modified, the other face (which should be a ISurfaceOfExtrusion-face) must now be adapted to the correct axis
@@ -570,7 +647,7 @@ namespace CADability
         }
         public Shell Result()
         {
-            foreach (Face face in modifiedFaces)
+            foreach (Face face in clonedShell.Faces)
             {   // checks the topology of the bounds in 2d: no intersection or overlapping, holes inside the outline
                 if (!face.Check2DBounds())
                 {

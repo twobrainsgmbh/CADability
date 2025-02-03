@@ -5685,20 +5685,21 @@ namespace CADability.GeoObject
         public override void FindSnapPoint(SnapPointFinder spf)
         {
             if (!spf.Accept(this)) return;
+            // check only those edges, that are hit by the pickArea
             for (int i = 0; i < outline.Length; i++)
             {
-                if (outline[i].Curve3D is IGeoObject) // kann null sein
+                if (outline[i].Curve3D is IGeoObject crv) // kann null sein
                 {
-                    (outline[i].Curve3D as IGeoObject).FindSnapPoint(spf);
+                    if (crv.HitTest(spf.pickArea,false)) crv.FindSnapPoint(spf);
                 }
             }
             for (int i = 0; i < holes.Length; i++)
             {
                 for (int j = 0; j < holes[i].Length; j++)
                 {
-                    if (holes[i][j].Curve3D is IGeoObject) // kann null sein
+                    if (holes[i][j].Curve3D is IGeoObject crv) // kann null sein
                     {
-                        (holes[i][j].Curve3D as IGeoObject).FindSnapPoint(spf);
+                        if (crv.HitTest(spf.pickArea, false)) crv.FindSnapPoint(spf);
                     }
                 }
             }

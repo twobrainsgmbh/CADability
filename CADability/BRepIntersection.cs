@@ -5693,81 +5693,114 @@ namespace CADability
         {
 #if DEBUG
             DebuggerContainer dc = new DebuggerContainer();
+            double arrowSize = 1;
+            dc.Add(workingSet, face, arrowSize, Color.Red, -1);
+#endif
+            Dictionary<Edge, List<Edge>> adjacencyList = new Dictionary<Edge, List<Edge>>();
+            // adjacencyList assigns all egdes, which start at the endvertex of edg to edg
             foreach (Edge edg in workingSet)
             {
-                dc.Add(edg.Curve2D(face), Color.Red, edg.GetHashCode());
+                List<Edge> outgoing = edg.EndVertex(face).EdgesOnFace(face);
+                if (!adjacencyList.TryGetValue(edg, out List<Edge> le)) adjacencyList[edg] = le = new List<Edge>();
+                for (int i = 0; i < outgoing.Count; i++)
+                {
+                    if (outgoing[i] != edg && outgoing[i].StartVertex(face) == edg.EndVertex(face)) le.Add(outgoing[i]);
+                }
+            }
+            List<List<Edge>> ecs = Graph.GetAllLoops(adjacencyList);
+            for (int i = ecs.Count - 1; i >= 0; --i)
+            {
+                List<ICurve2D> crvs2d = new List<ICurve2D>();
+                for (int j = 0; j < ecs[i].Count; j++)
+                {
+                    crvs2d.Add(ecs[i][j].Curve2D(face));
+                }
+                // only use correct oriented borders. We have at least one case, where there is a wrong oriented cycle: "Overlapping2.cdb.json"
+                if (Border.SignedArea(crvs2d.ToArray()) < 0) ecs.RemoveAt(i);
+            }
+#if DEBUG
+            DebuggerContainer dc1 = new DebuggerContainer();
+            for (int i = 0; i < ecs.Count; i++)
+            {
+                for (int j = 0; j < ecs[i].Count; j++)
+                {
+                    dc1.Add(ecs[i][j].Curve3D as IGeoObject);
+                }
             }
 #endif
-            List<List<Edge>> res = new List<List<Edge>>();
-            Dictionary<Vertex, int> allVertices = new Dictionary<Vertex, int>();
-            foreach (Edge edg in workingSet)
-            {
-                if (!allVertices.TryGetValue(edg.Vertex1, out int flag))
-                {
-                    flag = 0;
-                }
-                if (edg.Forward(face)) flag |= 1;
-                else flag |= 2;
-                allVertices[edg.Vertex1] = flag;
-                if (!allVertices.TryGetValue(edg.Vertex2, out flag))
-                {
-                    flag = 0;
-                }
-                if (edg.Forward(face)) flag |= 2;
-                else flag |= 1;
-                allVertices[edg.Vertex2] = flag;
-            }
-            foreach (KeyValuePair<Vertex, int> item in allVertices)
-            {   // each vertex must have at least one incomming and one outgoing edge
-                if (item.Value != 3)
-                {
-                    workingSet.RemoveMany(item.Key.AllEdges);
-                    if (workingSet.Count == 0) return res;
-                }
-            }
-            if (workingSet.Count == 0) return res;
-            Edge next = workingSet.GetAny();
-            Vertex startVertex = next.StartVertex(face);
-            List<Edge> loop = new List<Edge>();
-            while (next != null)
-            {
-                loop.Add(next);
-                workingSet.Remove(next);
-                if (next.EndVertex(face) == startVertex)
-                {
-                    res.Add(loop);
-                    next = workingSet.GetAny();
-                    loop = new List<Edge>(); // for next loop
-                    if (next != null) startVertex = next.StartVertex(face);
-                }
-                else
-                {
-                    Set<Edge> possibleConnections = next.EndVertex(face).AllEdges.Intersection(workingSet);
-                    Vertex endVertex = next.EndVertex(face);
-                    next = null;
-                    foreach (Edge edg in possibleConnections)
-                    {
-                        if (edg.StartVertex(face) == endVertex)
-                        {
-                            next = edg;
-                            break;
-                        }
-                    }
-                    if (next == null)
-                    {
-                        // this was an open connection
-                        if (loop.Count > 0)
-                        {   // remove only the last edge, which has no connection
-                            workingSet.AddMany(loop);
-                            workingSet.Remove(loop[loop.Count - 1]);
-                            loop.Clear();
-                        }
-                        next = workingSet.GetAny(); // try with another starting point
-                        if (next != null) startVertex = next.StartVertex(face);
-                    }
-                }
-            }
-            return res;
+            return ecs;
+
+            // following the old code. Not sure, whether the elimination of vertices is necessary.
+            //List<List<Edge>> res = new List<List<Edge>>();
+            //Dictionary<Vertex, int> allVertices = new Dictionary<Vertex, int>();
+            //foreach (Edge edg in workingSet)
+            //{
+            //    if (!allVertices.TryGetValue(edg.Vertex1, out int flag))
+            //    {
+            //        flag = 0;
+            //    }
+            //    if (edg.Forward(face)) flag |= 1;
+            //    else flag |= 2;
+            //    allVertices[edg.Vertex1] = flag;
+            //    if (!allVertices.TryGetValue(edg.Vertex2, out flag))
+            //    {
+            //        flag = 0;
+            //    }
+            //    if (edg.Forward(face)) flag |= 2;
+            //    else flag |= 1;
+            //    allVertices[edg.Vertex2] = flag;
+            //}
+            //foreach (KeyValuePair<Vertex, int> item in allVertices)
+            //{   // each vertex must have at least one incomming and one outgoing edge
+            //    if (item.Value != 3)
+            //    {
+            //        workingSet.RemoveMany(item.Key.AllEdges);
+            //        if (workingSet.Count == 0) return res;
+            //    }
+            //}
+            //if (workingSet.Count == 0) return res;
+            //Edge next = workingSet.GetAny();
+            //Vertex startVertex = next.StartVertex(face);
+            //List<Edge> loop = new List<Edge>();
+            //while (next != null)
+            //{
+            //    loop.Add(next);
+            //    workingSet.Remove(next);
+            //    if (next.EndVertex(face) == startVertex)
+            //    {
+            //        res.Add(loop);
+            //        next = workingSet.GetAny();
+            //        loop = new List<Edge>(); // for next loop
+            //        if (next != null) startVertex = next.StartVertex(face);
+            //    }
+            //    else
+            //    {
+            //        Set<Edge> possibleConnections = next.EndVertex(face).AllEdges.Intersection(workingSet);
+            //        Vertex endVertex = next.EndVertex(face);
+            //        next = null;
+            //        foreach (Edge edg in possibleConnections)
+            //        {
+            //            if (edg.StartVertex(face) == endVertex)
+            //            {
+            //                next = edg;
+            //                break;
+            //            }
+            //        }
+            //        if (next == null)
+            //        {
+            //            // this was an open connection
+            //            if (loop.Count > 0)
+            //            {   // remove only the last edge, which has no connection
+            //                workingSet.AddMany(loop);
+            //                workingSet.Remove(loop[loop.Count - 1]);
+            //                loop.Clear();
+            //            }
+            //            next = workingSet.GetAny(); // try with another starting point
+            //            if (next != null) startVertex = next.StartVertex(face);
+            //        }
+            //    }
+            //}
+            //return res;
         }
 
         private List<List<Edge>> GetCommon(Face face1, Face face2, ModOp2D face2To1)

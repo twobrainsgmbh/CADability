@@ -462,6 +462,10 @@ namespace CADability.GeoObject
         {
             return new double[] { 0.0 };
         }
+        public override bool IsRotated(Axis rotationAxis)
+        {
+            return Precision.SameDirection(Axis, rotationAxis.Direction, false);
+        }
 
         /// <summary>
         /// Overrides <see cref="CADability.GeoObject.ISurfaceImpl.GetLineIntersection (GeoPoint, GeoVector)"/>

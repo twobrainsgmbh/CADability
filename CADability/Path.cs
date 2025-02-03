@@ -147,6 +147,33 @@ namespace CADability.GeoObject
                 else return null;
             }
         }
+        public static List<Path> FromSegments(List<ICurve> curves)
+        {
+            List<Path> res = new List<Path>();
+            GeoObjectList geoObjects = new GeoObjectList();
+            foreach (ICurve crv in curves)
+            {
+                geoObjects.Add(crv as IGeoObject);
+            }
+            bool created = false;
+            do
+            {
+                Path path = Path.Construct();
+                if (path.Set(geoObjects, false, Precision.eps))
+                {
+                    created = true;
+                    path.Flatten();
+                    res.Add(path);
+                    for (int i = 0; i < path.subCurves.Length; i++)
+                    {
+                        curves.Remove(path.subCurves[i]);
+                    }
+                }
+                else created = false;
+
+            } while (created);
+            return res;
+        }
         public delegate void ConstructedDelegate(Path justConstructed);
         public static event ConstructedDelegate Constructed;
         #endregion
@@ -609,6 +636,10 @@ namespace CADability.GeoObject
             if (OrderedCurves.Count > 0)
             {
                 this.CopyAttributes(OrderedCurves[0] as IGeoObject);
+            }
+            for (int i = 0; i < subCurves.Length; i++)
+            {
+                l.Remove(subCurves[i] as IGeoObject);
             }
             Recalc();
             return true;

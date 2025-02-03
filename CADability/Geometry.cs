@@ -1457,16 +1457,16 @@ namespace CADability
             // if (OnSameSideStrict(p2, p3, p0, p1)) return false;
             // schneller geht es so:
             // zuerst Minmax Test, man könnte mit weniger Vergleichen auskommen!
-            if (Math.Max(p0.x, p1.x) < Math.Min(p2.x, p3.x)) return false;
-            if (Math.Min(p0.x, p1.x) > Math.Max(p2.x, p3.x)) return false;
-            if (Math.Max(p0.y, p1.y) < Math.Min(p2.y, p3.y)) return false;
-            if (Math.Min(p0.y, p1.y) > Math.Max(p2.y, p3.y)) return false;
+            double eps = ((p1 - p0).TaxicabLength + (p3 - p2).TaxicabLength) * 1e-8;
+            if (Math.Max(p0.x, p1.x) < Math.Min(p2.x, p3.x) - eps) return false;
+            if (Math.Min(p0.x, p1.x) > Math.Max(p2.x, p3.x) + eps) return false;
+            if (Math.Max(p0.y, p1.y) < Math.Min(p2.y, p3.y) - eps) return false;
+            if (Math.Min(p0.y, p1.y) > Math.Max(p2.y, p3.y) + eps) return false;
             // die vorzeichenbehafteten Flächen der 4 Dreiecke berechnen
             double a1 = p0.x * (p1.y - p2.y) + p1.x * (p2.y - p0.y) + p2.x * (p0.y - p1.y); // Dreieck p0,p1,p2 (Fläche*2)
             double a2 = p0.x * (p1.y - p3.y) + p1.x * (p3.y - p0.y) + p3.x * (p0.y - p1.y); // Dreieck p0,p1,p3
             double a3 = p2.x * (p3.y - p0.y) + p3.x * (p0.y - p2.y) + p0.x * (p2.y - p3.y); // Dreieck p2,p3,p0
             double a4 = p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y) + p1.x * (p2.y - p3.y); // Dreieck p2,p3,p1
-            double eps = ((p1 - p0).TaxicabLength + (p3 - p2).TaxicabLength) * 1e-8;
             // haben zwei Dreiecke das gleiche Vorzeichen, dann liegen sie auf der selben Seite und es gibt keinen Schnitt
             if (a1 > eps && a2 > eps) return false;
             if (a1 < -eps && a2 < -eps) return false;
