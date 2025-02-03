@@ -102,7 +102,6 @@ namespace CADability
         }
         public ImportSTL()
         {
-            // settings for precision etc
         }
         class STLItem
         {
@@ -194,24 +193,15 @@ namespace CADability
         {
             List<Shell> res = new List<Shell>();
 
-            using (sr = new StreamReader(fileName)) // may throw exceptions like "file not found" etc.
+            if (!String.IsNullOrEmpty(fileName) && File.Exists(fileName))
             {
-                char[] head = new char[5];
-                int read = sr.ReadBlock(head, 0, 5);
-                if (read != 5) throw new ApplicationException("cannot read from file");
-                if (new string(head) == "solid") isASCII = true;
-                else isASCII = false;
-            }
-            if (isASCII)
-            {
-                sr = new StreamReader(fileName);
-                string title = sr.ReadLine();
-            }
-            else
-            {
-                br = new BinaryReader(File.Open(fileName, FileMode.Open));
-                br.ReadBytes(80);
-                uint nrtr = br.ReadUInt32();
+                TriangleReader reader = null;
+                if (IsASCII(new StreamReader(fileName)))
+                    reader = new TriangleReaderASCII(fileName);
+                else
+                    reader = new TriangleReaderBinary(fileName);
+                res = GetShells(reader);
+                reader.Close();
             }
             // simply read all triangles. Orient the triangles to respect the normal
             List<STLItem> items = new List<STLItem>();
@@ -359,9 +349,9 @@ namespace CADability
 
         public Shell[] Read(byte[] byteArray)
         {
-            List<Shell> res = new List<Shell>();
+            bool isASCII = false;
 
-            using (sr = new StreamReader(new MemoryStream(byteArray))) // may throw exceptions like "file not found" etc.
+            using (sr)
             {
                 char[] head = new char[5];
                 int read = sr.ReadBlock(head, 0, 5);
@@ -399,6 +389,21 @@ namespace CADability
             return res;
         }
 
+        private abstract class TriangleReader
+        {
+            private int _numdec = 0, _numnum = 0;
+
+
+            public int numdec
+            {
+                get { return _numdec; }
+            }
+
+            public int numnum
+            {
+                get { return _numnum; }
+            }
+
         private void accumulatePrecision(params string[] number)
         {
             for (int i = 0; i < number.Length; i++)
@@ -414,7 +419,27 @@ namespace CADability
         {
             if (isASCII)
             {
-                if (sr.EndOfStream) return null;
+                triangle res = null;
+
+                if (ReadVector(out GeoVector normal) &&
+                    CheckLine("outer loop") &&
+                    ReadPoint(out GeoPoint p1) &&
+                    ReadPoint(out GeoPoint p2) &&
+                    ReadPoint(out GeoPoint p3) &&
+                    CheckLine("endloop") &&
+                    CheckLine("endfacet"))
+                {
+                    res = new triangle(p1, p2, p3, normal);
+                }
+
+                return res;
+            }
+
+            private bool ReadLine(out string line)
+            {
+                bool ok = false;
+                line = null;
+
                 try
                 {
                     string[] facet = sr.ReadLine().Trim().Split(' ');
@@ -452,9 +477,10 @@ namespace CADability
                     return null;
                 }
             }
-            else
+
+            public override triangle GetNextTriangle()
             {
-                if (br.BaseStream.Position >= br.BaseStream.Length) return null;
+                if (_br.BaseStream.Position >= _br.BaseStream.Length) return null;
                 try
                 {
                     GeoVector normal = new GeoVector(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
@@ -469,6 +495,22 @@ namespace CADability
                 {
                     return null;
                 }
+            }
+
+            private GeoPoint ReadPoint()
+            {
+                return new GeoPoint(_br.ReadSingle(), _br.ReadSingle(), _br.ReadSingle());
+            }
+
+            private GeoVector ReadVector()
+            {
+                return new GeoVector(_br.ReadSingle(), _br.ReadSingle(), _br.ReadSingle());
+            }
+
+            public override void Close()
+            {
+                if (_br != null)
+                    _br.Close();
             }
         }
     }

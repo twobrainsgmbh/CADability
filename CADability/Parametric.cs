@@ -58,7 +58,7 @@ namespace CADability
                 if (!faceDict.TryGetValue(face, out Face faceToMove)) faceToMove = face; // toMove may be from the original shell or from the cloned shell
                 modifiedFaces.Add(faceToMove);
                 ISurface offsetSurface = faceToMove.Surface.GetOffsetSurface(offset);
-                foreach (Edge edge in faceToMove.AllEdgesIterated())
+                foreach (Edge edge in faceToMove.Edges)
                 {   // tangential edges must connect two of the provided faces, so they appear twice here
                     if (edge.IsTangentialEdge() && !tangentialEdgesModified.ContainsKey(edge))
                     {
@@ -235,7 +235,7 @@ namespace CADability
 
             //    HashSet<Face> lengthwayTangential = new HashSet<Face>(); // the two faces that this fillet rounds
             //    HashSet<Edge> crosswayTangential = new HashSet<Edge>(); // the following or previous fillet
-            //    foreach (Edge edge in faceToModify.AllEdgesIterated())
+            //    foreach (Edge edge in faceToModify.Edges)
             //    {
             //        Face otherFace = edge.OtherFace(faceToModify);
             //        if (edge.IsTangentialEdge())
@@ -275,7 +275,7 @@ namespace CADability
             //            modifiedFaces.Add(faceToModify);
             //            // this modified face is tangential to t[0] and t[1]. The edges between this faceToModify and t[0] resp. t[1] need to be recalculated
             //            // in order to have a curve for recalculating the vertices in Result()
-            //            foreach (Edge edg in faceToModify.AllEdgesIterated())
+            //            foreach (Edge edg in faceToModify.Edges)
             //            {
             //                for (int i = 0; i < 2; i++)
             //                {
@@ -301,7 +301,7 @@ namespace CADability
             //        }
             //    }
             //}
-            return false;
+            //return false;
         }
         public void RotateFaces(Dictionary<Face, ModOp> toRotate, Axis rotationAxis, bool moveConnected = false)
         {
@@ -400,7 +400,7 @@ namespace CADability
                 }
                 modifiedFaces.Add(faceToModify);
                 // follow the crossway tangential faces
-                foreach (Edge edg in faceToModify.AllEdgesIterated())
+                foreach (Edge edg in faceToModify.Edges)
                 {
                     Face otherFace = edge.OtherFace(faceToModify);
                     if (edg.IsTangentialEdge())
@@ -424,7 +424,7 @@ namespace CADability
         {
             if (sameSurfaceFaces.Contains(face)) return; // already tested
             sameSurfaceFaces.Add(face);
-            foreach (Edge edge in face.AllEdgesIterated())
+            foreach (Edge edge in face.Edges)
             {
                 Face otherFace = edge.OtherFace(face);
                 if (edge.IsTangentialEdge())
@@ -460,7 +460,7 @@ namespace CADability
                     ICurve axis = extrusion.Axis(faceToModify.Domain); // a line for a cylinder, an arc for a torus, some 3d curve for a swept curve
                     HashSet<Face> lengthwayTangential = new HashSet<Face>(); // the two faces that this fillet rounds
                     HashSet<Edge> crosswayTangential = new HashSet<Edge>(); // the following or previous fillet
-                    foreach (Edge edge in faceToModify.AllEdgesIterated())
+                    foreach (Edge edge in faceToModify.Edges)
                     {
                         Face otherFace = edge.OtherFace(faceToModify);
                         if (edge.IsTangentialEdge())
@@ -497,7 +497,7 @@ namespace CADability
                         modifiedFaces.Add(faceToModify);
                         // this modified face is tangential to t[0] and t[1]. The edges between this faceToModify and t[0] resp. t[1] need to be recalculated
                         // in order to have a curve for recalculating the vertices in Result()
-                        foreach (Edge edg in faceToModify.AllEdgesIterated())
+                        foreach (Edge edg in faceToModify.Edges)
                         {
                             for (int i = 0; i < 2; i++)
                             {
@@ -531,7 +531,7 @@ namespace CADability
                     ICurve axis = (cyl as ICylinder).Axis.Clip(faceToModify.GetExtent(0.0)); // the axis as a clipped line
                     HashSet<Face> lengthwayTangential = new HashSet<Face>(); // the two faces that this fillet rounds
                     HashSet<Edge> crosswayTangential = new HashSet<Edge>(); // the following or previous fillet
-                    foreach (Edge edge in faceToModify.AllEdgesIterated())
+                    foreach (Edge edge in faceToModify.Edges)
                     {
                         Face otherFace = edge.OtherFace(faceToModify);
                         if (edge.IsTangentialEdge())
@@ -572,7 +572,7 @@ namespace CADability
                         // in order to have a curve for recalculating the vertices in Result()
                         for (int i = 0; i < t.Length; i++)
                         {
-                            foreach (Edge edg in faceToModify.AllEdgesIterated())
+                            foreach (Edge edg in faceToModify.Edges)
                             {
                                 if (edg.OtherFace(faceToModify) == t[i])
                                 {

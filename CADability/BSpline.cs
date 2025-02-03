@@ -11,7 +11,6 @@ using System.Drawing;
 using Point = System.Drawing.Point;
 #endif
 using System.Runtime.Serialization;
-using System.Text;
 using System.Threading;
 using Wintellect.PowerCollections;
 using MathNet.Numerics.LinearAlgebra.Double;
@@ -76,13 +75,13 @@ namespace CADability.GeoObject
         private GeoPoint[] interpol; // Interpolation mit einer gewissen Genauigkeit
         private GeoVector[] interdir; // Interpolation mit einer gewissen Genauigkeit
         private double[] interparam; // die Parameter zur Interpolation
-        private double maxInterpolError; // der größte Fehler bei der Interpolation
         private BoundingCube extent;
         private TetraederHull tetraederHull;
         private GeoPoint[] approximation; // Interpolation mit der Genauigkeit der Auflösung
         private double approxPrecision; // Genauigkeit zu approximation
         private readonly object lockApproximationRecalc = new object();
         private readonly object planeLock = new object();
+        private readonly object bSplineLock = new object();
         private WeakReference extrema;
         private GeoPoint[] GetCashedApproximation(double precision)
         {
@@ -149,7 +148,7 @@ namespace CADability.GeoObject
         }
         private void MakeNurbsHelper()
         {
-            lock (this)
+            lock (bSplineLock)
             {
                 if (nurbsHelper) return; // has already been calculated
                 // Knotenliste ist von allem anderen unabhängig
@@ -505,7 +504,7 @@ namespace CADability.GeoObject
         }
         private void InvalidateSecondaryData()
         {
-            lock (this)
+            lock (bSplineLock)
             {
                 nurbsHelper = false;
                 nubs3d = null;
@@ -517,7 +516,6 @@ namespace CADability.GeoObject
                 interdir = null;
                 interparam = null;
                 approximation = null;
-                maxInterpolError = 0.0;
                 extent = BoundingCube.EmptyBoundingCube;
                 tetraederHull = null;
                 extrema = null;
@@ -544,20 +542,22 @@ namespace CADability.GeoObject
             public Changing(BSpline bSpline, bool keepNurbs)
                 : base(bSpline, "CopyGeometry", bSpline.Clone())
             {
-                bSpline.nurbsHelper = false;
-                bSpline.plane = null;
-                bSpline.interpol = null;
-                bSpline.interdir = null;
-                bSpline.interparam = null;
-                bSpline.maxInterpolError = 0.0;
-                if (!keepNurbs)
+                lock (bSpline)
                 {
-                    bSpline.nubs3d = null;
-                    bSpline.nurbs3d = null;
-                    bSpline.nubs2d = null;
-                    bSpline.nurbs2d = null;
+                    bSpline.nurbsHelper = false;
+                    bSpline.plane = null;
+                    bSpline.interpol = null;
+                    bSpline.interdir = null;
+                    bSpline.interparam = null;
+                    if (!keepNurbs)
+                    {
+                        bSpline.nubs3d = null;
+                        bSpline.nurbs3d = null;
+                        bSpline.nubs2d = null;
+                        bSpline.nurbs2d = null;
+                    }
+                    this.bSpline = bSpline;
                 }
-                this.bSpline = bSpline;
             }
             public Changing(BSpline bSpline)
                 : base(bSpline, "CopyGeometry", bSpline.Clone())
@@ -2034,35 +2034,38 @@ namespace CADability.GeoObject
         {
             if (param == knots[0]) return poles[0];
             if (param == knots[knots.Length - 1]) return poles[poles.Length - 1];
-            if (!nurbsHelper) MakeNurbsHelper();
-            if (plane.HasValue)
+            lock (this)
             {
-                if (nubs2d != null)
+                if (!nurbsHelper) MakeNurbsHelper();
+                if (plane.HasValue && (nubs2d != null | nurbs2d != null))
                 {
-                    return plane.Value.ToGlobal(nubs2d.CurvePoint(param));
+                    if (nubs2d != null)
+                    {
+                        return plane.Value.ToGlobal(nubs2d.CurvePoint(param));
+                    }
+                    else
+                    {
+                        return plane.Value.ToGlobal((GeoPoint2D)nurbs2d.CurvePoint(param));
+                    }
                 }
                 else
                 {
-                    return plane.Value.ToGlobal((GeoPoint2D)nurbs2d.CurvePoint(param));
-                }
-            }
-            else
-            {
-                if (nubs3d != null)
-                {
-                    return nubs3d.CurvePoint(param);
-                }
-                else
-                {
-                    return nurbs3d.CurvePoint(param);
+                    if (nubs3d != null)
+                    {
+                        return nubs3d.CurvePoint(param);
+                    }
+                    else
+                    {
+                        return nurbs3d.CurvePoint(param);
+                    }
                 }
             }
         }
         private void PointDirAtParam(double param, out GeoPoint point, out GeoVector dir)
         {
-            if (!nurbsHelper) MakeNurbsHelper();
-            lock (this)
+            lock (bSplineLock)
             {
+                if (!nurbsHelper) MakeNurbsHelper();
                 if (plane.HasValue && (nubs2d != null | nurbs2d != null))
                 {
                     if (nubs2d != null)
@@ -2867,7 +2870,7 @@ namespace CADability.GeoObject
         {
             return (this as ICurve).GetPlane();
         }
-        internal BSpline TrimParam(double spar, double epar)
+        public BSpline TrimParam(double spar, double epar)
         {
             BSpline clone = BSpline.Construct();
             bool reverse = false;
@@ -2883,10 +2886,7 @@ namespace CADability.GeoObject
             else if (nurbs3d != null) clone.nurbs3d = nurbs3d.Trim(spar, epar);
             else if (nubs2d != null) clone.nubs2d = nubs2d.Trim(spar, epar);
             else if (nurbs2d != null) clone.nurbs2d = nurbs2d.Trim(spar, epar);
-            using (new Changing(this, true))
-            {
-                clone.FromNurbs(getPlane());
-            }
+            clone.FromNurbs(getPlane());
             if (reverse) (clone as ICurve).Reverse();
             return clone;
         }
@@ -2906,9 +2906,8 @@ namespace CADability.GeoObject
         }
         PlanarState ICurve.GetPlanarState()
         {
-            lock (this)
+            lock (planeLock)
             {
-
                 if (this.IsSingular) return PlanarState.UnderDetermined;
                 double MaxDist;
                 bool isLinear;
@@ -2935,10 +2934,15 @@ namespace CADability.GeoObject
                 
         Plane ICurve.GetPlane()
         {
-            lock (planeLock)
+			if (plane.HasValue) 
+                return plane.Value;
+
+			lock (planeLock)
             {
-                if (plane.HasValue) return plane.Value;
-                double MaxDist;
+				if (plane.HasValue)
+					return plane.Value;
+
+				double MaxDist;
                 bool isLinear;
                 Plane res = Plane.FromPoints(poles, out MaxDist, out isLinear);
                 if (MaxDist < Precision.eps)
@@ -3078,6 +3082,9 @@ namespace CADability.GeoObject
                     if (throughPoints2d.Count < 2)
                     {
                         return new Line2D(p.Project((this as ICurve).StartPoint), p.Project((this as ICurve).EndPoint));
+
+                        //Unreachable code
+                        /*
                         return null;
                         double prec = this.GetExtent(Precision.eps).Size * 1e-4;
                         ICurve approx = (this as ICurve).Approximate(false, prec);
@@ -3088,7 +3095,7 @@ namespace CADability.GeoObject
                             p2d.Reduce(prec);   // vereinfacht den Pfad selbst, also res
                             if (p2d.SubCurvesCount == 1) return p2d.SubCurves[0];
                         }
-                        return res;
+                        return res;*/
                     }
                 }
                 try

@@ -1,7 +1,7 @@
 #region netDxf library licensed under the MIT License
 // 
 //                       netDxf library
-// Copyright (c) 2019-2021 Daniel Carvajal (haplokuon@gmail.com)
+// Copyright (c) Daniel Carvajal (haplokuon@gmail.com)
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -34,31 +34,34 @@ namespace netDxf
     /// </summary>
     public abstract class BezierCurve
     {
-        #region private fields
-
-        protected readonly Vector3[] controlPoints;
-        protected readonly int degree;
-
-        #endregion
-
         #region constructors
 
         /// <summary>
         /// Initializes a new instance of the <c>BezierCurve</c> class.
         /// </summary>
         /// <param name="controlPoints">A list of control points.</param>
+        /// <param name="degree">Bezier curve degree.</param>
         /// <remarks>
-        /// The curve degree will be equal to the number of control points minus one.
+        /// The curve degree must be equal to the number of control points minus one.
         /// </remarks>
-        protected BezierCurve(IEnumerable<Vector3> controlPoints)
+        protected BezierCurve(IEnumerable<Vector3> controlPoints, int degree)
         {
             if (controlPoints == null)
             {
                 throw new ArgumentNullException(nameof(controlPoints));
             }
+            if (degree < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(degree), degree, "The bezier curve degree must be at least one.");
+            }
 
-            this.controlPoints = controlPoints.ToArray();
-            this.degree = this.controlPoints.Length - 1;
+            this.ControlPoints = controlPoints.ToArray();
+            this.Degree = degree;
+            
+            if (this.Degree != ControlPoints.Length - 1)
+            {
+                throw new ArgumentException("The bezier curve degree must be equal to the number of control points minus one.");
+            }
         }
 
         #endregion
@@ -68,18 +71,12 @@ namespace netDxf
         /// <summary>
         /// Gets the control points.
         /// </summary>
-        public Vector3[] ControlPoints
-        {
-            get { return this.controlPoints; }
-        }
+        public Vector3[] ControlPoints { get; }
 
         /// <summary>
         /// Gets the bezier curve degree.
         /// </summary>
-        public int Degree
-        {
-            get { return this.degree; }
-        }
+        public int Degree { get; }
 
         #endregion
 
