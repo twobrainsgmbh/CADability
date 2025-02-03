@@ -62,6 +62,7 @@ namespace CADability
 
             HashSet<Edge> selectedEdges = new HashSet<Edge>();
             HashSet<Face> selectedFaces = new HashSet<Face>();
+            // NO!! no more distinction between accumulating and selecting!
             if (selectAction.IsAccumulating)
             {   // we have been accumulating edges or faces, now we want to do something with this collection
                 // this right click should not add or remove some more objects to or from the selection
@@ -108,6 +109,7 @@ namespace CADability
                 GeoObjectList fl;
                 int pickRadius = selectAction.Frame.GetIntSetting("Select.PickRadius", 5);
                 Projection.PickArea pa = vw.Projection.GetPickSpace(new Rectangle(mousePoint.X - pickRadius, mousePoint.Y - pickRadius, pickRadius * 2, pickRadius * 2));
+                Axis clickBeam = new Axis(pa.FrontCenter, pa.Direction);
                 if (selectedObjects.Count == 0)
                 {
                     // we are not in accumulation mode. Nothing was selected when the right click occurred
@@ -221,11 +223,11 @@ namespace CADability
                 }
                 foreach (Face fc in faces)
                 {
-                    cm.Add(CreateFaceMenu(selectAction, vw, fc));
+                    cm.Add(CreateFaceMenu(selectAction, vw, fc, clickBeam));
                 }
                 foreach (Edge edg in edges)
                 {
-                    cm.Add(CreateEdgeMenu(selectAction, vw, edg));
+                    cm.Add(CreateEdgeMenu(selectAction, vw, edg, clickBeam));
                 }
                 foreach (Solid sld in solids)
                 {
@@ -240,7 +242,7 @@ namespace CADability
                 {
                     if (Constr3DRuledSolid.ruledSolidTest(path1, path2))
                     {
-                        cm.AddIfNotNull(SimpleAction("MenuId.Constr.Solid.RuledSolid", 161, selectAction.Frame, 
+                        cm.AddIfNotNull(SimpleAction("MenuId.Constr.Solid.RuledSolid", 161, selectAction.Frame,
                             (() => Constr3DRuledSolid.ruledSolidDo(path1, path2, selectAction.Frame)), curves));
                         suppresRuledSolid = true;
                     }
@@ -832,14 +834,11 @@ namespace CADability
             return mh;
         }
 
-        private MenuWithHandler CreateEdgeMenu(SelectObjectsAction selectAction, IView vw, Edge edg)
+        private MenuWithHandler CreateEdgeMenu(SelectObjectsAction selectAction, IView vw, Edge edg, Axis clickBeam)
         {
             MenuWithHandler mh = new MenuWithHandler();
             mh.ID = "MenuId.Edge";
             mh.Text = StringTable.GetString("MenuId.Edge", StringTable.Category.label);
-            List<MenuWithHandler> lmh = new List<MenuWithHandler>();
-            MenuWithHandler selectMoreEdges = new MenuWithHandler("MenuId.SelectMoreEdges");
-            lmh.Add(selectMoreEdges);
             HashSet<Edge> edges = Shell.connectedSameGeometryEdges(new Edge[] { edg });
             mh.OnSelected = (menuId, selected) =>
             {   // show the provided edge and the "same geometry connected" edges as feedback
@@ -847,23 +846,70 @@ namespace CADability
                 currentMenuSelection.AddRange(edges.Select((edge) => edge.Curve3D as IGeoObject));
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
             };
+            List<MenuWithHandler> lmh = new List<MenuWithHandler>();
+
+            MenuWithHandler selectMoreEdges = new MenuWithHandler("MenuId.SelectMoreEdges");
             selectMoreEdges.OnCommand = (menuId) =>
             {
                 selectAction.SetSelectedObjects(new GeoObjectList(edges.Select((edge) => edge.Curve3D as IGeoObject)));
                 selectAction.Accumulate(PickMode.onlyEdges);
                 return true;
             };
+            lmh.Add(selectMoreEdges);
+
             MenuWithHandler mhdist = new MenuWithHandler();
             mhdist.ID = "MenuId.Parametrics.DistanceTo";
             mhdist.Text = StringTable.GetString("MenuId.Parametrics.DistanceTo", StringTable.Category.label);
             mhdist.Target = new ParametricsDistanceActionOld(edg, selectAction.Frame);
             lmh.Add(mhdist);
 
+            if (!edg.IsTangentialEdge())
+            {
+                (Axis rotationAxis1, GeoVector fromHere1, GeoVector toHere1) = ParametricsAngleAction.GetRotationAxis(edg.PrimaryFace, edg.SecondaryFace, clickBeam);
+                if (rotationAxis1.IsValid)
+                {
+                    GeoObjectList feedbackArrow = currentView.Projection.MakeRotationArrow(rotationAxis1, fromHere1, toHere1);
+                    MenuWithHandler rotateMenu = new MenuWithHandler("MenuId.FaceAngle");
+                    rotateMenu.OnCommand = (menuId) =>
+                    {
+                        ParametricsAngleAction pa = new ParametricsAngleAction(edg.PrimaryFace, edg.SecondaryFace, rotationAxis1, fromHere1, toHere1, selectAction.Frame);
+                        selectAction.Frame.SetAction(pa);
+                        return true;
+                    };
+                    rotateMenu.OnSelected = (menuId, selected) =>
+                    {
+                        currentMenuSelection.Clear();
+                        currentMenuSelection.AddRange(feedbackArrow);
+                        currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+                    };
+                    lmh.Add(rotateMenu);
+                }
+                (Axis rotationAxis2, GeoVector fromHere2, GeoVector toHere2) = ParametricsAngleAction.GetRotationAxis(edg.SecondaryFace, edg.PrimaryFace, clickBeam);
+                if (rotationAxis1.IsValid)
+                {
+                    GeoObjectList feedbackArrow = currentView.Projection.MakeRotationArrow(rotationAxis2, fromHere2, toHere2);
+                    MenuWithHandler rotateMenu = new MenuWithHandler("MenuId.FaceAngle");
+                    rotateMenu.OnCommand = (menuId) =>
+                    {
+                        ParametricsAngleAction pa = new ParametricsAngleAction(edg.SecondaryFace, edg.PrimaryFace, rotationAxis2, fromHere2, toHere2, selectAction.Frame);
+                        selectAction.Frame.SetAction(pa);
+                        return true;
+                    };
+                    rotateMenu.OnSelected = (menuId, selected) =>
+                    {
+                        currentMenuSelection.Clear();
+                        currentMenuSelection.AddRange(feedbackArrow);
+                        currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+                    };
+                    lmh.Add(rotateMenu);
+                }
+            }
+
             mh.SubMenus = lmh.ToArray();
             return mh;
         }
 
-        private MenuWithHandler CreateFaceMenu(SelectObjectsAction selectAction, IView vw, Face fc)
+        private MenuWithHandler CreateFaceMenu(SelectObjectsAction selectAction, IView vw, Face fc, Axis clickBeam)
         {
             HashSet<Face> faces = Shell.connectedSameGeometryFaces(new Face[] { fc });
             MenuWithHandler mh = new MenuWithHandler();
@@ -936,6 +982,50 @@ namespace CADability
                         lmh.Add(faceDist);
                     }
                 }
+                // Check for possibilities to rotate this face.
+                List<MenuWithHandler> rotateMenus = new List<MenuWithHandler>();
+                if (fc.Surface is PlaneSurface ps)
+                {
+                    foreach (Edge edge in fc.OutlineEdges)
+                    {
+                        if (!edge.IsTangentialEdge())
+                        {
+                            Face capturedFace = fc;
+                            Face otherFace = edge.OtherFace(fc);
+                            (Axis rotationAxis, GeoVector fromHere, GeoVector toHere) = ParametricsAngleAction.GetRotationAxis(fc, otherFace, clickBeam);
+                            if (rotationAxis.IsValid)
+                            {
+                                GeoObjectList feedbackArrow = currentView.Projection.MakeRotationArrow(rotationAxis, fromHere, toHere);
+                                MenuWithHandler rotateMenu = new MenuWithHandler("MenuId.FaceAngle");
+                                rotateMenu.OnCommand = (menuId) =>
+                                {
+                                    ParametricsAngleAction pa = new ParametricsAngleAction(capturedFace, otherFace, rotationAxis, fromHere, toHere, selectAction.Frame);
+                                    selectAction.Frame.SetAction(pa);
+                                    return true;
+                                };
+                                rotateMenu.OnSelected = (menuId, selected) =>
+                                {
+                                    currentMenuSelection.Clear();
+                                    //currentMenuSelection.Add(capturedFace);
+                                    currentMenuSelection.AddRange(feedbackArrow);
+                                    currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+                                };
+                                rotateMenus.Add(rotateMenu);
+                            }
+                        }
+                    }
+                }
+                if (rotateMenus.Count > 0)
+                {
+                    if (rotateMenus.Count == 1) lmh.Add(rotateMenus[0]);
+                    else
+                    {
+                        MenuWithHandler rm = new MenuWithHandler("MenuId.FacesAngle");
+                        rm.SubMenus = rotateMenus.ToArray();
+                        lmh.Add(rm);
+                    }
+                }
+                // else: more to come!
             }
             mh.SubMenus = lmh.ToArray();
             return mh;
@@ -1414,6 +1504,8 @@ namespace CADability
             PaintToSelect.SelectColor = Color.FromArgb(196, Color.Yellow);
             //PaintToSelect.SetColor (Color.Yellow);
             //PaintToSelect.UseZBuffer(false);
+            bool pse = PaintToSelect.PaintSurfaceEdges;
+            PaintToSelect.PaintSurfaceEdges = false;
             int wobbleWidth = -1; // i.e. also show faces which are behind other faces
             if ((PaintToSelect.Capabilities & PaintCapabilities.ZoomIndependentDisplayList) != 0)
             {
@@ -1427,6 +1519,7 @@ namespace CADability
                 //PaintToSelect.List(displayList);
             }
             PaintToSelect.SelectMode = oldSelect;
+            PaintToSelect.PaintSurfaceEdges = pse;
             PaintToSelect.PopState();
         }
 

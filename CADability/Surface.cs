@@ -479,6 +479,12 @@ namespace CADability.GeoObject
         /// <returns></returns>
         bool IsExtruded(GeoVector direction);
         /// <summary>
+        /// returns true, if the provided direction can be interpreted as a surface of rotation around the provided <paramref name="rotationAxis"/>
+        /// </summary>
+        /// <param name="direction"></param>
+        /// <returns></returns>
+        bool IsRotated(Axis rotationAxis);
+        /// <summary>
         /// Returns a context menu to change certain parameters of the surface of a face
         /// </summary>
         /// <param name="frame"></param>
@@ -3937,6 +3943,10 @@ namespace CADability.GeoObject
             return PointAt(PositionOf(p)) | p;
         }
         public virtual bool IsExtruded(GeoVector direction)
+        {
+            return false;
+        }
+        public virtual bool IsRotated(Axis rotationAxis)
         {
             return false;
         }

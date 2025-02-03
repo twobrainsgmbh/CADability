@@ -151,7 +151,8 @@ namespace CADability.Forms
         private static MenuItemWithHandler currentItem;
         private static string currentToolTipText;
 
-        private bool doubleChecked; // the MenuItem Checked property behaves strange. Maybe "because it is a field of a marshal-by-reference class" is the problem? // so here is a copy of this flag
+        private bool doubleChecked; // the MenuItem Checked property behaves strange. Maybe "because it is a field of a marshal-by-reference class" is the problem? 
+            // so here is a copy of this flag
         private static Shortcut ShortcutFromString(string p)
         {   // rather primitive:
             switch (p)

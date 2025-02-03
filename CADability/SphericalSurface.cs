@@ -792,6 +792,11 @@ namespace CADability.GeoObject
         {
             return new double[] { -Math.PI / 2.0, Math.PI / 2.0 };
         }
+        public override bool IsRotated(Axis rotationAxis)
+        {
+            return Precision.IsPointOnLine(toSphere * GeoPoint.Origin, rotationAxis.Location, rotationAxis.Location + this.RadiusX * rotationAxis.Direction);
+        }
+
         public override void Intersect(ICurve curve, BoundingRect uvExtent, out GeoPoint[] ips, out GeoPoint2D[] uvOnFaces, out double[] uOnCurve3Ds)
         {
             ips = null;

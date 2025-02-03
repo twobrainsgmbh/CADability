@@ -2242,6 +2242,11 @@ namespace CADability.GeoObject
         {
             return Precision.SameDirection(Axis, direction, false);
         }
+        public override bool IsRotated(Axis rotationAxis)
+        {
+            return Precision.SameDirection(Axis, rotationAxis.Direction, false);
+        }
+
 
         #endregion
         #region ISerializable Members

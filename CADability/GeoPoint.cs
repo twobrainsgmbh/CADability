@@ -1045,6 +1045,17 @@ namespace CADability
             Location = location;
             Direction = direction;
         }
+        static public Axis InvalidAxis
+        {
+            get
+            {
+                return new Axis(GeoPoint.Invalid, GeoVector.NullVector);
+            }
+        }
+        public bool IsValid
+        {
+            get { return Location.IsValid; }
+        }
         public bool SameGeometry(Axis other)
         {
             if (Precision.SameDirection(Direction,other.Direction,false))
@@ -1593,6 +1604,10 @@ namespace CADability
         public static GeoVector2D YAxis
         {
             get { return new GeoVector2D(0.0, 1.0); }
+        }
+        public static GeoVector2D FromAngle(double angle)
+        {
+            return new GeoVector2D(Math.Cos(angle), Math.Sin(angle));
         }
         public static GeoVector2D NullVector
         {

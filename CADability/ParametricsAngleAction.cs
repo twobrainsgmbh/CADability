@@ -18,53 +18,79 @@ namespace CADability.Actions
     /// </summary>
     internal class ParametricsAngleAction : ConstructAction
     {
+        Shell shell;
         List<Face> facesToRotate; // all faces which should be rotated by this parametric
         Face primaryRotationFace; // the face which is beeing rotated and which specifies the angle
         Face referenceFace; // the face to which the angle is meassured
-        CoordSys axis; // the rotation axis: z-direction is the rotation axis, x-direction is the angle reference
+        Axis rotationAxis; // the axis of rotation. The location is close to the mouse position of the click point
+        GeoVector fromHere; // Reference vector for the start of the rotation, perpendicular to the rotationAxis
+        GeoVector toHereStartValue; // start value of the above
+        GeoVector toHere; // the vector to be modified, perpendicular to the rotationAxis
+        string parametricsName; // the name for the parametrics in the shall, if provided
 
-        GeoObjectInput toRotate;
+        GeoObjectInput facetoRotate;
+        GeoObjectInput moreFacestoRotate;
         GeoObjectInput reference;
         AngleInput rotationAngle;
+        StringInput nameInput;
+        BooleanInput preserveInput;
 
-        public ParametricsAngleAction(List<Face> facesToRotate, Face referenceFace)
+        public ParametricsAngleAction(Face faceToRotate, Face referenceFace, Axis axis, GeoVector fromHere, GeoVector toHere, IFrame frame)
         {
-            this.facesToRotate = facesToRotate;
-            primaryRotationFace = facesToRotate[0]; // the first face is the face, which specifies the angle
-            this.facesToRotate.RemoveAt(0);
+            Shell shell = faceToRotate.Owner as Shell;
+            if (shell == null) throw new ApplicationException("faceToRotate must be part of a shell");
+            this.facesToRotate = new List<Face>();
+            primaryRotationFace = faceToRotate; // the first face is the face, which specifies the angle
             this.referenceFace = referenceFace;
+            this.rotationAxis = axis;
+            this.fromHere = fromHere;
+            toHereStartValue = this.toHere = toHere;
         }
-
-        double calcAxis()
+        /// <summary>
+        /// Calculates a rotation axis between the face <paramref name="toRotate"/> and the <paramref name="referenceFace"/>. The returned  axis will be 
+        /// close to the <paramref name="pickBeam"/>. The returned vectors fromHere and toHere are the current position of the enclosing angle.
+        /// </summary>
+        /// <param name="toRotate"></param>
+        /// <param name="referenceFace"></param>
+        /// <param name="pickBeam"></param>
+        /// <returns></returns>
+        static public (Axis axis, GeoVector fromHere, GeoVector toHere) GetRotationAxis(Face toRotate, Face referenceFace, Axis pickBeam)
         {
-            if (primaryRotationFace.Surface is PlaneSurface pps && referenceFace.Surface is PlaneSurface rps)
+            List<Edge> commonEdges = new List<Edge>(toRotate.AllEdges.Intersect(referenceFace.AllEdges));
+            // Implementation for lines:
+            double minDist = double.MaxValue;
+            Line rotationLine = null;
+            GeoPoint rotationPoint = GeoPoint.Origin;
+            Edge edge = null;
+            for (int i = 0; i<commonEdges.Count; ++i)
             {
-                if (pps.Plane.Intersect(rps.Plane, out GeoPoint loc, out GeoVector dir))
+                if (commonEdges[i].Curve3D is Line line && !commonEdges[i].IsTangentialEdge())
                 {
-                    GeoVector xdir = rps.Normal ^ dir;
-                    GeoVector ydir = rps.Normal ^ xdir;
-                    axis = new CoordSys(loc, xdir, ydir);
-                    return (new Angle(xdir, pps.Normal ^ axis.Normal)).Radian;
+                    Geometry.ConnectLines(line.StartPoint, line.StartDirection, pickBeam.Location, pickBeam.Direction, out double pos1, out double pos2);
+                    GeoPoint p1 = line.StartPoint + pos1 * line.StartDirection;
+                    GeoPoint p2 = pickBeam.Location + pos2 * pickBeam.Direction;
+                    double d = p1 | p2;
+                    if (d<minDist)
+                    {
+                        minDist = d;
+                        rotationLine = line;
+                        pos1 = Math.Max(Math.Min(pos1, 1.0), 0.0);
+                        rotationPoint = line.StartPoint + pos1 * line.StartDirection; // on the line, which is the edge
+                        edge = commonEdges[i];
+                    }
                 }
             }
-            Axis rax = new Axis(GeoPoint.Origin, GeoVector.NullVector); // the "invalid" value
-            if (referenceFace.Surface is ICone ic) rax = new Axis(ic.Apex, ic.Axis);
-            else if (referenceFace.Surface is ICylinder icy) rax = icy.Axis;
-            else if (referenceFace.Surface is PlaneSurface ps) rax = new Axis(ps.Location, ps.Normal);
-            Axis pax = new Axis(GeoPoint.Origin, GeoVector.NullVector); // the "invalid" value
-            if (primaryRotationFace.Surface is ICone icn) pax = new Axis(icn.Apex, icn.Axis);
-            else if (primaryRotationFace.Surface is ICylinder icy) pax = icy.Axis;
-            else if (primaryRotationFace.Surface is PlaneSurface ps) pax = new Axis(ps.Location, ps.Normal);
-
-            if (!rax.Direction.IsNullVector() && !pax.Direction.IsNullVector())
+            if (rotationLine != null)
             {
-                GeoVector xdir = pax.Direction ^ rax.Direction;
-                GeoVector ydir = pax.Direction ^ xdir;
-                Geometry.DistLL(pax.Location, pax.Direction, rax.Location, rax.Direction, out double par1, out double par2);
-                axis = new CoordSys(rax.Location, xdir, ydir);
-                return (new Angle(xdir, pax.Direction ^ axis.Normal)).Radian;
+                // find the direction from where to go and the direction to where to go
+                GeoVector fromHere = referenceFace.Surface.GetNormal(referenceFace.Surface.PositionOf(rotationPoint)) ^ rotationLine.StartDirection;
+                if (!edge.Forward(referenceFace)) fromHere = -fromHere;
+                GeoVector toHere = toRotate.Surface.GetNormal(toRotate.Surface.PositionOf(rotationPoint)) ^ rotationLine.StartDirection;
+                if (!edge.Forward(toRotate)) toHere = -toHere;
+                return (new Axis(rotationPoint, rotationLine.StartDirection), fromHere, toHere);
             }
-            return 0.0;
+
+            return (Axis.InvalidAxis, GeoVector.NullVector, GeoVector.NullVector);
         }
         public override string GetID()
         {
@@ -76,40 +102,123 @@ namespace CADability.Actions
 
             List<InputObject> actionInputs = new List<InputObject>();
 
-            toRotate = new GeoObjectInput("Parametrics.Angle.FacesToRotate");
-            toRotate.MultipleInput = true;
-            toRotate.FacesOnly = true;
-            toRotate.Optional = true;
-            toRotate.MouseOverGeoObjectsEvent += new GeoObjectInput.MouseOverGeoObjectsDelegate(OnMouseOverFacesToRotate);
-            actionInputs.Add(toRotate);
+            facetoRotate = new GeoObjectInput("Parametrics.Angle.FaceToRotate");
+            facetoRotate.MultipleInput = false;
+            facetoRotate.FacesOnly = true;
+            facetoRotate.Optional = false;
+            facetoRotate.MouseOverGeoObjectsEvent += new GeoObjectInput.MouseOverGeoObjectsDelegate(OnMouseOverFaceToRotate);
+            actionInputs.Add(facetoRotate);
 
-            GeoObjectInput reference;
-            AngleInput rotationAngle;
+            moreFacestoRotate = new GeoObjectInput("Parametrics.Angle.MoreFacesToRotate");
+            moreFacestoRotate.MultipleInput = true;
+            moreFacestoRotate.FacesOnly = true;
+            moreFacestoRotate.Optional = true;
+            moreFacestoRotate.MouseOverGeoObjectsEvent += new GeoObjectInput.MouseOverGeoObjectsDelegate(OnMouseOverMoreFacesToRotate);
+            actionInputs.Add(moreFacestoRotate);
 
+            reference = new GeoObjectInput("Parametrics.Angle.Reference");
+            reference.MultipleInput = false;
+            reference.FacesOnly = true;
+            reference.Optional = true;
+            reference.MouseOverGeoObjectsEvent += new GeoObjectInput.MouseOverGeoObjectsDelegate(OnMouseOverReferenceFace);
+            actionInputs.Add(reference);
+
+            rotationAngle = new AngleInput("Parametrics.Angle.Angle");
+            rotationAngle.GetAngleEvent += RotationAngle_GetAngleEvent;
+            rotationAngle.SetAngleEvent += RotationAngle_SetAngleEvent;
+            actionInputs.Add(rotationAngle);
+
+            SeparatorInput separator = new SeparatorInput("Parametrics.AssociateParametric");
+            actionInputs.Add(separator);
+            nameInput = new StringInput("Parametrics.ParametricsName");
+            nameInput.SetStringEvent += NameInput_SetStringEvent;
+            nameInput.GetStringEvent += NameInput_GetStringEvent;
+            nameInput.Optional = true;
+            actionInputs.Add(nameInput);
+
+            preserveInput = new BooleanInput("Parametrics.PreserveValue", "YesNo.Values", false);
+            actionInputs.Add(preserveInput);
+
+            SetInput(actionInputs.ToArray());
+            base.OnSetAction();
+
+            facetoRotate.SetGeoObject(new IGeoObject[] { primaryRotationFace }, primaryRotationFace);
+            facetoRotate.Fixed = primaryRotationFace != null;
+            reference.SetGeoObject(new IGeoObject[] { referenceFace }, null);
+        }
+
+        private bool RotationAngle_SetAngleEvent(Angle angle)
+        {
+            return true;
+        }
+
+        private Angle RotationAngle_GetAngleEvent()
+        {
+            return new Angle(fromHere, toHere); // should be between -180° and +180°
         }
 
         private void Refresh()
         {
 
         }
-        private bool OnMouseOverFacesToRotate(GeoObjectInput sender, IGeoObject[] geoObjects, bool up)
+        private bool OnMouseOverFaceToRotate(GeoObjectInput sender, IGeoObject[] geoObjects, bool up)
         {
             List<Face> faces = geoObjects.OfType<Face>().ToList();
             if (faces.Count > 0)
             {
                 if (up)
                 {
-                    foreach (Face face in faces)
-                    {
-                        if (facesToRotate.Contains(face)) facesToRotate.Remove(face); // not sure whethwer to remove
-                        else facesToRotate.Add(face);
-                    }
-                    sender.SetGeoObject(facesToRotate.ToArray(), null);
+                    primaryRotationFace = faces[0];
+                    sender.SetGeoObject(new IGeoObject[] { primaryRotationFace }, primaryRotationFace);
                     Refresh();
                 }
-                return faces.Count > 0;
             }
-            return false;
+            return faces.Count > 0;
         }
+        private bool OnMouseOverMoreFacesToRotate(GeoObjectInput sender, IGeoObject[] geoObjects, bool up)
+        {
+            List<Face> faces = geoObjects.OfType<Face>().ToList();
+            if (faces.Count > 0)
+            {
+                if (up)
+                {
+                    HashSet<Face> current = new HashSet<Face>(sender.GetGeoObjects().OfType<Face>());
+                    foreach (Face face in faces)
+                    {
+                        if (current.Contains(face)) current.Remove(face);
+                        else current.Add(face);
+                        sender.SetGeoObject(current.ToArray(), null);
+                        facesToRotate = new List<Face>(current);
+                    }
+                    Refresh();
+                }
+            }
+            return faces.Count > 0;
+        }
+        private bool OnMouseOverReferenceFace(GeoObjectInput sender, IGeoObject[] geoObjects, bool up)
+        {
+            List<Face> faces = geoObjects.OfType<Face>().ToList();
+            if (faces.Count > 0)
+            {
+                if (up)
+                {
+                    referenceFace = faces[0];
+                    sender.SetGeoObject(new IGeoObject[] { referenceFace }, referenceFace);
+                    Refresh();
+                }
+            }
+            return faces.Count > 0;
+        }
+        private string NameInput_GetStringEvent()
+        {
+            if (parametricsName == null) return string.Empty;
+            else return parametricsName;
+        }
+
+        private void NameInput_SetStringEvent(string val)
+        {
+            parametricsName = val;
+        }
+
     }
 }
