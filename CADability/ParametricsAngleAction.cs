@@ -27,6 +27,7 @@ namespace CADability.Actions
         GeoVector toHereStartValue; // start value of the above
         GeoVector toHere; // the vector to be modified, perpendicular to the rotationAxis
         string parametricsName; // the name for the parametrics in the shall, if provided
+        Parametric parametric; // the parametric, which is updated on input changes
 
         GeoObjectInput facetoRotate;
         GeoObjectInput moreFacestoRotate;
@@ -45,6 +46,7 @@ namespace CADability.Actions
             this.rotationAxis = axis;
             this.fromHere = fromHere;
             toHereStartValue = this.toHere = toHere;
+            parametric = new Parametric(shell);
         }
         /// <summary>
         /// Calculates a rotation axis between the face <paramref name="toRotate"/> and the <paramref name="referenceFace"/>. The returned  axis will be 
@@ -149,6 +151,13 @@ namespace CADability.Actions
 
         private bool RotationAngle_SetAngleEvent(Angle angle)
         {
+            Dictionary<Face, ModOp> rotatingFaces = new Dictionary<Face, ModOp>();
+            ModOp rot1 = ModOp.Rotate(rotationAxis.Location,rotationAxis.Direction,angle);
+            toHere = rot1 * fromHere;
+            ModOp rotation = ModOp.Rotate(rotationAxis.Location, toHereStartValue, toHere);
+            rotatingFaces[primaryRotationFace] = rotation;
+            // and the other faces from facesToRotate
+            parametric.RotateFaces(rotatingFaces, rotationAxis, false);
             return true;
         }
 
@@ -220,5 +229,15 @@ namespace CADability.Actions
             parametricsName = val;
         }
 
+        public override void OnDone()
+        {
+            Parametric parametric = new Parametric(shell);
+            Dictionary<Face, ModOp> rotatingFaces = new Dictionary<Face, ModOp>();
+            ModOp rotation = ModOp.Rotate(rotationAxis.Location, toHereStartValue, toHere);
+            rotatingFaces[primaryRotationFace] = rotation;
+            // and the other faces from facesToRotate
+            parametric.RotateFaces(rotatingFaces, rotationAxis, false);
+            base.OnDone();
+        }
     }
 }
