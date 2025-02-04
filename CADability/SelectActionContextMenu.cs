@@ -872,7 +872,7 @@ namespace CADability
                     MenuWithHandler rotateMenu = new MenuWithHandler("MenuId.FaceAngle");
                     rotateMenu.OnCommand = (menuId) =>
                     {
-                        ParametricsAngleAction pa = new ParametricsAngleAction(edg.PrimaryFace, edg.SecondaryFace, rotationAxis1, fromHere1, toHere1, selectAction.Frame);
+                        ParametricsAngleAction pa = new ParametricsAngleAction(edg.PrimaryFace, edg.SecondaryFace, rotationAxis1, fromHere1, toHere1, edg, selectAction.Frame);
                         selectAction.Frame.SetAction(pa);
                         return true;
                     };
@@ -891,7 +891,7 @@ namespace CADability
                     MenuWithHandler rotateMenu = new MenuWithHandler("MenuId.FaceAngle");
                     rotateMenu.OnCommand = (menuId) =>
                     {
-                        ParametricsAngleAction pa = new ParametricsAngleAction(edg.SecondaryFace, edg.PrimaryFace, rotationAxis2, fromHere2, toHere2, selectAction.Frame);
+                        ParametricsAngleAction pa = new ParametricsAngleAction(edg.SecondaryFace, edg.PrimaryFace, rotationAxis2, fromHere2, toHere2, edg, selectAction.Frame);
                         selectAction.Frame.SetAction(pa);
                         return true;
                     };
@@ -999,7 +999,7 @@ namespace CADability
                                 MenuWithHandler rotateMenu = new MenuWithHandler("MenuId.FaceAngle");
                                 rotateMenu.OnCommand = (menuId) =>
                                 {
-                                    ParametricsAngleAction pa = new ParametricsAngleAction(capturedFace, otherFace, rotationAxis, fromHere, toHere, selectAction.Frame);
+                                    ParametricsAngleAction pa = new ParametricsAngleAction(capturedFace, otherFace, rotationAxis, fromHere, toHere, edge, selectAction.Frame);
                                     selectAction.Frame.SetAction(pa);
                                     return true;
                                 };

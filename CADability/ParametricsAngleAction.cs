@@ -1,6 +1,7 @@
 ﻿using CADability.Actions;
 using CADability.GeoObject;
 using CADability.UserInterface;
+using MathNet.Numerics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,15 +20,17 @@ namespace CADability.Actions
     internal class ParametricsAngleAction : ConstructAction
     {
         Shell shell;
-        List<Face> facesToRotate; // all faces which should be rotated by this parametric
+        List<Face> forwardFaces; // all faces in the forward direction of the rotation
+        List<Face> backwardFaces; // all faces in the backward direction of the rotation
         Face primaryRotationFace; // the face which is beeing rotated and which specifies the angle
         Face referenceFace; // the face to which the angle is meassured
         Axis rotationAxis; // the axis of rotation. The location is close to the mouse position of the click point
         GeoVector fromHere; // Reference vector for the start of the rotation, perpendicular to the rotationAxis
         GeoVector toHereStartValue; // start value of the above
         GeoVector toHere; // the vector to be modified, perpendicular to the rotationAxis
+        Edge axisEdge = null; // the edge, which acts as the axis
         string parametricsName; // the name for the parametrics in the shall, if provided
-        Parametric parametric; // the parametric, which is updated on input changes
+        Parametric parametric;
 
         GeoObjectInput facetoRotate;
         GeoObjectInput moreFacestoRotate;
@@ -36,49 +39,58 @@ namespace CADability.Actions
         StringInput nameInput;
         BooleanInput preserveInput;
 
-        public ParametricsAngleAction(Face faceToRotate, Face referenceFace, Axis axis, GeoVector fromHere, GeoVector toHere, IFrame frame)
-        {
-            Shell shell = faceToRotate.Owner as Shell;
+        public ParametricsAngleAction(Face faceToRotate, Face referenceFace, Axis axis, GeoVector fromHere, GeoVector toHere, Edge axisEdge, IFrame frame)
+        {   // there will be other constructors, e.g. for a cylinder to plane angle etc.
+            shell = faceToRotate.Owner as Shell;
             if (shell == null) throw new ApplicationException("faceToRotate must be part of a shell");
-            this.facesToRotate = new List<Face>();
-            primaryRotationFace = faceToRotate; // the first face is the face, which specifies the angle
-            this.referenceFace = referenceFace;
+            this.forwardFaces = new List<Face> { faceToRotate };
+            this.backwardFaces = new List<Face> { referenceFace };
             this.rotationAxis = axis;
             this.fromHere = fromHere;
+            this.axisEdge = axisEdge;
             toHereStartValue = this.toHere = toHere;
-            parametric = new Parametric(shell);
         }
         /// <summary>
         /// Calculates a rotation axis between the face <paramref name="toRotate"/> and the <paramref name="referenceFace"/>. The returned  axis will be 
         /// close to the <paramref name="pickBeam"/>. The returned vectors fromHere and toHere are the current position of the enclosing angle.
+        /// If <paramref name="axisEdge"/> is provided, this edge is the axis and the location is at the center of this edge
         /// </summary>
         /// <param name="toRotate"></param>
         /// <param name="referenceFace"></param>
         /// <param name="pickBeam"></param>
         /// <returns></returns>
-        static public (Axis axis, GeoVector fromHere, GeoVector toHere) GetRotationAxis(Face toRotate, Face referenceFace, Axis pickBeam)
+        static public (Axis axis, GeoVector fromHere, GeoVector toHere) GetRotationAxis(Face toRotate, Face referenceFace, Axis pickBeam, Edge axisEdge = null)
         {
-            List<Edge> commonEdges = new List<Edge>(toRotate.AllEdges.Intersect(referenceFace.AllEdges));
-            // Implementation for lines:
-            double minDist = double.MaxValue;
             Line rotationLine = null;
             GeoPoint rotationPoint = GeoPoint.Origin;
             Edge edge = null;
-            for (int i = 0; i<commonEdges.Count; ++i)
+            if (axisEdge != null && axisEdge.Curve3D is Line axline)
             {
-                if (commonEdges[i].Curve3D is Line line && !commonEdges[i].IsTangentialEdge())
+                rotationLine = axline;
+                rotationPoint = axline.PointAt(0.5);
+                edge = axisEdge;
+            }
+            else
+            {
+                List<Edge> commonEdges = new List<Edge>(toRotate.AllEdges.Intersect(referenceFace.AllEdges));
+                // Implementation for lines:
+                double minDist = double.MaxValue;
+                for (int i = 0; i < commonEdges.Count; ++i)
                 {
-                    Geometry.ConnectLines(line.StartPoint, line.StartDirection, pickBeam.Location, pickBeam.Direction, out double pos1, out double pos2);
-                    GeoPoint p1 = line.StartPoint + pos1 * line.StartDirection;
-                    GeoPoint p2 = pickBeam.Location + pos2 * pickBeam.Direction;
-                    double d = p1 | p2;
-                    if (d<minDist)
+                    if (commonEdges[i].Curve3D is Line line && !commonEdges[i].IsTangentialEdge())
                     {
-                        minDist = d;
-                        rotationLine = line;
-                        pos1 = Math.Max(Math.Min(pos1, 1.0), 0.0);
-                        rotationPoint = line.StartPoint + pos1 * line.StartDirection; // on the line, which is the edge
-                        edge = commonEdges[i];
+                        Geometry.ConnectLines(line.StartPoint, line.StartDirection, pickBeam.Location, pickBeam.Direction, out double pos1, out double pos2);
+                        GeoPoint p1 = line.StartPoint + pos1 * line.StartDirection;
+                        GeoPoint p2 = pickBeam.Location + pos2 * pickBeam.Direction;
+                        double d = p1 | p2;
+                        if (d < minDist)
+                        {
+                            minDist = d;
+                            rotationLine = line;
+                            pos1 = Math.Max(Math.Min(pos1, 1.0), 0.0);
+                            rotationPoint = line.StartPoint + pos1 * line.StartDirection; // on the line, which is the edge
+                            edge = commonEdges[i];
+                        }
                     }
                 }
             }
@@ -91,7 +103,6 @@ namespace CADability.Actions
                 if (!edge.Forward(toRotate)) toHere = -toHere;
                 return (new Axis(rotationPoint, rotationLine.StartDirection), fromHere, toHere);
             }
-
             return (Axis.InvalidAxis, GeoVector.NullVector, GeoVector.NullVector);
         }
         public override string GetID()
@@ -144,20 +155,20 @@ namespace CADability.Actions
             SetInput(actionInputs.ToArray());
             base.OnSetAction();
 
-            facetoRotate.SetGeoObject(new IGeoObject[] { primaryRotationFace }, primaryRotationFace);
-            facetoRotate.Fixed = primaryRotationFace != null;
-            reference.SetGeoObject(new IGeoObject[] { referenceFace }, null);
+            FeedBack.SelectOutline = false;
+            FeedBack.AddTransparent(CurrentMouseView.Projection.MakeRotationArrow(rotationAxis, fromHere, toHere));
+
+            facetoRotate.SetGeoObject(forwardFaces.ToArray(), forwardFaces[0]);
+            facetoRotate.Fixed = forwardFaces.Count > 0;
+            reference.SetGeoObject(backwardFaces.ToArray(), backwardFaces[0]);
+            reference.Fixed = backwardFaces.Count > 0;
         }
 
         private bool RotationAngle_SetAngleEvent(Angle angle)
         {
-            Dictionary<Face, ModOp> rotatingFaces = new Dictionary<Face, ModOp>();
-            ModOp rot1 = ModOp.Rotate(rotationAxis.Location,rotationAxis.Direction,angle);
+            ModOp rot1 = ModOp.Rotate(rotationAxis.Location, rotationAxis.Direction, angle);
             toHere = rot1 * fromHere;
-            ModOp rotation = ModOp.Rotate(rotationAxis.Location, toHereStartValue, toHere);
-            rotatingFaces[primaryRotationFace] = rotation;
-            // and the other faces from facesToRotate
-            parametric.RotateFaces(rotatingFaces, rotationAxis, false);
+            Refresh();
             return true;
         }
 
@@ -166,9 +177,138 @@ namespace CADability.Actions
             return new Angle(fromHere, toHere); // should be between -180° and +180°
         }
 
-        private void Refresh()
+        private bool Refresh()
         {
+            FeedBack.ClearTransparent();
+            FeedBack.AddTransparent(CurrentMouseView.Projection.MakeRotationArrow(rotationAxis, fromHere, toHere));
 
+            ModOp rotation = ModOp.Rotate(rotationAxis.Location, toHereStartValue, toHere); // the delta rotation
+            Dictionary<Face, ModOp> rotatingFaces = new Dictionary<Face, ModOp>();
+            foreach (Face face in forwardFaces) rotatingFaces[face] = rotation;
+            parametric = new Parametric(shell);
+            parametric.RotateFaces(rotatingFaces, rotationAxis, false);
+            if (parametric.Apply())
+            {
+                Shell sh = parametric.Result();
+                if (sh != null)
+                {
+                    ActiveObject = sh;
+                    return true;
+                }
+            }
+            ActiveObject = shell;
+            return false;
+
+            //    validResult = false;
+            //    if (forwardFaces.Count > 0 && backwardFaces.Count > 0)
+            //    {
+            //        FeedBack.ClearSelected();
+            //        GeoPoint startPoint = point1;
+            //        GeoPoint endPoint = point2;
+            //        GeoVector dir = (point2 - point1).Normalized;
+            //        double originalDistance = point2 | point1;
+            //        switch (mode)
+            //        {
+            //            case Mode.forward:
+            //                endPoint = point2 + (distance - originalDistance) * dir;
+            //                offsetFeedBack = Frame.ActiveView.Projection.MakeArrow(startPoint, endPoint, feedbackPlane, Projection.ArrowMode.circleArrow);
+            //                break;
+            //            case Mode.backward:
+            //                startPoint = point1 - (distance - originalDistance) * dir;
+            //                offsetFeedBack = Frame.ActiveView.Projection.MakeArrow(endPoint, startPoint, feedbackPlane, Projection.ArrowMode.circleArrow);
+            //                break;
+            //            case Mode.symmetric:
+            //                startPoint = point1 - 0.5 * (distance - originalDistance) * dir;
+            //                endPoint = point2 + 0.5 * (distance - originalDistance) * dir;
+            //                GeoPoint mp = new GeoPoint(startPoint, endPoint);
+            //                offsetFeedBack = Frame.ActiveView.Projection.MakeArrow(mp, startPoint, feedbackPlane, Projection.ArrowMode.circleArrow);
+            //                offsetFeedBack.AddRange(Frame.ActiveView.Projection.MakeArrow(mp, endPoint, feedbackPlane, Projection.ArrowMode.circleArrow));
+            //                break;
+            //        }
+            //        offsetFeedBack.AddRange(forwardFaces);
+            //        offsetFeedBack.AddRange(backwardFaces);
+            //        FeedBack.AddSelected(offsetFeedBack);
+            //        Shell sh = null;
+            //        for (int m = 0; m <= 1; m++)
+            //        {   // first try without moving connected faces, if this yields no result, try with moving connected faced
+            //            Parametric parametric = new Parametric(shell);
+            //            Dictionary<Face, GeoVector> allFacesToMove = new Dictionary<Face, GeoVector>();
+            //            GeoVector offset = (distance - originalDistance) * dir;
+            //            switch (mode)
+            //            {
+            //                case Mode.forward:
+            //                    foreach (Face face in forwardFaces)
+            //                    {
+            //                        allFacesToMove[face] = offset;
+            //                    }
+            //                    foreach (Face face in backwardFaces)
+            //                    {
+            //                        allFacesToMove[face] = GeoVector.NullVector;
+            //                    }
+            //                    break;
+            //                case Mode.symmetric:
+            //                    foreach (Face face in forwardFaces)
+            //                    {
+            //                        allFacesToMove[face] = 0.5 * offset;
+            //                    }
+            //                    foreach (Face face in backwardFaces)
+            //                    {
+            //                        allFacesToMove[face] = -0.5 * offset;
+            //                    }
+            //                    break;
+            //                case Mode.backward:
+            //                    foreach (Face face in backwardFaces)
+            //                    {
+            //                        allFacesToMove[face] = -offset;
+            //                    }
+            //                    foreach (Face face in forwardFaces)
+            //                    {
+            //                        allFacesToMove[face] = GeoVector.NullVector;
+            //                    }
+            //                    break;
+            //            }
+            //            parametric.MoveFaces(allFacesToMove, offset, m == 1);
+            //            if (parametric.Apply())
+            //            {
+            //                sh = parametric.Result();
+            //                if (sh != null)
+            //                {
+            //                    ParametricDistanceProperty.Mode pmode = 0;
+            //                    if (m == 1) pmode |= ParametricDistanceProperty.Mode.connected;
+            //                    if (mode == Mode.symmetric) pmode |= ParametricDistanceProperty.Mode.symmetric;
+            //                    // create the ParametricDistanceProperty here, because here we have all the information
+            //                    parametric.GetDictionaries(out Dictionary<Face, Face> faceDict, out Dictionary<Edge, Edge> edgeDict, out Dictionary<Vertex, Vertex> vertexDict);
+            //                    // facesToKeep etc. contains original objects of the shell, affectedObjects contains objects of the sh = pm.Result()
+            //                    // the parametricProperty will be applied to sh, so we need the objects from sh
+            //                    if (mode == Mode.backward)
+            //                    {
+            //                        parametricProperty = new ParametricDistanceProperty("", Extensions.LookUp(forwardFaces, faceDict),
+            //                            Extensions.LookUp(backwardFaces, faceDict),
+            //                            parametric.GetAffectedObjects(), pmode, point2, point1);
+            //                    }
+            //                    else
+            //                    {
+            //                        parametricProperty = new ParametricDistanceProperty("", Extensions.LookUp(backwardFaces, faceDict),
+            //                            Extensions.LookUp(forwardFaces, faceDict),
+            //                            parametric.GetAffectedObjects(), pmode, point1, point2);
+            //                    }
+            //                    break;
+            //                }
+            //            }
+            //        }
+            //        if (sh != null)
+            //        {
+            //            ActiveObject = sh;
+            //            validResult = true;
+            //            return true;
+            //        }
+            //        else
+            //        {
+            //            ActiveObject = shell.Clone();
+            //            return false;
+            //        }
+
+            //    }
         }
         private bool OnMouseOverFaceToRotate(GeoObjectInput sender, IGeoObject[] geoObjects, bool up)
         {
@@ -197,7 +337,7 @@ namespace CADability.Actions
                         if (current.Contains(face)) current.Remove(face);
                         else current.Add(face);
                         sender.SetGeoObject(current.ToArray(), null);
-                        facesToRotate = new List<Face>(current);
+                        forwardFaces = new List<Face>(current);
                     }
                     Refresh();
                 }
@@ -228,15 +368,44 @@ namespace CADability.Actions
         {
             parametricsName = val;
         }
-
+        public override void OnRemoveAction()
+        {
+            base.OnRemoveAction();
+        }
         public override void OnDone()
         {
-            Parametric parametric = new Parametric(shell);
-            Dictionary<Face, ModOp> rotatingFaces = new Dictionary<Face, ModOp>();
-            ModOp rotation = ModOp.Rotate(rotationAxis.Location, toHereStartValue, toHere);
-            rotatingFaces[primaryRotationFace] = rotation;
-            // and the other faces from facesToRotate
-            parametric.RotateFaces(rotatingFaces, rotationAxis, false);
+            if (Refresh() && ActiveObject!=null)
+            {
+                Solid sld = shell.Owner as Solid;
+                if (sld != null)
+                {   // the shell was part of a Solid
+                    IGeoObjectOwner owner = sld.Owner; // Model or Block
+                    using (Frame.Project.Undo.UndoFrame)
+                    {
+                        owner.Remove(sld);
+                        Solid replacement = Solid.MakeSolid(ActiveObject as Shell);
+                        replacement.CopyAttributes(sld);
+                        owner.Add(replacement);
+                        if (!string.IsNullOrEmpty(parametricsName))
+                        {
+                            ParametricRotationProperty parametricProperty = new ParametricRotationProperty(parametricsName, backwardFaces, forwardFaces, parametric.GetAffectedObjects(), 0, axisEdge);
+                            parametricProperty.Name = parametricsName;
+                            parametricProperty.Preserve = preserveInput.Value;
+                            replacement.Shells[0].AddParametricProperty(parametricProperty);
+                        }
+                    }
+                }
+                else
+                {
+                    IGeoObjectOwner owner = shell.Owner;
+                    using (Frame.Project.Undo.UndoFrame)
+                    {
+                        owner.Remove(shell);
+                        owner.Add(ActiveObject);
+                    }
+                }
+            }
+            ActiveObject = null;
             base.OnDone();
         }
     }

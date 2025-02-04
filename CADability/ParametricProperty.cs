@@ -9,6 +9,14 @@ using MathNet.Numerics;
 
 namespace CADability
 {
+    /// <summary>
+    /// The ParametricProperty is the base class for all parametric properties of a shell. The different derived classes know which parts of the shell
+    /// (Faces, Edges, Vertices) define the property and what to do, when the value of that property changes.
+    /// For the <see cref="ParametricProperty.Execute(Parametric)"/> and <see cref="ParametricProperty.GetResult(Parametric)"/> we need a <see cref="Parametric"/> object,
+    /// which can handle succesive parametric modifications on a clone of the shell.
+    /// The derived classes (ParametricXxxProperty) are typically created by an Action (ParametricXxxAction), which allows to specify faces, Edges and 
+    /// Vertices of the shell and other data.
+    /// </summary>
     internal abstract class ParametricProperty : IJsonSerialize
     {
         public string Name { get; set; }
@@ -521,5 +529,196 @@ namespace CADability
         }
 #endif
     }
+
+    internal class ParametricRotationProperty : ParametricProperty, IJsonSerialize, IJsonSerializeDone
+    {
+        private List<Face> backwardFaces, forwardFaces; // if mode is symmetric, both faces will be moved
+        private List<object> affectedObjects; // faces which are affected by this parametric
+        private object axis; // see following possibilities:
+        // - a line-edge: the two common faces must be one in backwardFaces and one in forwardFaces. The angle is defined at the center of this line.
+        // - a Face with an axis and a Face with a normal: the angle between those vectors ais the value. May not be parallel, or we additionally need
+        //     a 2d vector in the uv space of the second face
+        // - two faces with an axisi: the angle in between
+
+        [Flags]
+        public enum Mode
+        {
+            symmetric = 1, // use both backwardFaces and forwardFaces with half of the offset angle
+        }
+        private Mode mode;
+
+        public ParametricRotationProperty(string name, IEnumerable<Face> backwardFaces, IEnumerable<Face> forwardFaces, IEnumerable<object> affectedObjects, Mode mode, object axis) : base(name)
+        {
+            this.backwardFaces = new List<Face>(backwardFaces);
+            this.forwardFaces = new List<Face>(forwardFaces);
+            this.affectedObjects = new List<object>(affectedObjects);
+            this.mode = mode;
+            GetAngleVectors(out GeoPoint location, out GeoVector fromHere, out GeoVector toHere);
+            Value = new Angle(fromHere, toHere);
+        }
+
+        public override ParametricProperty Clone(Dictionary<Face, Face> clonedFaces, Dictionary<Edge, Edge> clonedEdges, Dictionary<Vertex, Vertex> clonedVertices)
+        {
+            List<Face> forwardFacesCloned = new List<Face>();
+            List<Face> backwardFacesCloned = new List<Face>();
+            List<object> affectedObjectsCloned = new List<object>();
+            object fromHereCloned, toHereCloned;
+            for (int i = 0; i < forwardFaces.Count; i++)
+            {
+                if (clonedFaces.TryGetValue(forwardFaces[i], out Face clone)) forwardFacesCloned.Add(clone);
+            }
+            for (int i = 0; i < forwardFaces.Count; i++)
+            {
+                if (clonedFaces.TryGetValue(forwardFaces[i], out Face clone)) backwardFacesCloned.Add(clone);
+            }
+            for (int i = 0; i < affectedObjects.Count; i++)
+            {
+                if (affectedObjects[i] is Face face && clonedFaces.TryGetValue(face, out Face clonedFace)) affectedObjectsCloned.Add(clonedFace);
+                if (affectedObjects[i] is Edge edge && clonedEdges.TryGetValue(edge, out Edge clonedEdge)) affectedObjectsCloned.Add(clonedEdge);
+                if (affectedObjects[i] is Vertex vtx && clonedVertices.TryGetValue(vtx, out Vertex clonedVertex)) affectedObjectsCloned.Add(clonedVertex);
+            }
+            object clonedAxis = null;
+            if (axis is Edge edg && clonedEdges.TryGetValue(edg, out Edge clEdge)) clonedAxis = clEdge; // other cases to implement!
+            return new ParametricRotationProperty(Name, forwardFacesCloned, backwardFacesCloned, affectedObjectsCloned, mode, clonedAxis);
+        }
+        public override void Modify(ModOp m)
+        {   // all referred objects like facesToMove or fromHere are part of the shell and already modified
+            // axis is currently only implemented as an edge, so nothing to do here
+        }
+        private double currentValue;
+        public override double Value
+        {
+            get
+            {
+                GetAngleVectors(out GeoPoint location, out GeoVector fromHere, out GeoVector toHere);
+                return new Angle(fromHere, toHere);
+            }
+            set
+            {
+                currentValue = value;
+            }
+        }
+        /// <summary>
+        /// if != NullVector, this is the direction of the extrusion. This is used by the distance calculation.
+        /// </summary>
+        public override bool Execute(Parametric parametric)
+        {
+            GetAngleVectors(out GeoPoint location, out GeoVector fromHere, out GeoVector toHere);
+            GeoVector axdir = fromHere ^ toHere;
+            double d = new Angle(fromHere, toHere);
+            SweepAngle sw = new SweepAngle(currentValue - d);
+            Dictionary<Face, ModOp> facesToAffect = new Dictionary<Face, ModOp>();
+            if (mode.HasFlag(Mode.symmetric))
+            {
+                ModOp forward = ModOp.Rotate(location, axdir, sw / 2.0);
+                ModOp backward = ModOp.Rotate(location, axdir, -sw / 2.0);
+                foreach (Face face in forwardFaces)
+                {
+                    facesToAffect[face] = forward;
+                }
+                foreach (Face face in backwardFaces)
+                {
+                    facesToAffect[face] = backward;
+                }
+            }
+            else
+            {
+                ModOp forward = ModOp.Rotate(location, axdir, sw);
+                foreach (Face face in forwardFaces)
+                {
+                    facesToAffect[face] = forward;
+                }
+            }
+            parametric.RotateFaces(facesToAffect,new Axis(location,axdir));
+            return parametric.Apply(); // the result may be inconsistent, but maybe further parametric operations make it consistent again
+        }
+        private void GetAngleVectors(out GeoPoint location, out GeoVector fromHere, out GeoVector toHere)
+        {
+            if (axis is Edge edge)
+            {
+                if (forwardFaces.Contains(edge.PrimaryFace) && backwardFaces.Contains(edge.SecondaryFace))
+                {
+                    (Axis axis, GeoVector fh, GeoVector th) = Actions.ParametricsAngleAction.GetRotationAxis(edge.PrimaryFace, edge.SecondaryFace, Axis.InvalidAxis, edge);
+                    fromHere = fh;
+                    toHere = th;
+                    location = axis.Location;
+                }
+            }
+            location = GeoPoint.Invalid;
+            fromHere = toHere = GeoVector.NullVector;
+        }
+        public override GeoObjectList GetFeedback(Projection projection)
+        {
+            GetAngleVectors(out GeoPoint location, out GeoVector fromHere, out GeoVector toHere);
+            if (mode.HasFlag(Mode.symmetric))
+            {
+                GeoObjectList res = new GeoObjectList();
+                // TODO: add doble arrow heads for MakeRotationArrow
+                return projection.MakeRotationArrow(new Axis(location, fromHere ^ toHere), fromHere, toHere);
+            }
+            else return projection.MakeRotationArrow(new Axis(location, fromHere ^ toHere), fromHere, toHere);
+        }
+        protected ParametricRotationProperty() : base("") { } // empty constructor for Json
+        public override void GetObjectData(IJsonWriteData data)
+        {
+            base.GetObjectData(data);
+
+            data.AddProperty("ForwardFaces", forwardFaces);
+            data.AddProperty("BackwardFaces", backwardFaces);
+            data.AddProperty("AffectedObjects", affectedObjects);
+            data.AddProperty("Mode", mode);
+            data.AddProperty("Axis", axis);
+        }
+
+        public override void SetObjectData(IJsonReadData data)
+        {
+            base.SetObjectData(data);
+            forwardFaces = data.GetProperty<List<Face>>("ForwardFaces");
+            backwardFaces = data.GetProperty<List<Face>>("BackwardFaces");
+            affectedObjects = data.GetPropertyOrDefault<List<object>>("AffectedObjects");
+            mode = data.GetProperty<Mode>("Mode");
+            axis = data.GetProperty("Axis");
+            data.RegisterForSerializationDoneCallback(this);
+        }
+
+        public override object GetAnchor()
+        {
+            GetAngleVectors(out GeoPoint location, out GeoVector fromHere, out GeoVector toHere);
+            return location;
+        }
+
+        public override IEnumerable<object> GetAffectedObjects()
+        {
+            return affectedObjects;
+        }
+
+        void IJsonSerializeDone.SerializationDone(JsonSerialize jsonSerialize)
+        {
+            GetAngleVectors(out GeoPoint location, out GeoVector fromHere, out GeoVector toHere);
+            Value = new Angle(fromHere, toHere);
+        }
+
+#if DEBUG
+        public DebuggerContainer DebugAffected
+        {
+            get
+            {
+
+                DebuggerContainer dc = new DebuggerContainer();
+                if (affectedObjects != null)
+                {
+                    foreach (var obj in affectedObjects)
+                    {
+                        if (obj is Edge edge) dc.Add(edge.Curve3D as IGeoObject, edge.GetHashCode());
+                        if (obj is Vertex vtx) dc.Add(vtx.Position, System.Drawing.Color.Red, vtx.GetHashCode());
+                        if (obj is Face face) dc.Add(face, face.GetHashCode());
+                    }
+                }
+                return dc;
+            }
+        }
+#endif
+    }
+
 }
 
