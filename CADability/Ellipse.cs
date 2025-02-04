@@ -279,58 +279,51 @@ namespace CADability.GeoObject
                     if (ccw) res.sweepAng = SweepAngle.Full;
                     else res.sweepAng = SweepAngle.FullReverse;
                 }
-                //if (IsArc || this.startParameter != 0.0)
-                if (true) // auch bei einem Vollkreis ist es wichtig, Start-und Endpunkt zu erhalten (geändert: 15.9.15)
+
+                // für andere Zwecke braucht man Start- und Endparameter:
+                double[,] a = new double[2, 2];
+                double[] b = new double[2];
+                a[0, 0] = res.majax.x;
+                a[0, 1] = res.minax.x;
+                a[1, 0] = res.majax.y;
+                a[1, 1] = res.minax.y;
+                b[0] = StartDir.x;
+                b[1] = StartDir.y;
+                Vector x = (Vector)DenseMatrix.OfArray(a).Solve(new DenseVector(b));
+                if (x.IsValid())
                 {
-                    // für andere Zwecke braucht man Start- und Endparameter:
-                    double[,] a = new double[2, 2];
-                    double[] b = new double[2];
-                    a[0, 0] = res.majax.x;
-                    a[0, 1] = res.minax.x;
-                    a[1, 0] = res.majax.y;
-                    a[1, 1] = res.minax.y;
-                    b[0] = StartDir.x;
-                    b[1] = StartDir.y;
-                    Vector x = (Vector)DenseMatrix.OfArray(a).Solve(new DenseVector(b));
-                    if (x.IsValid())
-                    {
-                        res.startParameter = Math.Atan2(x[1], x[0]);
-                    }
-                    a[0, 0] = res.majax.x;
-                    a[0, 1] = res.minax.x;
-                    a[1, 0] = res.majax.y;
-                    a[1, 1] = res.minax.y;
-                    b[0] = EndDir.x;
-                    b[1] = EndDir.y;
-                    x = (Vector)DenseMatrix.OfArray(a).Solve(new DenseVector(b));
-                    if (x.IsValid())
-                    {
-                        double endpar = Math.Atan2(x[1], x[0]);
-                        SweepAngle sw;
-                        // ccw ist doch schon umgedreht, wenn n.z<0 ist. Deshalb hier nicht nochmal umdrehen
-                        // siehe z.B. CylCoord.cdb, dort ist die aufgeteilte Ellipse sonst nicht mehr pickbar
-                        //if (n.z < 0)
-                        //{
-                        //    sw = new SweepAngle(new Angle(endpar), new Angle(res.startParameter), ccw);
-                        //    res.startParameter = endpar;
-                        //}
-                        //else
-                        //{
-                        sw = new SweepAngle(new Angle(res.startParameter), new Angle(endpar), ccw);
-                        //}
-                        res.sweepParameter = sw.Radian;
-                        if (Math.Abs(res.sweepParameter) < 1e-6 && Math.Abs(res.sweepAng) > Math.PI)
-                        {
-                            // Sonderfall: ein fast Vollkreis wird nicht als solcher erkannt und liefert 
-                            // allerdings exakt 0.0 für sweepAng
-                            if (ccw) res.sweepParameter = Math.Abs(res.sweepAng);
-                            else res.sweepParameter = -Math.Abs(res.sweepAng);
-                        }
-                    }
+                    res.startParameter = Math.Atan2(x[1], x[0]);
                 }
-                else
+                a[0, 0] = res.majax.x;
+                a[0, 1] = res.minax.x;
+                a[1, 0] = res.majax.y;
+                a[1, 1] = res.minax.y;
+                b[0] = EndDir.x;
+                b[1] = EndDir.y;
+                x = (Vector)DenseMatrix.OfArray(a).Solve(new DenseVector(b));
+                if (x.IsValid())
                 {
-                    res.sweepParameter = res.sweepAng; // 2pi oder -2pi, Richtung stimmt schon
+                    double endpar = Math.Atan2(x[1], x[0]);
+                    SweepAngle sw;
+                    // ccw ist doch schon umgedreht, wenn n.z<0 ist. Deshalb hier nicht nochmal umdrehen
+                    // siehe z.B. CylCoord.cdb, dort ist die aufgeteilte Ellipse sonst nicht mehr pickbar
+                    //if (n.z < 0)
+                    //{
+                    //    sw = new SweepAngle(new Angle(endpar), new Angle(res.startParameter), ccw);
+                    //    res.startParameter = endpar;
+                    //}
+                    //else
+                    //{
+                    sw = new SweepAngle(new Angle(res.startParameter), new Angle(endpar), ccw);
+                    //}
+                    res.sweepParameter = sw.Radian;
+                    if (Math.Abs(res.sweepParameter) < 1e-6 && Math.Abs(res.sweepAng) > Math.PI)
+                    {
+                        // Sonderfall: ein fast Vollkreis wird nicht als solcher erkannt und liefert 
+                        // allerdings exakt 0.0 für sweepAng
+                        if (ccw) res.sweepParameter = Math.Abs(res.sweepAng);
+                        else res.sweepParameter = -Math.Abs(res.sweepAng);
+                    }
                 }
             }
             return res;
@@ -1737,16 +1730,14 @@ namespace CADability.GeoObject
             }
         }
         /// <summary>
-        /// Returns true if it is not a full circle or a full ellipse, i.e. the <see cref="SweepParameter"/> is
-        /// not -2*pi and not 2*pi.
+        /// Returns true if it is not a full circle or a full ellipse.
         /// </summary>
         public bool IsArc
         {
             get
             {
-                // geändert von != auf < bzw. größer
-                // es kommen Bögen vor mit mehr als 2*pi, und die sollen als Kreise bzw. Ellipsen gelten
-                return (sweepParameter < 2.0 * Math.PI && sweepParameter > -2.0 * Math.PI);
+                //There are cases with arcs more than 2 * Math.PI, and they should be considered as circles or ellipses.
+                return Math.Abs(sweepParameter) < 2.0d * Math.PI - Precision.eps;
             }
         }
         public double Radius

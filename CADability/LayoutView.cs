@@ -66,7 +66,7 @@ namespace CADability
             this.project = project;
             this.layout = layout;
             screenToLayout = layoutToScreen = ModOp2D.Null;
-            base.resourceId = "LayoutView";
+            base.resourceIdInternal = "LayoutView";
             // printDocument = project.printDocument;
             printDocument = new PrintDocument();
 
@@ -129,7 +129,7 @@ namespace CADability
                 {
                     pd.Print();
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                 }
                 pd.PrintPage -= new PrintPageEventHandler(pdg.OnPrintPage);
@@ -141,7 +141,7 @@ namespace CADability
                 {
                     pd.Print();
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                 }
                 pd.PrintPage -= new PrintPageEventHandler(OnPrintPage);

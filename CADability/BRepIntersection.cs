@@ -98,7 +98,6 @@ namespace CADability
             public List<Face> onFaces;
             public GeoPoint position;
         }
-        Dictionary<Edge, Dictionary<double, GeoPoint>> edgesIntersectionPoints;
 
         public BRepIntersection(Shell s1, Shell s2)
         {
@@ -192,9 +191,6 @@ namespace CADability
     }
     class CollectIntersectionCurve
     {
-        Face f1;
-        Face f2;
-
         public CollectIntersectionCurve(Face f1, Face f2, GeoPoint p1, GeoPoint p2)
         {
         }
@@ -1421,9 +1417,7 @@ namespace CADability
         private PlaneSurface splittingOnplane; // when splitting a Shell with a plane, this is the surface
         private bool allowOpenEdges;
         private bool shellsAreUnchanged;
-#if DEBUG
-        Edge debugEdge;
-#endif
+
         Dictionary<DoubleFaceKey, ModOp2D> overlappingFaces; // Faces von verschiedenen Shells, die auf der gleichen Surface beruhen und sich überlappen
         Dictionary<DoubleFaceKey, Set<Edge>> overlappingEdges; // relevante Kanten auf den overlappingFaces
         Dictionary<DoubleFaceKey, ModOp2D> oppositeFaces; // Faces von verschiedenen Shells, die auf der gleichen Surface beruhen und sich überlappen aber verschieden orientiert sind
@@ -1492,7 +1486,6 @@ namespace CADability
 #if DEBUG
             DebuggerContainer dcedges = new DebuggerContainer();
             DebuggerContainer dcfaces = new DebuggerContainer();
-            int dbgcnt = 0;
             foreach (EdgeFaceKey ef in edgesToFaces.Keys)
             {
                 dcedges.Add(ef.edge.Curve3D as IGeoObject, ef.edge.GetHashCode());
@@ -1777,7 +1770,7 @@ namespace CADability
             //{
             //    if (fce.Surface is ConicalSurface)
             //    {
-            //        foreach (Edge edg in fce.AllEdgesIterated())
+            //        foreach (Edge edg in fce.Edges)
             //        {
             //            ICurve2D cv = fce.Surface.GetProjectedCurve(edg.Curve3D, 0.0);
             //            if (!edg.Forward(fce)) cv.Reverse();
@@ -2166,7 +2159,7 @@ namespace CADability
                 Face part = Face.MakeFace(fillet.Surface.Clone(), new SimpleShape(bdr));
                 if (part != null)
                 {
-                    foreach (Edge fedg in part.AllEdgesIterated())
+                    foreach (Edge fedg in part.Edges)
                     {
                         if (fedg.PrimaryCurve2D.UserData.Contains("BRepOperation.OnFace1"))
                         {
@@ -2209,7 +2202,7 @@ namespace CADability
                     if (vertexToEdge.Key == edg.Vertex1) // the axis curve goes from edg.Vertex1 to edg.Vertex2
                     {
                         cnt = filletAxis.StartPoint;
-                        foreach (Edge edge in filletFace.AllEdgesIterated())
+                        foreach (Edge edge in filletFace.Edges)
                         {
                             if (edge.Curve3D is Ellipse elli)
                             {
@@ -2226,7 +2219,7 @@ namespace CADability
                     else // if (vertexToEdge.Key == edg.Vertex2) // which mus be the case
                     {
                         cnt = filletAxis.EndPoint;
-                        foreach (Edge edge in filletFace.AllEdgesIterated())
+                        foreach (Edge edge in filletFace.Edges)
                         {
                             if (edge.Curve3D is Ellipse elli)
                             {
@@ -2246,7 +2239,7 @@ namespace CADability
                         Line l1 = Line.TwoPoints(cnt, cnt + 2 * radius * dir); // 2*radius is arbitrary!
                         Face filletExtend = Make3D.ExtrudeCurveToFace(arc, l1);
                         // this cylindrical face has two line edges, which may or may not be tangential to the primary and secondary face of the rounded edge
-                        foreach (Edge cedg in filletExtend.AllEdgesIterated())
+                        foreach (Edge cedg in filletExtend.Edges)
                         {
                             if (cedg.Curve3D is Line l)
                             {
@@ -3290,10 +3283,9 @@ namespace CADability
             {
                 DebuggerContainer dc = new DebuggerContainer();
                 dbgFaceTointersectionEdges[kv.Key] = dc;
-                int dbgc = 0;
                 double arrowSize = kv.Key.Area.GetExtent().Size * 0.02;
                 dc.Add(kv.Value, kv.Key, arrowSize, Color.Red, 0);
-                dc.Add(kv.Key.AllEdgesIterated(), kv.Key, arrowSize, Color.Blue, 0);
+                dc.Add(kv.Key.Edges, kv.Key, arrowSize, Color.Blue, 0);
             }
 #endif
 #if DEBUG
@@ -3311,10 +3303,9 @@ namespace CADability
             {
                 DebuggerContainer dc = new DebuggerContainer();
                 dbgEdgePositions[kv.Key] = dc;
-                int dbgc = 0;
                 double arrowSize = kv.Key.Area.GetExtent().Size * 0.02;
                 dc.Add(kv.Value, kv.Key, arrowSize, Color.Red, 0);
-                dc.Add(kv.Key.AllEdgesIterated(), kv.Key, arrowSize, Color.Blue, 0);
+                dc.Add(kv.Key.Edges, kv.Key, arrowSize, Color.Blue, 0);
             }
 #endif
             Set<Face> discardedFaces = new Set<Face>(faceToIntersectionEdges.Keys); // these faces may not appear in the final result, because they will be trimmed
@@ -3347,7 +3338,7 @@ namespace CADability
                 // if the duplicates have the same orientation, discard one of the edges, if they have opposite direction, discard both
                 Dictionary<Pair<Vertex, Vertex>, Edge> avoidDuplicates = new Dictionary<Pair<Vertex, Vertex>, Edge>();
                 Dictionary<Pair<Vertex, Vertex>, Edge> avoidOriginalEdges = new Dictionary<Pair<Vertex, Vertex>, Edge>();
-                foreach (Edge edg in faceToSplit.AllEdgesIterated())
+                foreach (Edge edg in faceToSplit.Edges)
                 {
                     Pair<Vertex, Vertex> k = new Pair<Vertex, Vertex>(edg.StartVertex(faceToSplit), edg.EndVertex(faceToSplit));
                     avoidOriginalEdges[k] = edg;
@@ -3533,7 +3524,6 @@ namespace CADability
                 {
                     if (Math.Abs(a) > Math.Abs(biggestArea)) biggestArea = a;
                 }
-                bool totalOutlineAdded = false;
                 if (biggestArea < 0) // when no loop, we don't need the outline
                 {
                     foreach (Pair<List<Edge>, ICurve2D[]> item in loops.Values) faceEdges.RemoveMany(item.First);
@@ -3543,7 +3533,6 @@ namespace CADability
                         List<Edge> outline = new List<Edge>(faceToSplit.OutlineEdges);
                         loops.AddUnique(outline, faceToSplit);
                         faceEdges.RemoveMany(outline); // we would not need that
-                        totalOutlineAdded = true;
                     }
                 }
                 // we also add the holes of the faceToSplit, as long as it was not used by intersections and is not enclosed by a bigger hole
@@ -3796,7 +3785,7 @@ namespace CADability
                 added = false;
                 foreach (Face fce in allFaces.Clone()) // use a clone to be able to add faces to allfaces in this foreach loop
                 {
-                    foreach (Edge edg in fce.AllEdgesIterated())
+                    foreach (Edge edg in fce.Edges)
                     {
                         if (!allFaces.Contains(edg.PrimaryFace))
                         {
@@ -4242,7 +4231,7 @@ namespace CADability
         //                int dbgc = 0;
         //                double arrowSize = kv.Key.Area.GetExtent().Size * 0.02;
         //                dc.Add(kv.Value, kv.Key, arrowSize, Color.Red, 0);
-        //                dc.Add(kv.Key.AllEdgesIterated(), kv.Key, arrowSize, Color.Blue, 0);
+        //                dc.Add(kv.Key.Edges, kv.Key, arrowSize, Color.Blue, 0);
         //            }
         //#endif
         //            Set<Face> discardedFaces = new Set<Face>(faceToIntersectionEdges.Keys); // these faces may not apper in the final result, because they will be trimmed
@@ -4271,7 +4260,7 @@ namespace CADability
         //                int dbgc = 0;
         //                double arrowSize = kv.Key.Area.GetExtent().Size * 0.02;
         //                dc.Add(kv.Value, kv.Key, arrowSize, Color.Red, 0);
-        //                dc.Add(kv.Key.AllEdgesIterated(), kv.Key, arrowSize, Color.Blue, 0);
+        //                dc.Add(kv.Key.Edges, kv.Key, arrowSize, Color.Blue, 0);
         //            }
         //#endif
         //            foreach (KeyValuePair<Face, Set<Edge>> kv in faceToIntersectionEdges)
@@ -4293,7 +4282,7 @@ namespace CADability
         //                // if the duplicates have the same orientation, discard one of the edges, if they have opposide direction, discard both
         //                Dictionary<Pair<Vertex, Vertex>, Edge> avoidDuplicates = new Dictionary<Pair<Vertex, Vertex>, Edge>();
         //                Dictionary<Pair<Vertex, Vertex>, Edge> avoidOriginalEdges = new Dictionary<Pair<Vertex, Vertex>, Edge>();
-        //                foreach (Edge edg in faceToSplit.AllEdgesIterated())
+        //                foreach (Edge edg in faceToSplit.Edges)
         //                {
         //                    Pair<Vertex, Vertex> k = new Pair<Vertex, Vertex>(edg.StartVertex(faceToSplit), edg.EndVertex(faceToSplit));
         //                    avoidOriginalEdges[k] = edg;
@@ -4369,7 +4358,7 @@ namespace CADability
         //                    ICurve2D c2d = edg.Curve2D(faceToSplit);
         //                    dcie.Add(c2d, Color.Red, edg.GetHashCode());
         //                }
-        //                foreach (Edge edg in faceToSplit.AllEdgesIterated())
+        //                foreach (Edge edg in faceToSplit.Edges)
         //                {
         //                    ICurve2D c2d = edg.Curve2D(faceToSplit);
         //                    dcie.Add(c2d, Color.Blue, edg.GetHashCode());
@@ -4910,7 +4899,7 @@ namespace CADability
         //                added = false;
         //                foreach (Face fce in allFaces.Clone()) // use a clone to be able to add faces to allfaces in this foreach loop
         //                {
-        //                    foreach (Edge edg in fce.AllEdgesIterated())
+        //                    foreach (Edge edg in fce.Edges)
         //                    {
         //                        if (!allFaces.Contains(edg.PrimaryFace))
         //                        {
@@ -5917,7 +5906,7 @@ namespace CADability
         //                    Set<Edge> openEdges = new Wintellect.PowerCollections.Set<CADability.Edge>();
         //                    foreach (Face fce in cancelledfaces)
         //                    {
-        //                        foreach (Edge edg in fce.AllEdgesIterated())
+        //                        foreach (Edge edg in fce.Edges)
         //                        {
         //                            edg.RemoveFace(fce);
         //                            openEdges.Add(edg);
@@ -6080,7 +6069,7 @@ namespace CADability
         //                                                            // - common to both faces
         //                                                            // - edge of face1 which is inside face2 (easy to check, because common edges don't need to be checked here)
         //                                                            // - vice versa
-        //                foreach (Edge edg in dfk.face1.AllEdgesIterated())
+        //                foreach (Edge edg in dfk.face1.Edges)
         //                {
         //                    foreach (Edge edg2 in Vertex.ConnectingEdges(edg.Vertex1, edg.Vertex2))
         //                    {
@@ -6099,7 +6088,7 @@ namespace CADability
         //                        }
         //                    }
         //                }
-        //                foreach (Edge edg in dfk.face1.AllEdgesIterated())
+        //                foreach (Edge edg in dfk.face1.Edges)
         //                {
         //                    if (commonEdges.Contains(edg)) continue; // already processed
         //                                                             // is this edge inside the bounds of face2?
@@ -6125,7 +6114,7 @@ namespace CADability
         //                    }
         //                }
         //                BoundingRect face1Domain = dfk.face1.Area.GetExtent();
-        //                foreach (Edge edg in dfk.face2.AllEdgesIterated())
+        //                foreach (Edge edg in dfk.face2.Edges)
         //                {
         //                    if (commonEdges.Contains(edg)) continue; // already processed
         //                                                             // is this edge inside the bounds of face1?
@@ -6199,7 +6188,7 @@ namespace CADability
         //                    // Surface wird hier gecloned, denn es können mehrere Faces mit der selben Surface entstehen
         //                    // und diese Surface würde sonst bei ReverseOrientation (bei union) ggf. mehrfach umgedreht
         //                    fc.Set(dfk.face1.Surface.Clone(), outline, holes);
-        //                    foreach (Edge edg in fc.AllEdgesIterated())
+        //                    foreach (Edge edg in fc.Edges)
         //                    {
         //                        if (edg.Curve3D != null) edg.SurfaceChanged(dfk.face1.Surface, fc.Surface);
         //                    }
@@ -6249,7 +6238,7 @@ namespace CADability
         //                    }
         //                }
         //                availableEdges.AddMany(faceToSplitEdges);
-        //                //foreach (Edge edg in faceToSplit.AllEdgesIterated())
+        //                //foreach (Edge edg in faceToSplit.Edges)
         //                //{
         //                //    bool dontUseEdg = false;
         //                //    foreach (Edge tst in Vertex.ConnectingEdges(edg.Vertex1, edg.Vertex2))
@@ -6279,7 +6268,7 @@ namespace CADability
         //                DebuggerContainer dc0 = new CADability.DebuggerContainer();
         //                double arrowsize = faceToSplit.Area.GetExtent().Size / 100.0;
         //                //dc.Add(fc.DebugEdges2D.toShow);
-        //                foreach (Edge edg in faceToSplit.AllEdgesIterated())
+        //                foreach (Edge edg in faceToSplit.Edges)
         //                {
         //                    dc0.Add(edg.Curve2D(faceToSplit), Color.Blue, edg.GetHashCode());
         //                }
@@ -6360,7 +6349,7 @@ namespace CADability
         //#if DEBUG
         //                    SimpleShape dbga = fc.Area;
         //#endif
-        //                    foreach (Edge edg in fc.AllEdgesIterated())
+        //                    foreach (Edge edg in fc.Edges)
         //                    {
         //                        if (edg.Curve3D != null) edg.SurfaceChanged(faceToSplit.Surface, fc.Surface);
         //                    }
@@ -6384,7 +6373,7 @@ namespace CADability
         //                        }
         //                    }
         //#if DEBUG
-        //                    foreach (Edge edg in fc.AllEdgesIterated())
+        //                    foreach (Edge edg in fc.Edges)
         //                    {
         //                        if (edg.Curve3D is InterpolatedDualSurfaceCurve)
         //                        {
@@ -6488,7 +6477,7 @@ namespace CADability
         //            // diese sollen hier jetzt zusammengenäht werden (die Vertices sind ja eindeutig und nur einmal vorhanden)
         //            foreach (Face fc in trimmedFaces)
         //            {
-        //                foreach (Edge edg in fc.AllEdgesIterated())
+        //                foreach (Edge edg in fc.Edges)
         //                {
         //                    if (destroyedFaces.Contains(edg.PrimaryFace)) edg.RemovePrimaryFace();
         //                    if (edg.SecondaryFace != null && destroyedFaces.Contains(edg.SecondaryFace)) edg.RemoveSecondaryFace();
@@ -6538,7 +6527,7 @@ namespace CADability
         //                Set<Face> moreFaces = new Set<Face>();
         //                foreach (Face fce in facesToAdd)
         //                {
-        //                    foreach (Edge edg in fce.AllEdgesIterated())
+        //                    foreach (Edge edg in fce.Edges)
         //                    {
         //                        if (!allFaces.Contains(edg.PrimaryFace) && !destroyedFaces.Contains(edg.PrimaryFace))
         //                        {
@@ -6582,7 +6571,7 @@ namespace CADability
         //            Set<Edge> allEdges = new Set<Edge>();
         //            foreach (Face fce in allFaces)
         //            {
-        //                allEdges.AddMany(fce.AllEdgesIterated());
+        //                allEdges.AddMany(fce.Edges);
         //            }
         //            while (toConnect.Count > 0)
         //            {
@@ -8025,7 +8014,7 @@ namespace CADability
         //            foreach (Face fce in intersectionFaces)
         //            {
         //                fce.UserData.Clear();
-        //                foreach (Edge edg in fce.AllEdgesIterated())
+        //                foreach (Edge edg in fce.Edges)
         //                {
         //                    edg.PrimaryCurve2D.UserData.Clear(); // UserData stört das Serialisieren, da es Set<> enthält, damit geht DebuggerVisualizer auch nicht
         //                    edg.SecondaryCurve2D.UserData.Clear(); // UserData stört das Serialisieren, da es Set<> enthält, damit geht DebuggerVisualizer auch nicht
@@ -8041,7 +8030,7 @@ namespace CADability
         //            List<Pair<Edge, Face>> combineEdges = new List<Pair<Edge, Face>>();
         //            foreach (Face fce in intersectionFaces)
         //            {
-        //                foreach (Edge edg in fce.AllEdgesIterated())
+        //                foreach (Edge edg in fce.Edges)
         //                {
         //                    DoubleVertexKey vk = new DoubleVertexKey(edg.StartVertex(fce), edg.EndVertex(fce));
         //                    Pair<Edge, Face> other;
@@ -8069,7 +8058,7 @@ namespace CADability
         //            foreach (Face fc in intersectionFaces)
         //            {
         //                dcif.Add(fc);
-        //                foreach (Edge edg in fc.AllEdgesIterated())
+        //                foreach (Edge edg in fc.Edges)
         //                {
         //                    if (edg.PrimaryFace == null || edg.SecondaryFace == null)
         //                    {
@@ -8104,7 +8093,7 @@ namespace CADability
         //#if DEBUG
         //            foreach (Face fc in intersectionFaces)
         //            {
-        //                foreach (Edge edg in fc.AllEdgesIterated())
+        //                foreach (Edge edg in fc.Edges)
         //                {
         //                    if (edg.PrimaryFace == null || edg.SecondaryFace == null)
         //                    {
@@ -8131,7 +8120,7 @@ namespace CADability
         //                Set<Face> moreFaces = new Set<Face>();
         //                foreach (Face fce in facesToAdd)
         //                {
-        //                    foreach (Edge edg in fce.AllEdgesIterated())
+        //                    foreach (Edge edg in fce.Edges)
         //                    {
         //                        if (!allFaces.Contains(edg.PrimaryFace))
         //                        {
@@ -8177,7 +8166,7 @@ namespace CADability
             Set<Face> result = new Set<Face>();
             result.Add(startWith);
             allFaces.Remove(startWith);
-            foreach (Edge edge in startWith.AllEdgesIterated())
+            foreach (Edge edge in startWith.Edges)
             {
                 if (allFaces.Contains(edge.SecondaryFace) && edge.IsOrientedConnection)
                 {
@@ -8293,7 +8282,7 @@ namespace CADability
                 //Set<Face> overlapping1 = findOverlappingPartner(item.Key.face1);
                 //if (overlapping1.Count > 0)
                 //{
-                //    foreach (Edge edg in item.Key.face2.AllEdgesIterated())
+                //    foreach (Edge edg in item.Key.face2.Edges)
                 //    {
                 //        if (overlapping1.Contains(edg.OtherFace(item.Key.face2))) edgesOnOverlappingFaces.Add(edg);
                 //    }
@@ -8301,7 +8290,7 @@ namespace CADability
                 //Set<Face> overlapping2 = findOverlappingPartner(item.Key.face2);
                 //if (overlapping2.Count > 0)
                 //{
-                //    foreach (Edge edg in item.Key.face1.AllEdgesIterated())
+                //    foreach (Edge edg in item.Key.face1.Edges)
                 //    {
                 //        if (overlapping2.Contains(edg.OtherFace(item.Key.face1))) edgesOnOverlappingFaces.Add(edg);
                 //    }
@@ -8680,7 +8669,7 @@ namespace CADability
                             {
                                 created.Add(edge);
                                 // diese neue Kante in das Dictionary einfügen
-                                bool addToFace1 = true, addToFace2 = true, rejected = false;
+                                bool addToFace1 = true, addToFace2 = true;
                                 Edge[] splitted = null;
                                 if (j1IsOnBorder && j2IsOnBorder)
                                 {   // a very rare case (like in BRepTest30.cdb.json): the new intersecting edge starts and ends on the border of the face AND contains an already existing vertex of that face.
@@ -9404,7 +9393,7 @@ namespace CADability
                 DebuggerContainer dc = new CADability.DebuggerContainer();
                 double arrowsize = fc.Area.GetExtent().Size / 100.0;
                 //dc.Add(fc.DebugEdges2D.toShow);
-                foreach (Edge edg in fc.AllEdgesIterated())
+                foreach (Edge edg in fc.Edges)
                 {
                     dc.Add(edg.Curve2D(fc), Color.Blue, edg.GetHashCode());
                 }
@@ -9428,7 +9417,7 @@ namespace CADability
                 }
 
                 DebuggerContainer dcok = new CADability.DebuggerContainer();
-                foreach (Edge edg in fc.AllEdgesIterated())
+                foreach (Edge edg in fc.Edges)
                 {
                     if (distOk(edg.Vertex1.Position) && distOk(edg.Vertex2.Position))
                         dcok.Add(edg.Curve2D(fc), Color.Blue, edg.GetHashCode());
@@ -9485,7 +9474,7 @@ namespace CADability
                 // hier haben wir edges in kv.Value und andere in kv.Key.AllEdges
                 // die sind bereits über ihre vertices richtig miteinander verbunden
                 // (es gibt hoffentlich keine geschlossenen Kanten)
-                Set<Edge> unusedEdges = new Set<Edge>(kv.Key.AllEdgesIterated());
+                Set<Edge> unusedEdges = new Set<Edge>(kv.Key.Edges);
                 unusedEdges.AddMany(kv.Value);
 #if DEBUG
                 Set<Vertex> allVtx = new Set<Vertex>();
@@ -9498,7 +9487,7 @@ namespace CADability
                 DebuggerContainer dc0 = new CADability.DebuggerContainer();
                 double arrowsize = kv.Key.Area.GetExtent().Size / 100.0;
                 //dc.Add(fc.DebugEdges2D.toShow);
-                foreach (Edge edg in kv.Key.AllEdgesIterated())
+                foreach (Edge edg in kv.Key.Edges)
                 {
                     dc0.Add(edg.Curve2D(kv.Key), Color.Blue, edg.GetHashCode());
                 }
@@ -9634,7 +9623,7 @@ namespace CADability
                 int[] triangleIndex;
                 BoundingCube triangleExtent;
                 fc.GetTriangulation(0.01, out trianglePoint, out triangleUVPoint, out triangleIndex, out triangleExtent);
-                foreach (Edge edg in fc.AllEdgesIterated())
+                foreach (Edge edg in fc.Edges)
                 {
                     if (edg.Curve3D!=null)
                     {
@@ -9652,7 +9641,7 @@ namespace CADability
                 Set<Face> moreFaces = new Set<Face>();
                 foreach (Face fce in facesToAdd)
                 {
-                    foreach (Edge edg in fce.AllEdgesIterated())
+                    foreach (Edge edg in fce.Edges)
                     {
                         if (!allFaces.Contains(edg.PrimaryFace) && !destroyedFaces.Contains(edg.PrimaryFace))
                         {
@@ -9722,7 +9711,7 @@ namespace CADability
         {
             unusedfaces.Remove(startWith);
             connected.Add(startWith);
-            foreach (Edge edg in startWith.AllEdgesIterated())
+            foreach (Edge edg in startWith.Edges)
             {
                 if (edg.PrimaryFace != null && unusedfaces.Contains(edg.PrimaryFace)) collectFaces(edg.PrimaryFace, unusedfaces, connected);
                 if (edg.SecondaryFace != null && unusedfaces.Contains(edg.SecondaryFace)) collectFaces(edg.SecondaryFace, unusedfaces, connected);
@@ -10300,7 +10289,7 @@ namespace CADability
         {
             DebuggerContainer dc = new CADability.DebuggerContainer();
             List<GeoPoint> points = new List<GeoPoint>();
-            foreach (Edge edg in fc2.AllEdgesIterated())
+            foreach (Edge edg in fc2.Edges)
             {
                 GeoPoint[] ip;
                 GeoPoint2D[] uvOnFace;
@@ -10313,7 +10302,7 @@ namespace CADability
                     points.Add(ip[i]);
                 }
             }
-            foreach (Edge edg in fc1.AllEdgesIterated())
+            foreach (Edge edg in fc1.Edges)
             {
                 GeoPoint[] ip;
                 GeoPoint2D[] uvOnFace;

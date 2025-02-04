@@ -30,7 +30,7 @@ namespace CADability.GeoObject
         public ShowPropertyFace(Face face, IFrame frame)
             : base(frame)
         {
-            resourceId = "Face.Object";
+            resourceIdInternal = "Face.Object";
             this.face = face;
             attributeProperties = face.GetAttributeProperties(frame);
         }
@@ -437,7 +437,6 @@ namespace CADability.GeoObject
                 }
                 // Some problem arise, because the curves may be not very precise. We try to adjust start- and endpoints
                 // so the connections are precise
-                bool orientationChanged = false;
                 for (int i = 0; i < loops.Count; i++)
                 {
                     if (loops[i].Count > 1)
@@ -480,12 +479,10 @@ namespace CADability.GeoObject
                                 else if (dmin == d2)
                                 {
                                     loops[i][jn].forward = !loops[i][jn].forward;
-                                    orientationChanged = true;
                                 }
                                 else if (dmin == d3)
                                 {
                                     loops[i][j].forward = !loops[i][j].forward;
-                                    orientationChanged = true;
                                 }
                                 else
                                 {   // maybe only two curves and the other connection is a little bit better: we don't need to reverse
@@ -493,7 +490,6 @@ namespace CADability.GeoObject
                                     {
                                         loops[i][j].forward = !loops[i][j].forward;
                                         loops[i][jn].forward = !loops[i][jn].forward;
-                                        orientationChanged = true;
                                     }
                                 }
                             }
@@ -1582,11 +1578,9 @@ namespace CADability.GeoObject
                                 }
                             }
                         }
-                        bool reversedii = false;
                         if (Geometry.InnerIntersection(loops[ii][loops[ii].Count - 1].curve2d.EndPoint, loops[oppii][0].curve2d.StartPoint, loops[oppii][loops[oppii].Count - 1].curve2d.EndPoint, loops[ii][0].curve2d.StartPoint))
                         {   // still self-intersecting
                             loops[ii].Reverse();
-                            reversedii = true;
                             for (int i = 0; i < loops[ii].Count; i++)
                             {
                                 loops[ii][i].forward = !loops[ii][i].forward;
@@ -1833,20 +1827,20 @@ namespace CADability.GeoObject
                                         if (loops[i][j].vertex2 != loops[i][j].createdEdges[0].Vertex1 && loops[i][j].vertex2 != loops[i][j].createdEdges[0].Vertex2) reverse = true;
                                     }
                                     if (reverse) loops[i][j].createdEdges.Reverse();
-#if DEBUG
-                                    bool ok = true;
-                                    if (loops[i][j].forward)
-                                    {
-                                        if (loops[i][j].vertex2 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex1
-                                            && loops[i][j].vertex2 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex2) ok = false;
-                                    }
-                                    else
-                                    {
-                                        if (loops[i][j].vertex1 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex1
-                                            && loops[i][j].vertex1 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex2) ok = false;
-                                    }
-                                    // System.Diagnostics.Debug.Assert(OK); this may happen and is valid
-#endif
+//#if DEBUG
+//                                    bool ok = true;
+//                                    if (loops[i][j].forward)
+//                                    {
+//                                        if (loops[i][j].vertex2 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex1
+//                                            && loops[i][j].vertex2 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex2) ok = false;
+//                                    }
+//                                    else
+//                                    {
+//                                        if (loops[i][j].vertex1 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex1
+//                                            && loops[i][j].vertex1 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex2) ok = false;
+//                                    }
+//                                    // System.Diagnostics.Debug.Assert(OK); this may happen and is valid
+//#endif
                                 }
                                 for (int k = 0; k < loops[i][j].createdEdges.Count; k++)
                                 {   // in most cases this is only a single edge, unless it has been splitted before
@@ -3571,7 +3565,7 @@ namespace CADability.GeoObject
             res.outline = outline;
             res.holes = new Edge[0][]; // keine Löcher
             SimpleShape forceArea = res.Area; // das SimpleShape wird hier erstmalig berechnet
-            foreach (Edge edge in res.AllEdgesIterated())
+            foreach (Edge edge in res.Edges)
             {
                 if (edge.Curve3D is IGeoObject go) go.Style = EdgeStyle;
             }
@@ -3837,7 +3831,7 @@ namespace CADability.GeoObject
 #endif
         public void FreeCachedMemory()
         {
-            foreach (Edge edge in AllEdgesIterated())
+            foreach (Edge edge in Edges)
             {
                 edge.FreeCachedMemory();
             }
@@ -3858,8 +3852,7 @@ namespace CADability.GeoObject
             GeoObjectList res = new GeoObjectList(ToSort.Count);
             if (ToSort.Count == 0) return res;
             GeoObjectList ToRemove = new GeoObjectList(ToSort);
-            double maxdist = 1e-6; // TODO: zu verbessern mit der Ausdehnung
-                                   // Ausdehnung in 3D (GeoObject, GeoObjectList)?
+            
             int found = 0;
             GeoPoint LastEndPoint = new GeoPoint();
             GeoPoint BestPoint = new GeoPoint();
@@ -4140,13 +4133,11 @@ namespace CADability.GeoObject
                     if (boutline == null)
                     {
                         boutline = Border.FromOrientedList(segments); // 1. Versuch: schon richtig orientiert
-                        bool testReverse = false;
                         if (boutline == null)
                         {
                             boutline = Border.FromUnorientedList(segments, true); // 2. Versuch: sortieren
                                                                                   // FromUnorientedList dreht u.U. die Liste um, das muss natürlich auch in der Reihenfolge der Outlines
                                                                                   // berücksichtigt werden
-                            testReverse = true;
                         }
                         if (boutline == null) return null;
                         if (outline.Length > 1)
@@ -4179,14 +4170,12 @@ namespace CADability.GeoObject
                         }
                         //Border hole = Border.FromOrientedList(holecurves);
                         Border hole = null;
-                        bool testReverse = false;
                         if (hole == null)
                         {
                             hole = Border.FromOrientedList(holecurves); // 1. Versuch: schon richtig verbunden
                             if (hole == null)
                             {
                                 hole = Border.FromUnorientedList(holecurves, true); // 2. Versuch: orientieren!
-                                testReverse = true;
                             }
                         }
                         if (hole != null)
@@ -4373,38 +4362,20 @@ namespace CADability.GeoObject
                 return res.ToArray();
             }
         }
-        [Obsolete("renamed to Edges")]
-        public IEnumerable<Edge> AllEdgesIterated()
-        {
-            for (int i = 0; i < outline.Length; ++i)
-            {
-                yield return outline[i];
-            }
-            for (int i = 0; i < holes.Length; i++)
-            {
-                for (int j = 0; j < holes[i].Length; ++j)
-                {
-                    yield return holes[i][j];
-                }
-            }
-        }
+
         public IEnumerable<Edge> Edges
         {
             get
             {
-                for (int i = 0; i < outline.Length; ++i)
-                {
-                    yield return outline[i];
-                }
-                for (int i = 0; i < holes.Length; i++)
-                {
-                    for (int j = 0; j < holes[i].Length; ++j)
-                    {
-                        yield return holes[i][j];
-                    }
-                }
+                foreach (var edge in outline)
+                    yield return edge;
+
+                foreach (var hole in holes)
+                    foreach (var edge in hole)
+                        yield return edge;
             }
         }
+
         public Set<Edge> AllEdgesSet
         {
             get
@@ -4894,7 +4865,7 @@ namespace CADability.GeoObject
 
         private Edge findEdgeFromCurve2D(double precision, ICurve2D c2d)
         {   // suche die Kante, die c2d entspricht. c2d kann auch nur ein Teil der Kante sein oder auch garnicht zu den Kanten gehören (aber dann nicht schneiden
-            foreach (Edge edg in AllEdgesIterated())
+            foreach (Edge edg in Edges)
             {
                 ICurve2D e2d = edg.Curve2D(this);
                 double d = Math.Abs(e2d.MinDistance(c2d.StartPoint));
@@ -5365,7 +5336,7 @@ namespace CADability.GeoObject
                     //bounds.Top = double.MaxValue;
                 }
                 canonical.SetBounds(bounds); // need finite bounds for boxedsurface
-                foreach (Edge edg in AllEdgesIterated())
+                foreach (Edge edg in Edges)
                 {
                     if (edg.Curve3D != null)
                     {
@@ -5815,7 +5786,7 @@ namespace CADability.GeoObject
                     }
                     else
                     {
-                        ClipRect clr = new ClipRect(ref rect);
+                        ClipRect clr = new ClipRect(rect);
                         return clr.TriangleHitTest(p1, p2, p3);
                     }
                 }
@@ -5980,12 +5951,15 @@ namespace CADability.GeoObject
             return polylines.ToArray();
         }
 
-        private OctTree<TraingleOctTree> triangleOctTree;
         private void Triangulate(double precision)
         {
             SimpleShape ss = Area; // damit es sicher bestimmt ist
                                    // wenn die Fläche Knicke hat, dann entlang der Knicke aufteilen
+
+            //Code unreachable
+            /*
             ICurve2D[] discontinuities;
+            
             if (false)
             // if (surface.HasDiscontinuousDerivative(out discontinuities))
             {
@@ -6034,10 +6008,11 @@ namespace CADability.GeoObject
                             triangleIndex = lsttriangleIndex.ToArray();
                         }
                         return;
-                    }
-                }
-
+                    }            
+                }                
             }
+            */
+
 #if DEBUG
             // System.Diagnostics.Trace.WriteLine("Triangulate: " + hashCode.ToString() + ", prec: " + precision.ToString() + ", " + (System.Environment.TickCount / 100).ToString());
 #endif
@@ -6392,7 +6367,7 @@ namespace CADability.GeoObject
                     }
                 }
             }
-            catch (ApplicationException e)
+            catch (ApplicationException)
             {   // something went wrong with the triangulation. This should not happen and needs to be debugged and fixed
             }
             triangleExtent = BoundingCube.EmptyBoundingCube; // needs to be recalculated
@@ -6692,7 +6667,7 @@ namespace CADability.GeoObject
                 }
 #endif
             }
-            catch (ApplicationException e)
+            catch (ApplicationException)
             {   // Selbstüberschneidungen von Löchern und Rand oder in den Rändern selbst
                 List<GeoPoint2D> sumTriUv = new List<GeoPoint2D>();
                 List<GeoPoint> sumTriPoint = new List<GeoPoint>();
@@ -6848,7 +6823,6 @@ namespace CADability.GeoObject
                 }
             }
         }
-        static int maxtime = 0;
         internal void AssureTriangles(double precision)
         {
             lock (lockTriangulationRecalc)
@@ -7348,7 +7322,7 @@ namespace CADability.GeoObject
         public override bool HitTest(Projection projection, BoundingRect rect, bool onlyInside)
         {
             if (trianglePoint == null) return false; // this is only for selecting with the mouse
-            ClipRect clr = new ClipRect(ref rect);
+            ClipRect clr = new ClipRect(rect);
             if (onlyInside)
             {
                 lock (lockTriangulationData)
@@ -7473,7 +7447,7 @@ namespace CADability.GeoObject
             if (res == double.MaxValue)
             {   // wenn es einen Fußpunkt auf die Fläche gibt, dann ist der näher als die Kanten
                 // stimmt das im Allgemeinen???
-                foreach (Edge edg in AllEdgesIterated())
+                foreach (Edge edg in Edges)
                 {
                     if (edg.Curve3D != null)
                     {
@@ -8044,7 +8018,6 @@ namespace CADability.GeoObject
                         selections[segments.Length - 2].Remove(selections[segments.Length - 2].FirstItem.Key, selections[segments.Length - 2].FirstItem.Value);
                     }
                 }
-                return false;
             }
             catch (Exception)
             {
@@ -8628,7 +8601,7 @@ namespace CADability.GeoObject
                 ModOp2D modify;
                 if ((surface as NurbsSurface).GetSimpleSurface(maxError, out simpleSurface, out modify))
                 {
-                    foreach (Edge edge in AllEdgesIterated())
+                    foreach (Edge edge in Edges)
                     {
                         if (edge.PrimaryFace == this)
                         {
@@ -8656,7 +8629,7 @@ namespace CADability.GeoObject
                 if ((surface as NurbsSurface).GetSimpleSurface(maxError, out simpleSurface, out modify))
                 {   // die Kanten werden grundlegend neu berechnet, die 2D Kurven werden neu gemacht, es ist hier also
                     // keine Modifikation der 2D Kurven nötig.
-                    recalcEdges.AddMany(AllEdgesIterated());
+                    recalcEdges.AddMany(Edges);
                     this.surface = simpleSurface;
                     this.area = null; // aber noch nicht neu berechnen
                     return modify;
@@ -8716,7 +8689,7 @@ namespace CADability.GeoObject
                     }
                     if (!added)
                     {   // BRepOperation needs the point if it is close egnough to an edge
-                        foreach (Edge edge in AllEdgesIterated())
+                        foreach (Edge edge in Edges)
                         {
                             if (edge.Curve3D != null)
                             {
@@ -8838,7 +8811,7 @@ namespace CADability.GeoObject
             if (!collection.Contains(this))
             {
                 collection.Add(this);
-                foreach (Edge edge in AllEdgesIterated())
+                foreach (Edge edge in Edges)
                 {
                     if (!bounds.Contains(edge)) edge.OtherFace(this).CollectConnectedFaces(collection, bounds);
                 }
@@ -9040,7 +9013,7 @@ namespace CADability.GeoObject
             {
                 vtx.RemovePositionOnFace(this);
             }
-            foreach (Edge edg in AllEdgesIterated())
+            foreach (Edge edg in Edges)
             {
                 edg.Orient(); // ModifyCurve2D unsets the "oriented"-Flag of the edge. Maybe the edge has already been oriented, so ReverseOrientation(this) doesn't help
                 if (edg.Curve3D is InterpolatedDualSurfaceCurve idsc)
@@ -9139,6 +9112,9 @@ namespace CADability.GeoObject
             {
                 ReverseOrientation(); // das ist identisch mit diesem hier!!
                 return;
+
+                //Unreachable code
+                /*
                 SimpleShape ss = Area;
                 BoundingRect ext = ss.GetExtent();
                 GeoPoint2D c = ss.GetExtent().GetCenter();
@@ -9214,6 +9190,8 @@ namespace CADability.GeoObject
                 ss = Area; // DEBUG
 
                 orientedOutward = false;
+
+                */
             }
             else
             {
@@ -9981,7 +9959,7 @@ namespace CADability.GeoObject
             if (toUse.Curve3D == null) return false;
             GeoPoint startPoint = toUse.Curve3D.StartPoint;
             GeoPoint endPoint = toUse.Curve3D.EndPoint;
-            foreach (Edge edg in AllEdgesIterated())
+            foreach (Edge edg in Edges)
             {
                 if ((edg.Vertex1.Position | startPoint) + (edg.Vertex2.Position | endPoint) < Precision.eps || (edg.Vertex2.Position | startPoint) + (edg.Vertex1.Position | endPoint) < Precision.eps)
                 {
@@ -10333,8 +10311,8 @@ namespace CADability.GeoObject
             Vertex[] dbg1 = this.Vertices;
             Vertex[] dbg2 = other.Vertices;
 
-            Set<Edge> onThis = new Set<Edge>(AllEdgesIterated());
-            Set<Edge> onOther = new Set<Edge>(other.AllEdgesIterated());
+            Set<Edge> onThis = new Set<Edge>(Edges);
+            Set<Edge> onOther = new Set<Edge>(other.Edges);
             Set<Edge> usableEdges = onThis.SymmetricDifference(onOther); // all edges of the resulting face, which belong to one of the faces but not to both
             Set<Edge> commonEdges = onThis.Intersection(onOther); // these will be removed
             List<List<Edge>> loops = new List<List<Edge>>(); // the loops, one of them is the outline, the others are holes
@@ -10644,7 +10622,7 @@ namespace CADability.GeoObject
 
         public bool IsConnectedWith(Face fc1)
         {
-            foreach (Edge edge in AllEdgesIterated())
+            foreach (Edge edge in Edges)
             {
                 if (edge.PrimaryFace == this && edge.SecondaryFace == fc1) return true;
                 if (edge.SecondaryFace == this && edge.PrimaryFace == fc1) return true;
@@ -10934,7 +10912,7 @@ namespace CADability.GeoObject
             // collect pairs of edge, which are geomatrically identical
             // we collect the edges rather than combining them immediately, because we are iterating over the edges
             List<Pair<Edge, Edge>> edgePairs = new List<Pair<Edge, Edge>>();
-            foreach (Edge edg in face1.AllEdgesIterated())
+            foreach (Edge edg in face1.Edges)
             {
                 if (vertexPairs.ContainsKey(edg.Vertex1) && vertexPairs.ContainsKey(edg.Vertex2))
                 {

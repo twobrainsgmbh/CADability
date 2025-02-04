@@ -3087,8 +3087,13 @@ namespace CADability.GeoObject
                 }
                 return new ProjectedCurve(curve, this, true, restricted, precision);
             }
-            if (!usedArea.IsInfinite) return new ProjectedCurve(curve, this, true, BoundingRect.EmptyBoundingRect, precision);
-            else return new ProjectedCurve(curve, this, true, usedArea, precision);
+            if (!usedArea.IsInfinite) 
+                return new ProjectedCurve(curve, this, true, BoundingRect.EmptyBoundingRect, precision);
+            else 
+                return new ProjectedCurve(curve, this, true, usedArea, precision);
+            
+            //Unreachable code
+            /*
             int n = 16;
             bool ok = false;
             BSpline2D b2d = null;
@@ -3234,7 +3239,7 @@ namespace CADability.GeoObject
                 {
                     b2d = new BSpline2D(through, 3, Precision.IsEqual(through[0], through[through.Length - 1])); //  curve.IsClosed);
                 }
-                catch (NurbsException ne)
+                catch (NurbsException)
                 {
                     List<GeoPoint2D> cleanThroughPoints = new List<GeoPoint2D>();
                     cleanThroughPoints.Add(through[0]);
@@ -3285,6 +3290,7 @@ namespace CADability.GeoObject
                 if (ok || n > 1024) break;
             }
             return b2d;
+            */
         }
         /// <summary>
         /// Implements <see cref="CADability.GeoObject.ISurface.Intersect (ICurve, BoundingRect, out GeoPoint[], out GeoPoint2D[], out double[])"/>
@@ -4629,7 +4635,6 @@ namespace CADability.GeoObject
         public virtual double MaxDist(GeoPoint2D sp, GeoPoint2D ep, out GeoPoint2D mp)
         {
             GeoPoint sp3d, ep3d; // start und enpunkt in 3d, der maximale Abstand zu dieser Linie wird gesucht
-            GeoVector sn, en, d3d;
             sp3d = PointAt(sp);
             ep3d = PointAt(ep);
             // Kurzfassung zur Überbrückung der Probleme an 3 Stellen messen:
@@ -4647,7 +4652,9 @@ namespace CADability.GeoObject
                 }
             }
             return max;
-
+            
+            //Unreachable code
+            /*
             BoxedSurfaceEx.RawPointNormalAt(sp, out sp3d, out sn); // Punkt und Normale auf die Fläche am Startpunkt
             BoxedSurfaceEx.RawPointNormalAt(ep, out ep3d, out en); // Punkt und Normale auf die Fläche am Startpunkt
             d3d = ep3d - sp3d; // die Richtung der 3d-Linie
@@ -4737,6 +4744,7 @@ namespace CADability.GeoObject
             //catch (PolylineException) { }
 #endif
             return md;
+            */
         }
 
         private GeoPoint2D[] newtonFindTangent(GeoVector dir3d, GeoPoint2D sp, GeoPoint2D ep, GeoVector sn, GeoVector en, double precision)
@@ -5109,6 +5117,8 @@ namespace CADability.GeoObject
             bsp.ThroughPoints(p.ToArray(), degree, closed);
             return bsp; //Debug
 
+            //Unreachable code
+            /*
             int maxThroughPoints = 200;
             int next_index = 1;
             int initp = p.Count;
@@ -5185,6 +5195,7 @@ namespace CADability.GeoObject
                     return bspr;
                 }
             }
+            */
         }
 
         #region IOctTreeInsertable Members
@@ -6526,7 +6537,7 @@ namespace CADability.GeoObject
                             double f = (axloc.y - domain1.Top) / axdir.y;
                             p2 = p2 - f * axdir;
                         }
-                        ClipRect clr = new ClipRect(ref domain1);
+                        ClipRect clr = new ClipRect(domain1);
                         if (clr.ClipLine(ref p1, ref p2))
                         {
                             GeoPoint2D pm = new GeoPoint2D(p1, p2);
@@ -7571,7 +7582,6 @@ namespace CADability.GeoObject
             }
             BoxedSurface boxedSurface;
             ISurfaceImpl toIntersectWith;
-            double umin, umax, vmin, vmax; // bezogen auf boxedSurface
             BoundingRect uvSize;
             Dictionary<double, List<IntersectionPoint>> uIntersections; // Schnittpunkte zu festem u bereits bestimmt
             Dictionary<double, List<IntersectionPoint>> vIntersections;
@@ -9187,7 +9197,7 @@ namespace CADability.GeoObject
                             dbgl.Add(pl);
                         }
                     }
-                    catch (PolylineException ex)
+                    catch (PolylineException)
                     { }
                 }
                 dbgl.Add(Line.TwoPoints(cube.pll, cube.pll + 10 * cube.nll));
@@ -10576,7 +10586,6 @@ namespace CADability.GeoObject
             }
             BoxedSurfaceEx BoxedSurfaceEx;
             ISurfaceImpl toIntersectWith;
-            double umin, umax, vmin, vmax; // bezogen auf BoxedSurfaceEx
             BoundingRect uvSize;
             Dictionary<double, List<IntersectionPoint>> uIntersections; // Schnittpunkte zu festem u bereits bestimmt
             Dictionary<double, List<IntersectionPoint>> vIntersections;
@@ -11069,6 +11078,9 @@ namespace CADability.GeoObject
                 res[i] = cvs[i] as IDualSurfaceCurve;
             }
             return res;
+
+            //Unreachable code
+            /*
             // alter Text:
             ComputeIntersectionCurve cic = new ComputeIntersectionCurve(this, pl, umin, umax, vmin, vmax);
 #if DEBUG
@@ -11076,6 +11088,7 @@ namespace CADability.GeoObject
             // System.Diagnostics.Trace.WriteLine("Anzahl der Boxes: " + allCubes.Length.ToString());
 #endif
             return cic.GetIntersectionCurves(new BoundingRect(umin, vmin, umax, vmax));
+            */
         }
         public virtual IDualSurfaceCurve[] GetSurfaceIntersection(ISurface surface, double umin, double umax, double vmin, double vmax, double precision)
         {
@@ -11712,7 +11725,6 @@ namespace CADability.GeoObject
             GeoVector curvedir = curve.DirectionAt(u);
             GeoPoint curvepoint = curve.PointAt(u);
             double error = curvepoint | loc;
-            int errorcount = 0;
 #if DEBUG
             {
                 DebuggerContainer dc = new DebuggerContainer();
@@ -12942,7 +12954,6 @@ namespace CADability.GeoObject
                 for (int i = 0; i < uknots1.Count; i++)
                 {
                     l = LinkedIntersectionPoint.CreateIntersections(surface, other, bounds1, bounds2, true, uknots1[i], vVal1.Min, vVal1.Max, true);
-                    LinkedIntersectionPoint.emode mode = 0;
                     foreach (LinkedIntersectionPoint lip in l)
                     {
                         lip.ui1 = i;

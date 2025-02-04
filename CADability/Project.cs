@@ -52,7 +52,6 @@ namespace CADability
     }
     internal class ProjectOldVersionException : ApplicationException
     {
-        private string resourceId; // resourceId für die MessageBox
         public ProjectOldVersionException(string message, Exception innerEx)
             : base(message, innerEx)
         {
@@ -332,7 +331,7 @@ namespace CADability
 
             filterList = new FilterList(); // auch aus globale settings?
             filterList.AttributeListContainer = this;
-            base.resourceId = "ProjectSettings";
+            base.resourceIdInternal = "ProjectSettings";
 
             UserData = new UserData();
             UserData.UserDataAddedEvent += new UserData.UserDataAddedDelegate(OnUserDataAdded);
@@ -376,11 +375,7 @@ namespace CADability
                         if (mp != null) mp.Refresh();
                     }
                 }
-                bool modelViewExists = false;
-                foreach (ProjectedModel pm in projectedModels)
-                {
-                    if (pm.Model == ToAdd) modelViewExists = true;
-                }
+
                 //foreach (ModelViewDescription mvd in modelViews)
                 //{
                 //    if (mvd.Model == ToAdd) modelViewExists = true;
@@ -1472,7 +1467,7 @@ namespace CADability
                 }
                 return null;
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 formatter = new BinaryFormatter(); // (null, new StreamingContext(StreamingContextStates.File, finishDeserialization));
                 formatter.Binder = new CondorSerializationBinder();
@@ -1603,7 +1598,7 @@ namespace CADability
                     }
                     res.fileName = FileName;
                 }
-                catch (ProjectOldVersionException ex)
+                catch (ProjectOldVersionException)
                 {
                     stream.Close();
                     stream.Dispose();
@@ -1844,6 +1839,29 @@ namespace CADability
                 case "brep":
                     break;
                 case "stl":
+                    ImportSTL importSTL = new ImportSTL();
+                    Shell[] shells = importSTL.Read(FileName);
+                    if (shells != null)
+                    {
+                        project = Project.CreateSimpleProject();
+                        Model model = project.GetActiveModel();
+                        for (int i = 0; i < shells.Length; i++)
+                        {
+                            project.SetDefaults(shells[i]);
+                            if (shells[i].HasOpenEdgesExceptPoles())
+                            {
+                                model.Add(shells[i]);
+                            }
+                            else
+                            {
+                                Solid sld = Solid.Construct();
+                                sld.SetShell(shells[i]);
+                                project.SetDefaults(sld);
+                                model.Add(sld);
+                            }
+                        }
+                        return project;
+                    }
                     break;
                 case "sat":
                     break;
@@ -2322,7 +2340,7 @@ namespace CADability
                 {
                 }
             }
-            base.resourceId = "ProjectSettings";
+            base.resourceIdInternal = "ProjectSettings";
         }
         void OnUserDataRemoved(string name, object value)
         {
@@ -2651,6 +2669,7 @@ namespace CADability
         #region IEnumerable
         public void Add(object toAdd)
         {
+            throw new NotImplementedException();
         }
         IEnumerator IEnumerable.GetEnumerator()
         {
