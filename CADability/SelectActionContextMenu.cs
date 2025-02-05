@@ -12,6 +12,7 @@ using static CADability.Actions.SelectObjectsAction;
 using CADability.Curve2D;
 using CADability.Shapes;
 using MathNet.Numerics.LinearAlgebra.Factorization;
+
 #if WEBASSEMBLY
 using CADability.WebDrawing;
 using Point = CADability.WebDrawing.Point;
@@ -1394,6 +1395,10 @@ namespace CADability
             }
             if (face.Surface is PlaneSurface pls)
             {
+                // set this planar face as drawing plane
+                res.AddIfNotNull(SimpleAction("MenuId.SetDrawingPlane", 0, selectAction.Frame,
+                    (() => { currentView.Projection.DrawingPlane = pls.Plane; return true; }), curves)); 
+
                 // try to find parallel outline edges to modify the distance
                 Edge[] outline = face.OutlineEdges;
                 for (int j = 0; j < outline.Length - 1; j++)

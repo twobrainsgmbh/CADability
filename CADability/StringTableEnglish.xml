@@ -7528,6 +7528,11 @@
 		<label>Plane of Curve</label>
 		<info>plane of planar curve, e.g. a circular arc</info>
 	</data>
+	<data name="MenuId.SetDrawingPlane">
+		<label>Set Drawing Plane</label>
+		<info>Use the surface of this face as the drawing plane</info>
+	</data>
+	
 	<!--
 	-->
 </root>
