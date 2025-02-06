@@ -387,7 +387,7 @@ namespace CADability.GeoObject
                     MenuWithHandler menuPreserve = new MenuWithHandler("MenuId.ParametricProperty.Preserve");
                     menuPreserve.OnUpdateCommand = delegate (string id, CommandState state)
                     {
-                        for (int i = 0; i< parametricProperties.Count; ++i)
+                        for (int i = 0; i < parametricProperties.Count; ++i)
                         {
                             if (parametricProperties[i].Name == capturedName)
                             {
@@ -1001,10 +1001,6 @@ namespace CADability.GeoObject
             for (int i = 0; i < sortedShapes.Count; i++)
             {   // 227
                 SimpleShape sh = sortedShapes[i];
-#if DEBUG
-                Face dbgface = dict[sh];
-                SimpleShape dbgsh = dbgface.GetShadow(onThisPlane);
-#endif
                 if (sh.Area > 0.0)
                 {
                     if (res == null) res = new CompoundShape(sh);
@@ -1167,9 +1163,6 @@ namespace CADability.GeoObject
             for (int i = 0; i < sortedShapes.Count; i++)
             {   // 227
                 SimpleShape sh = sortedShapes[i];
-#if DEBUG
-                Face dbgface = dict[sh];
-#endif
                 if (sh.Area > 0.0)
                 {
                     if (res == null) res = new CompoundShape(sh);
@@ -1516,7 +1509,7 @@ namespace CADability.GeoObject
             }
             */
         }
-        
+
 #if DEBUG
         public
 #else
@@ -5441,6 +5434,107 @@ namespace CADability.GeoObject
                 edges = null;
             }
         }
+        public bool AddAndRemoveFaces(IEnumerable<Face> facesToAdd, IEnumerable<Face> facesToRemove)
+        {
+            bool ok = false;
+            Shell.connectFaces(facesToAdd.ToArray(), Precision.eps); // makes sure that all faces are oriented the same way and there are no duplicate vertices
+            using (new Changing(this, "SetFaces", this, faces))
+            {
+                HashSet<Face> remainingFaces = new HashSet<Face>(faces);
+                HashSet<Edge> disconnectedEdges = new HashSet<Edge>();
+                HashSet<Vertex> disconnectedVertices = new HashSet<Vertex>();
+                foreach (Edge edg in Edges)
+                {
+                    // maybe both faces are removed. so we start with secondary
+                    if (facesToRemove.Contains(edg.SecondaryFace)) edg.RemoveSecondaryFace();
+                    if (facesToRemove.Contains(edg.PrimaryFace)) edg.RemovePrimaryFace();
+                    if (edg.SecondaryFace == null && edg.PrimaryFace != null)
+                    {
+                        disconnectedEdges.Add(edg);
+                        disconnectedVertices.Add(edg.Vertex1);
+                        disconnectedVertices.Add(edg.Vertex2);
+                    }
+                }
+                remainingFaces.ExceptWith(facesToRemove);
+                remainingFaces.UnionWith(facesToAdd);
+                faces = remainingFaces.ToArray();
+                Dictionary<Vertex, Vertex> oldToNewVertices = new Dictionary<Vertex, Vertex>();
+                // there should only be one new vertex for each vertex in the disconnection
+                // assuming the facesToAdd don't have duplicate vertices
+                HashSet<Vertex> newVertices = new HashSet<Vertex>();
+                foreach (Face face in facesToAdd)
+                {
+                    foreach (Edge e2 in face.AllEdges)
+                    {
+                        if (e2.SecondaryFace == null)
+                        {
+                            newVertices.Add(e2.Vertex1);
+                            newVertices.Add(e2.Vertex2);
+                        }
+                    }
+                }
+                foreach (Vertex vtx in disconnectedVertices)
+                {
+                    foreach (Vertex vtx1 in newVertices)
+                    {
+                        if (Precision.IsEqual(vtx.Position, vtx1.Position))
+                        {
+                            oldToNewVertices[vtx] = vtx1;
+                            break;
+                        }
+                    }
+                }
+                bool orientationChecked = false;
+                Dictionary<Edge, Edge> edgesToMerge = new Dictionary<Edge, Edge>();
+                foreach (Edge edg in disconnectedEdges)
+                {
+                    HashSet<Edge> commonVertex = new HashSet<Edge>();
+                    commonVertex.UnionWith(oldToNewVertices[edg.Vertex1].AllEdges);
+                    commonVertex.IntersectWith(oldToNewVertices[edg.Vertex2].AllEdges);
+                    // this should be at least one edge
+                    Edge toConnectWith = null;
+                    if (commonVertex.Count > 1)
+                    {
+                        foreach (Edge toTest in commonVertex)
+                        {
+                            if (toTest.Curve3D.SameGeometry(edg.Curve3D, Precision.eps))
+                            {
+                                toConnectWith = toTest;
+                                break;
+                            }
+                        }
+                    }
+                    else if (commonVertex.Count == 1) toConnectWith = commonVertex.First();
+                    if (toConnectWith != null)
+                    {
+                        if (!orientationChecked)
+                        {
+                            orientationChecked = true;
+                            GeoVector dir1 = edg.Curve3D.DirectionAt(0.5);
+                            if (!edg.Forward(edg.PrimaryFace)) dir1.Reverse();
+                            GeoVector dir2 = toConnectWith.Curve3D.DirectionAt(0.5);
+                            if (!toConnectWith.Forward(toConnectWith.PrimaryFace)) dir2.Reverse();
+                            if (dir1 * dir2 > 0)
+                            {   // for correct orientation, they should have opposite directions
+                                // if one face has wrong orientation, all faces are wrong oriented
+                                foreach (Face fc in facesToAdd)
+                                {
+                                    fc.ReverseOrientation();
+                                }
+                            }
+                        }
+                        edgesToMerge[edg] = toConnectWith;
+                    }
+                }
+                foreach (KeyValuePair<Edge, Edge> item in edgesToMerge)
+                {
+                    item.Key.MergeWith(item.Value);
+                }
+                edges = null; // to force recalculation
+                CombineConnectedFaces();
+            }
+            return OpenEdges.Length == 0;
+        }
         internal void Repair()
         {
             foreach (Face fc in Faces)
@@ -5615,10 +5709,8 @@ namespace CADability.GeoObject
             }
             Set<Face> allFaces = new Set<Face>(faces);
 #if DEBUG
-            Face dbgface = null;
             foreach (Face fcdbg in allFaces)
             {
-                // if (fcdbg.GetHashCode() == 5879) dbgface = fcdbg;
                 if (fcdbg.Vertices.Length != fcdbg.AllEdges.Length)
                 {
                     DebuggerContainer dc = new DebuggerContainer();
@@ -5709,12 +5801,6 @@ namespace CADability.GeoObject
                             {
                                 edge1.UpdateInterpolatedDualSurfaceCurve();
                             }
-#if DEBUG
-                            if (dbgface != null && !dbgface.CheckConsistency())
-                            {
-
-                            }
-#endif
                             if (toRemove != null && toRemove.Count > 0)
                             {
                                 combined = true;
@@ -5748,22 +5834,11 @@ namespace CADability.GeoObject
                     }
                     int dbgedgecount = face.AllEdgesCount;
 #endif
-#if DEBUG
-                    if (dbgface != null && !dbgface.CheckConsistency())
-                    {
-
-                    }
-#endif
                     face.CombineConnectedSameSurfaceEdges();
+                    face.Owner = this;
 #if DEBUG
                     if (!face.CheckConsistency())
                     {
-                    }
-#endif
-#if DEBUG
-                    if (dbgface != null && !dbgface.CheckConsistency())
-                    {
-
                     }
 #endif
                 }
@@ -6490,7 +6565,7 @@ namespace CADability.GeoObject
                     connectedEdges.ExceptWith(res); // and not the already found edges
                     foreach (Edge connectedEdge in connectedEdges)
                     {
-                        if (((connectedEdge.PrimaryFace==edge.PrimaryFace || connectedEdge.PrimaryFace.SameSurface(edge.PrimaryFace)) &&
+                        if (((connectedEdge.PrimaryFace == edge.PrimaryFace || connectedEdge.PrimaryFace.SameSurface(edge.PrimaryFace)) &&
                             (connectedEdge.SecondaryFace == edge.SecondaryFace || connectedEdge.SecondaryFace.SameSurface(edge.SecondaryFace))) ||
                             ((connectedEdge.SecondaryFace == edge.PrimaryFace || connectedEdge.SecondaryFace.SameSurface(edge.PrimaryFace)) &&
                             (connectedEdge.PrimaryFace == edge.SecondaryFace || connectedEdge.PrimaryFace.SameSurface(edge.SecondaryFace))))
@@ -6544,7 +6619,17 @@ namespace CADability.GeoObject
         /// <exception cref="NotImplementedException"></exception>
         public bool FeatureFromFaces(IEnumerable<Face> facesToStartWith, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap)
         {
-            throw new NotImplementedException();
+            // as a first quick and dirty implementation, we forward all the open edges of facesToStartWith to FeatureFromLoops
+            HashSet<Edge> openEdges = new HashSet<Edge>();
+            HashSet<Face> faces = new HashSet<Face>(facesToStartWith);
+            foreach (Face face in facesToStartWith)
+            {
+                foreach (Edge edg in face.AllEdges)
+                {
+                    if (!faces.Contains(edg.OtherFace(face))) openEdges.Add(edg);
+                }
+            }
+            return FeatureFromLoops(openEdges, out featureFaces, out connection, out isGap);
         }
 
         /// <summary>
@@ -6578,7 +6663,7 @@ namespace CADability.GeoObject
                 if (connect != null) connection.AddRange(connect);
                 else return false;
             }
-            return true;
+            return featureFaces.Any();
         }
 
         private IEnumerable<Face> CloseEdgeLoop(Edge[] loop, HashSet<Face> forbiddenFaces)
@@ -6696,7 +6781,7 @@ namespace CADability.GeoObject
                             SurfaceHelper.AdjustPeriodic(surfaceList[j].Key, extj, ref uv);
                             extj.MinMax(uv);
                             // find domains for the intersection which include the two points
-                            IDualSurfaceCurve[] dscs = surfaceList[i].Key.GetDualSurfaceCurves(exti, surfaceList[j].Key, extj, new List<GeoPoint> { sp, ep}, null);
+                            IDualSurfaceCurve[] dscs = surfaceList[i].Key.GetDualSurfaceCurves(exti, surfaceList[j].Key, extj, new List<GeoPoint> { sp, ep }, null);
                             if (dscs != null && dscs.Length == 1)
                             {
                                 intersections[surfaceList[i].Key].Add(dscs[0]);
@@ -6719,7 +6804,7 @@ namespace CADability.GeoObject
                     List<ICurve> curves = new List<ICurve>(surfaceEdges.Select(edge => edge.Curve3D.Clone()));
                     curves.AddRange(intersections[srf].Select(dsc => dsc.Curve3D));
                     Face face = Face.MakeFace(srf, curves.ToArray());
-                    if (face!=null) res.Add(face);
+                    if (face != null) res.Add(face);
                 }
                 return res;
             }

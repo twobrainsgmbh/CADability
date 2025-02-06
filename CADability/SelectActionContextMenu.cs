@@ -40,6 +40,13 @@ namespace CADability
             this.selectAction = soa;
             currentMenuSelection = new GeoObjectList();
         }
+        /// <summary>
+        /// This is injected into the <see cref="SelectObjectsAction"/> to filter the right mouse click and open the context menu
+        /// </summary>
+        /// <param name="mouseAction"></param>
+        /// <param name="e"></param>
+        /// <param name="vw"></param>
+        /// <param name="handled"></param>
         public void FilterMouseMessages(MouseAction mouseAction, MouseEventArgs e, IView vw, ref bool handled)
         {
             if (mouseAction == MouseAction.MouseUp && e.Button == MouseButtons.Right)
@@ -64,7 +71,8 @@ namespace CADability
             HashSet<Edge> selectedEdges = new HashSet<Edge>();
             HashSet<Face> selectedFaces = new HashSet<Face>();
             // NO!! no more distinction between accumulating and selecting!
-            if (selectAction.IsAccumulating)
+            //if (selectAction.IsAccumulating)
+            if (false) // 
             {   // we have been accumulating edges or faces, now we want to do something with this collection
                 // this right click should not add or remove some more objects to or from the selection
                 // but try to find a "feature" and show a menu to handle it
@@ -153,6 +161,33 @@ namespace CADability
                         else
                         {
                             curves.Add(crv);
+                        }
+                    }
+                }
+                if (edges.Count>0)
+                {
+                    Shell edgesShell = (edges.First().Owner as Face).Owner as Shell;
+                    HashSet<Edge> connectedEdges = Shell.connectedSameGeometryEdges(edges); // add all faces which have the same surface and are connected
+                    if (edgesShell != null)
+                    {
+                        if (edgesShell.FeatureFromLoops(connectedEdges, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
+                        {
+                            // there is a feature
+                            cm.Add(CreateFeatureMenu(vw, featureFaces, connection, isGap));
+                        }
+                    }
+                }
+                if (faces.Count>0)
+                {
+                    Shell facesShell = faces.First().Owner as Shell;
+                    if (facesShell != null)
+                    {
+                        HashSet<Face> connectedFaces = Shell.connectedSameGeometryFaces(faces); // add all faces which have the same surface and are connected
+                        if (facesShell.FeatureFromFaces(connectedFaces, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
+                        {
+                            // there is a feature. Multiple different features are not considered, we would need FeaturesFromFaces
+                            // which would return more than one feature
+                            cm.Add(CreateFeatureMenu(vw, featureFaces, connection, isGap));
                         }
                     }
                 }
@@ -1043,6 +1078,9 @@ namespace CADability
         private MenuWithHandler CreateFeatureMenu(IView vw, IEnumerable<Face> featureFaces, List<Face> connection, bool isGap)
         {
             List<Face> ff = new List<Face>(featureFaces.Select(fc => fc.Clone() as Face));
+            GeoPoint2D uv = ff[0].Area.GetSomeInnerPoint(); // testpoint for orientation
+            GeoPoint xyz = ff[0].Surface.PointAt(uv);
+            GeoVector normal = ff[0].Surface.GetNormal(uv);
             foreach (Face fc in connection)
             {
                 fc.ReverseOrientation();
@@ -1052,6 +1090,9 @@ namespace CADability
             ext.MinMax(ff);
             Shell.connectFaces(ff.ToArray(), Math.Max(Precision.eps, ext.Size * 1e-6));
             Shell feature = Shell.FromFaces(ff.ToArray());
+            feature.AssertOutwardOrientation();
+            uv = ff[0].Surface.PositionOf(xyz);
+            bool wasInverse = normal * ff[0].Surface.GetNormal(uv) < 0;
 #if DEBUG
             bool ok = feature.CheckConsistency();
 #endif
@@ -1138,14 +1179,10 @@ namespace CADability
             };
             removeFeature.OnCommand = (menuId) =>
             {
-                Solid solid = shell.Owner as Solid;
-                Solid[] remaining = Solid.Subtract(solid, featureSolid);
-                if (remaining != null && remaining.Length > 0)
-                {
-                    IGeoObjectOwner owner = solid.Owner;
-                    owner.Remove(solid);
-                    for (int i = 0; i < remaining.Length; ++i) owner.Add(remaining[i]);
-                }
+                bool addRemoveOk = shell.AddAndRemoveFaces(connection, featureFaces);
+#if DEBUG
+                shell.CheckConsistency();
+#endif
                 return true;
             };
             splitFeature.OnCommand = (menuId) =>
@@ -1397,7 +1434,7 @@ namespace CADability
             {
                 // set this planar face as drawing plane
                 res.AddIfNotNull(SimpleAction("MenuId.SetDrawingPlane", 0, selectAction.Frame,
-                    (() => { currentView.Projection.DrawingPlane = pls.Plane; return true; }), curves)); 
+                    (() => { currentView.Projection.DrawingPlane = pls.Plane; return true; }), curves));
 
                 // try to find parallel outline edges to modify the distance
                 Edge[] outline = face.OutlineEdges;
