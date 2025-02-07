@@ -970,6 +970,7 @@ namespace CADability
             lmh.AddRange(GetFacesSubmenus(fc));
             if (fc.Owner is Shell owningShell)
             {
+                // can we find a thickness or gauge in the shell?
                 double thickness = owningShell.GetGauge(fc, out HashSet<Face> frontSide, out HashSet<Face> backSide);
                 if (thickness != double.MaxValue && thickness > 0.0 && frontSide.Count > 0)
                 {
@@ -988,6 +989,23 @@ namespace CADability
                         currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
                     };
                     lmh.Add(gauge);
+                }
+                // is there a way to center these faces in the shell?
+                {
+                    MenuWithHandler center = new MenuWithHandler("MenuId.Center");
+                    center.OnCommand = (menuId) =>
+                    {
+                        ParametricsCenterAction pca = new ParametricsCenterAction(faces);
+                        selectAction.Frame.SetAction(pca);
+                        return true;
+                    };
+                    center.OnSelected = (menuId, selected) =>
+                    {
+                        currentMenuSelection.Clear();
+                        currentMenuSelection.AddRange(faces.ToArray());
+                        currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+                    };
+                    lmh.Add(center);
                 }
                 int n = owningShell.GetFaceDistances(fc, out List<Face> distanceTo, out List<double> distance, out List<GeoPoint> pointsFrom, out List<GeoPoint> pointsTo);
                 for (int j = 0; j < n; j++)
@@ -1179,7 +1197,10 @@ namespace CADability
             };
             removeFeature.OnCommand = (menuId) =>
             {
-                bool addRemoveOk = shell.AddAndRemoveFaces(connection, featureFaces);
+                using (vw.Canvas.Frame.Project.Undo.UndoFrame)
+                {
+                    bool addRemoveOk = shell.AddAndRemoveFaces(connection, featureFaces);
+                }
 #if DEBUG
                 shell.CheckConsistency();
 #endif

@@ -2916,24 +2916,12 @@ namespace CADability.GeoObject
                     foreach (Face face in Faces)
                     {
                         if (usedFaces.Contains(face)) continue; // already used
-                        HashSet<Face> other = face.GetCylindricalConnected();
+                        // more general implementation needed
+                        HashSet<Face> other = face.GetPeriodicalConnected();
                         if (other.Any())
                         {
-                            if (face.Surface is CylindricalSurface cyl)
-                            {
-                                GeoPoint ll = cyl.PointAt(face.Domain.GetLowerLeft());
-                                GeoPoint ur = cyl.PointAt(face.Domain.GetUpperRight());
-                                GeoPoint sp = Geometry.DropPL(ll, cyl.Location, cyl.ZAxis);
-                                GeoPoint ep = Geometry.DropPL(ur, cyl.Location, cyl.ZAxis);
-                                Line ax = Line.TwoPoints(sp, ep);
-                                ax.Length *= 1.1;
-                                (ax as ICurve).Reverse();
-                                ax.Length *= 1.1;
-                                ax.UserData.Add("CADability.AxisOf", face);
-                                featureAxis.Add(ax);
-                                ax.IsVisible = false;
-                                ax.Owner = this;
-                            }
+                            Line ax = face.GetAxisOfRevolution();
+                            if (ax!=null) featureAxis.Add(ax);
                             usedFaces.UnionWith(other);
                         }
                     }
@@ -5436,8 +5424,11 @@ namespace CADability.GeoObject
         }
         public bool AddAndRemoveFaces(IEnumerable<Face> facesToAdd, IEnumerable<Face> facesToRemove)
         {
-            bool ok = false;
-            Shell.connectFaces(facesToAdd.ToArray(), Precision.eps); // makes sure that all faces are oriented the same way and there are no duplicate vertices
+            connectFaces(facesToAdd.ToArray(), Precision.eps); // makes sure that all faces are oriented the same way and there are no duplicate vertices
+            ColorDef cd = null;
+            if (colorDef != null && colorDef.Source != ColorDef.ColorSource.fromParent) cd = this.colorDef;
+            else if (Owner is Solid sld && sld.ColorDef != null) cd = sld.ColorDef;
+            if (cd != null) foreach (Face face in facesToAdd) face.ColorDef = cd;
             using (new Changing(this, "SetFaces", this, faces))
             {
                 HashSet<Face> remainingFaces = new HashSet<Face>(faces);
@@ -6643,7 +6634,7 @@ namespace CADability.GeoObject
         /// <returns>true, if such a feature was found</returns>
         public bool FeatureFromLoops(IEnumerable<Edge> loopEdges, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap)
         {
-            List<Edge[]> loops = sortLoops(loopEdges, true);
+            List<Edge[]> loops = sortLoops(loopEdges, true); // one or more loops with correctly sorted edges
             HashSet<Edge> bounds = new HashSet<Edge>(loopEdges);
             HashSet<Face> found = new HashSet<Face>();
             Face startWith = bounds.First().PrimaryFace; // we don't know on which side of the loop the feature should be. We will take the smaller part.
@@ -6660,7 +6651,29 @@ namespace CADability.GeoObject
             foreach (Edge[] loop in loops)
             {
                 IEnumerable<Face> connect = CloseEdgeLoop(loop, featureFaces as HashSet<Face>);
-                if (connect != null) connection.AddRange(connect);
+                if (connect != null)
+                {
+
+                    connection.AddRange(connect);
+                    // in order to find the orientation (is this a hole or a detail sticking out) we need an edge of the loop and find the corresponding edge in the connected faces
+                    Edge l0 = loop[0];
+                    bool forward = false;
+                    if (featureFaces.Contains(l0.PrimaryFace)) forward = l0.Forward(l0.PrimaryFace);
+                    else if (l0.SecondaryFace != null) forward = l0.Forward(l0.SecondaryFace);
+                    // find a matching edge:
+                    var matchingEdge = connect
+                        .SelectMany(face => face.AllEdges)
+                        .FirstOrDefault(edge => edge.SecondaryFace == null && edge.Curve3D.SameGeometry(l0.Curve3D, Precision.eps));
+                    // check the direction of the matching edge
+                    // feature orientation is not correctly calculated here: when there are two loops and one is filled with existing faces, the other with
+                    // newly created faces, the result is ambiguous
+                    if (matchingEdge != null)
+                    {
+                        isGap = (l0.Curve3D.DirectionAt(0.5) * matchingEdge.Curve3D.DirectionAt(0.5) > 0)
+                            ? matchingEdge.Forward(matchingEdge.PrimaryFace) == forward
+                            : matchingEdge.Forward(matchingEdge.PrimaryFace) != forward;
+                    }
+                }
                 else return false;
             }
             return featureFaces.Any();
@@ -6698,6 +6711,7 @@ namespace CADability.GeoObject
             }
             if (Curves.GetCommonPlane(outline, out Plane commonPlane))
             {   // all curves of the loop are in a common plane: we can make a planar face to close the loop
+                // the orientation has to be considered!
                 PlaneSurface ps = new PlaneSurface(commonPlane);
                 Face res = Face.FromEdges(ps, new ICurve[][] { outline });
                 return new Face[] { res };

@@ -10702,10 +10702,10 @@ namespace CADability.GeoObject
         /// Returns all other directly connected faces which have a common ISurfaceOfArcExtrusion surface
         /// </summary>
         /// <returns></returns>
-        public HashSet<Face> GetCylindricalConnected()
+        public HashSet<Face> GetPeriodicalConnected()
         {
             HashSet<Face> res = new HashSet<Face>();
-            if (Surface is ISurfaceOfArcExtrusion sae)
+            if (Surface is ISurfaceOfArcExtrusion sae || Surface is ISurfaceOfRevolution sr)
             {
                 for (int i = 0; i < outline.Length; i++)
                 {
@@ -10717,6 +10717,7 @@ namespace CADability.GeoObject
                         {
                             HashSet<Edge> edges = new HashSet<Edge>(otherFace.OutlineEdges);
                             edges.IntersectWith(OutlineEdges);
+                            // why do we need two edges?
                             if (edges.Count >= 2) res.Add(otherFace);
                         }
                     }
@@ -11056,6 +11057,26 @@ namespace CADability.GeoObject
             res.Add(mhsel);
             res.Add(mhadd);
             return res.ToArray();
+        }
+
+        internal Line GetAxisOfRevolution()
+        {
+            if (Surface is ISurfaceOfRevolution sr)
+            {
+                GeoPoint ll = Surface.PointAt(Domain.GetLowerLeft());
+                GeoPoint ur = Surface.PointAt(Domain.GetUpperRight());
+                Axis axis = sr.Axis;
+                GeoPoint sp = Geometry.DropPL(ll, axis.Location, axis.Direction);
+                GeoPoint ep = Geometry.DropPL(ur, axis.Location, axis.Direction);
+                Line ax = Line.TwoPoints(sp, ep);
+                ax.Length *= 1.1;
+                (ax as ICurve).Reverse();
+                ax.Length *= 1.1;
+                ax.UserData.Add("CADability.AxisOf", this);
+                ax.IsVisible = false;
+                return ax;
+            }
+            return null;
         }
     }
 }

@@ -5,7 +5,9 @@ using CADability;
 using System.Xml.Linq;
 using CADability.GeoObject;
 using CADability.UserInterface;
+using CADability.Actions;
 using MathNet.Numerics;
+using System.Linq;
 
 namespace CADability
 {
@@ -75,6 +77,52 @@ namespace CADability
         {
             Name = data.GetStringProperty("Name");
             Preserve = data.GetPropertyOrDefault<bool>("Preserve");
+        }
+
+        protected List<object> CloneWithDictionary(List<object> list, Dictionary<Face, Face> clonedFaces, Dictionary<Edge, Edge> clonedEdges, Dictionary<Vertex, Vertex> clonedVertices)
+        {
+            List<object> clonedObjects = new List<object>();
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i] is Face face && clonedFaces.TryGetValue(face, out Face clonedFace)) clonedObjects.Add(clonedFace);
+                if (list[i] is Edge edge && clonedEdges.TryGetValue(edge, out Edge clonedEdge)) clonedObjects.Add(clonedEdge);
+                if (list[i] is Vertex vtx && clonedVertices.TryGetValue(vtx, out Vertex clonedVertex)) clonedObjects.Add(clonedVertex);
+                if (list[i] is Line line)
+                {   // this must be an axis
+                    Face faceOfAxis = line.UserData.GetData("CADability.AxisOf") as Face;
+                    if (faceOfAxis != null && faceOfAxis.Surface is ISurfaceOfRevolution sr && clonedFaces.TryGetValue(faceOfAxis, out Face clonedFaceOfAxis))
+                    {
+                        Line ax = clonedFaceOfAxis.GetAxisOfRevolution(); // UserData already set
+                        clonedObjects.Add(ax);
+                    }
+                }
+            }
+            return clonedObjects;
+        }
+        protected List<Face> CloneFacesWithDictionary(List<Face> list, Dictionary<Face, Face> clonedFaces)
+        {
+            List<Face> substFaces = new List<Face>();
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (clonedFaces.TryGetValue(list[i], out Face cf)) substFaces.Add(cf);
+            }
+            return substFaces;
+        }
+
+        protected void ModifyAxis(List<object> objects, ModOp m)
+        {
+            foreach (object obj in objects)
+            {
+                if (obj is Line line)
+                {   // this must be an axis
+                    Face faceOfAxis = line.UserData.GetData("CADability.AxisOf") as Face;
+                    if (faceOfAxis != null)
+                    {
+                        Line ax = faceOfAxis.GetAxisOfRevolution(); // UserData already set
+                        line.CopyGeometry(ax);
+                    }
+                }
+            }
         }
     }
     internal class ParametricDistanceProperty : ParametricProperty, IJsonSerialize, IJsonSerializeDone
@@ -629,7 +677,7 @@ namespace CADability
                     facesToAffect[face] = forward;
                 }
             }
-            parametric.RotateFaces(facesToAffect,new Axis(location,axdir));
+            parametric.RotateFaces(facesToAffect, new Axis(location, axdir));
             return parametric.Apply(); // the result may be inconsistent, but maybe further parametric operations make it consistent again
         }
         private void GetAngleVectors(out GeoPoint location, out GeoVector fromHere, out GeoVector toHere)
@@ -696,6 +744,134 @@ namespace CADability
         {
             GetAngleVectors(out GeoPoint location, out GeoVector fromHere, out GeoVector toHere);
             Value = new Angle(fromHere, toHere);
+        }
+
+#if DEBUG
+        public DebuggerContainer DebugAffected
+        {
+            get
+            {
+
+                DebuggerContainer dc = new DebuggerContainer();
+                if (affectedObjects != null)
+                {
+                    foreach (var obj in affectedObjects)
+                    {
+                        if (obj is Edge edge) dc.Add(edge.Curve3D as IGeoObject, edge.GetHashCode());
+                        if (obj is Vertex vtx) dc.Add(vtx.Position, System.Drawing.Color.Red, vtx.GetHashCode());
+                        if (obj is Face face) dc.Add(face, face.GetHashCode());
+                    }
+                }
+                return dc;
+            }
+        }
+#endif
+    }
+
+    internal class ParametricCenterProperty : ParametricProperty, IJsonSerialize, IJsonSerializeDone
+    {
+        private List<Face> facesToCenter; // These faces should be centered according to objectsToCenterOn
+        private List<object> objectsToCenterOn; // e.g. two vertices, two faces, two edges, a rotational face
+        private List<object> referenceForCentering; // this could be a vertex, edge, face or axis from facesToCenter, if null, it will center to the extent of facestocenter
+        // facesToCenter may fall into several groups of unconnected faces. These groups are centered independently. E.g. many holes between two planes
+        // for each group there should be one object in referenceForCentering (groups not implemented yet
+        private double ratio; // ratio for centering, usually 0.5
+        private List<object> affectedObjects; // faces which are affected by this parametric
+
+
+        public ParametricCenterProperty(string name, IEnumerable<Face> facesToCenter, IEnumerable<object> objectsToCenterOn, IEnumerable<object> referenceForCentering, IEnumerable<object> affectedObjects, double ratio) : base(name)
+        {
+            this.facesToCenter = new List<Face>(facesToCenter);
+            this.objectsToCenterOn = new List<object>(objectsToCenterOn);
+            this.referenceForCentering = new List<object>(referenceForCentering);
+            this.ratio = ratio;
+            this.affectedObjects = new List<object>(affectedObjects);
+        }
+
+        public override ParametricProperty Clone(Dictionary<Face, Face> clonedFaces, Dictionary<Edge, Edge> clonedEdges, Dictionary<Vertex, Vertex> clonedVertices)
+        {
+            List<Face> facesToCenterCloned = CloneFacesWithDictionary(facesToCenter, clonedFaces);
+            List<object> objectsToCenterOnCloned = CloneWithDictionary(objectsToCenterOn, clonedFaces, clonedEdges, clonedVertices);
+            List<object> referenceForCenteringCloned = CloneWithDictionary(referenceForCentering, clonedFaces, clonedEdges, clonedVertices);
+            List<object> affectedObjectsCloned = CloneWithDictionary(affectedObjects, clonedFaces, clonedEdges, clonedVertices);
+            return new ParametricCenterProperty(Name, facesToCenterCloned, objectsToCenterOnCloned, referenceForCenteringCloned, affectedObjectsCloned, ratio);
+        }
+        public override void Modify(ModOp m)
+        {   // all referred objects like facesToMove or fromHere are part of the shell and already modified
+            // axis is currently only implemented as an edge, so nothing to do here
+            ModifyAxis(objectsToCenterOn, m);
+        }
+        private double currentValue;
+        public override double Value
+        {
+            get
+            {
+                return ratio;
+            }
+            set
+            {
+                ratio = value;
+            }
+        }
+        /// <summary>
+        /// if != NullVector, this is the direction of the extrusion. This is used by the distance calculation.
+        /// </summary>
+        public override bool Execute(Parametric parametric)
+        {
+            GeoVector translation = ParametricsCenterAction.GetTranslationForCentering(facesToCenter, referenceForCentering.First(), objectsToCenterOn, ratio);
+            if (!translation.IsNullVector())
+            {
+                Dictionary<Face, GeoVector > facesToMove = new Dictionary<Face, GeoVector>();
+                foreach (Face face in facesToCenter)
+                {
+                    facesToMove[face] = translation;
+                }
+                parametric.MoveFaces(facesToMove, translation);
+                return parametric.Apply(); // the result may be inconsistent, but maybe further parametric operations make it consistent again
+            }
+            return false;
+        }
+        public override GeoObjectList GetFeedback(Projection projection)
+        {
+            return new GeoObjectList(facesToCenter);
+        }
+        protected ParametricCenterProperty() : base("") { } // empty constructor for Json
+        public override void GetObjectData(IJsonWriteData data)
+        {
+            base.GetObjectData(data);
+
+            data.AddProperty("FacesToCenter", facesToCenter);
+            data.AddProperty("ObjectsToCenterOn", objectsToCenterOn);
+            data.AddProperty("ReferenceForCentering", referenceForCentering);
+            data.AddProperty("AffectedObjects", affectedObjects);
+            data.AddProperty("Ratio", ratio);
+        }
+
+        public override void SetObjectData(IJsonReadData data)
+        {
+            base.SetObjectData(data);
+            facesToCenter = data.GetProperty<List<Face>>("FacesToCenter");
+            objectsToCenterOn = data.GetProperty<List<object>>("ObjectsToCenterOn");
+            referenceForCentering = data.GetProperty<List<object>>("ReferenceForCentering");
+            affectedObjects = data.GetProperty<List<object>>("AffectedObjects");
+            ratio = data.GetDoubleProperty("Ratio");
+            data.RegisterForSerializationDoneCallback(this);
+        }
+
+        public override object GetAnchor()
+        {
+            BoundingCube ext = new BoundingCube(facesToCenter);
+            return ext.GetCenter();
+        }
+
+        public override IEnumerable<object> GetAffectedObjects()
+        {
+            return affectedObjects;
+        }
+
+        void IJsonSerializeDone.SerializationDone(JsonSerialize jsonSerialize)
+        {
+            Value = ratio;
         }
 
 #if DEBUG

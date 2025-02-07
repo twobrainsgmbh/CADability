@@ -7517,11 +7517,11 @@
 		<info>A vertex of this shape</info>
 	</data>
 	<data name="Edge.Displayname">
-		<label>Vertex</label>
+		<label>Edge</label>
 		<info>An edge of this shape</info>
 	</data>
 	<data name="Face.Displayname">
-		<label>Vertex</label>
+		<label>Face</label>
 		<info>A face of this shape</info>
 	</data>
 	<data name="MenuId.Plane.OfCurve">

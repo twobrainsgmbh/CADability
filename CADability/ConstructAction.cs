@@ -5247,7 +5247,7 @@ namespace CADability.Actions
                 }
                 Point MousePoint = new Point(e.X, e.Y);
                 currentMousePoint = MousePoint;
-                GeoObjectList l = constructAction.Frame.ActiveView.PickObjects(MousePoint, PickMode.children);
+                GeoObjectList l = constructAction.Frame.ActiveView.PickObjects(MousePoint, PickMode.singleFaceAndCurve);
                 List<object> bRepObjectsUnderCursor = new List<object>();
                 for (int i = 0; i < l.Count; ++i)
                 {
@@ -5273,13 +5273,7 @@ namespace CADability.Actions
                 }
                 if (MouseOverBRepObjectsEvent != null)
                 {
-                    IGeoObject[] underCursor = new IGeoObject[bRepObjectsUnderCursor.Count];
-                    for (int i = 0; i < bRepObjectsUnderCursor.Count; i++)
-                    {
-                        underCursor[i] = BRepObjectToGeoObject(bRepObjectsUnderCursor[i]);
-                    }
-
-                    bool next = MouseOverBRepObjectsEvent(this, underCursor, mouseState == MouseState.ClickUp);
+                    bool next = MouseOverBRepObjectsEvent(this, bRepObjectsUnderCursor.ToArray(), mouseState == MouseState.ClickUp);
                     if (constructAction.AutoCursor)
                     {
                         if (next) vw.SetCursor(hitCursor);
