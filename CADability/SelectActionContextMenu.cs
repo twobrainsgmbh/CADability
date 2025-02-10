@@ -129,6 +129,7 @@ namespace CADability
                 {
                     // work with the already selected objects
                     fl = new GeoObjectList(selectedObjects);
+                    selectAction.StopAccumulate();
                 }
 
                 List<Face> faces = new List<Face>();
@@ -187,7 +188,7 @@ namespace CADability
                         {
                             // there is a feature. Multiple different features are not considered, we would need FeaturesFromFaces
                             // which would return more than one feature
-                            cm.Add(CreateFeatureMenu(vw, featureFaces, connection, isGap));
+                            cm.AddIfNotNull(CreateFeatureMenu(vw, featureFaces, connection, isGap));
                         }
                     }
                 }
@@ -977,7 +978,7 @@ namespace CADability
                     MenuWithHandler gauge = new MenuWithHandler("MenuId.Gauge");
                     gauge.OnCommand = (menuId) =>
                     {
-                        ParametricsOffset po = new ParametricsOffset(frontSide, backSide, selectAction.Frame, thickness);
+                        ParametricsOffsetAction po = new ParametricsOffsetAction(frontSide, backSide, selectAction.Frame, thickness);
                         selectAction.Frame.SetAction(po);
                         return true;
                     };
@@ -1114,7 +1115,9 @@ namespace CADability
 #if DEBUG
             bool ok = feature.CheckConsistency();
 #endif
-            Solid featureSolid = Solid.MakeSolid(feature);
+            //double v = feature.Volume(ext.Size / 1000); // maybe it is totally flat
+            //if (v < Precision.eps) return null; // Volume calculation is too slow
+            Solid featureSolid = Solid.MakeSolid(feature.Clone() as Shell);
             Shell shell = featureFaces.First().Owner as Shell; // this is the original shell of the solid
             MenuWithHandler mh = new MenuWithHandler("MenuId.Feature");
             mh.OnSelected = (m, selected) =>
@@ -1123,11 +1126,12 @@ namespace CADability
                 currentMenuSelection.Add(feature);
                 currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
             };
+            MenuWithHandler copyFeature = new MenuWithHandler("MenuId.Feature.CopyToClipboard");
             MenuWithHandler positionFeature = new MenuWithHandler("MenuId.Feature.Position");
             MenuWithHandler nameFeature = new MenuWithHandler("MenuId.Feature.Name");
             MenuWithHandler removeFeature = new MenuWithHandler("MenuId.Feature.Remove");
             MenuWithHandler splitFeature = new MenuWithHandler("MenuId.Feature.Split");
-            mh.SubMenus = new MenuWithHandler[] { positionFeature, nameFeature, removeFeature, splitFeature };
+            mh.SubMenus = new MenuWithHandler[] { copyFeature, positionFeature, nameFeature, removeFeature, splitFeature };
             // this is very rudimentary. We have to provide a version of ParametricsDistanceAction, where you can select from and to object. Only axis is implemented
             GeoObjectList fa = feature.FeatureAxis;
             Line axis = null;
@@ -1143,6 +1147,18 @@ namespace CADability
             //    }
             //    if (axis != null) break;
             //}
+            copyFeature.OnCommand = (menuId) =>
+            {
+                Solid sldToCopy = Solid.MakeSolid(feature.Clone() as Shell);
+                selectAction.Frame.UIService.SetClipboardData(new GeoObjectList(sldToCopy), true);
+                return true;
+            };
+            copyFeature.OnSelected = (menuId, selected) =>
+            {
+                currentMenuSelection.Clear();
+                currentMenuSelection.Add(feature);
+                currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+            };
             positionFeature.OnCommand = (menuId) =>
             {
                 ParametricsDistanceActionOld pd = new ParametricsDistanceActionOld(feature, selectAction.Frame);
@@ -1202,8 +1218,10 @@ namespace CADability
                     bool addRemoveOk = shell.AddAndRemoveFaces(connection, featureFaces);
                 }
 #if DEBUG
-                shell.CheckConsistency();
+                bool testok = shell.CheckConsistency();
 #endif
+                currentMenuSelection.Clear();
+                currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
                 return true;
             };
             splitFeature.OnCommand = (menuId) =>
@@ -1307,7 +1325,7 @@ namespace CADability
                 switch (MenuId)
                 {
                     case "MenuId.Fillet.ChangeRadius":
-                        ParametricsRadius pr = new ParametricsRadius(involvedFaces, selectActionContextMenu.selectAction.Frame, true);
+                        ParametricsRadiusAction pr = new ParametricsRadiusAction(involvedFaces, selectActionContextMenu.selectAction.Frame, true);
                         selectActionContextMenu.selectAction.Frame.SetAction(pr);
                         return true;
                     case "MenuId.Fillet.Remove":
@@ -1355,7 +1373,7 @@ namespace CADability
                 MenuWithHandler fr = new MenuWithHandler("MenuId.Fillet.ChangeRadius");
                 fr.OnCommand = (menuId) =>
                 {
-                    ParametricsRadius pr = new ParametricsRadius(connectedFillets.ToArray(), selectAction.Frame, true);
+                    ParametricsRadiusAction pr = new ParametricsRadiusAction(connectedFillets.ToArray(), selectAction.Frame, true);
                     selectAction.Frame.SetAction(pr);
                     return true;
                 };
@@ -1417,7 +1435,7 @@ namespace CADability
                     MenuWithHandler mh = new MenuWithHandler("MenuId.FeatureDiameter");
                     mh.OnCommand = (menuId) =>
                     {
-                        ParametricsRadius pr = new ParametricsRadius(lconnected.ToArray(), selectAction.Frame, false);
+                        ParametricsRadiusAction pr = new ParametricsRadiusAction(lconnected.ToArray(), selectAction.Frame, false);
                         selectAction.Frame.SetAction(pr);
                         return true;
                     };

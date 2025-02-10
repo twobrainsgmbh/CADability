@@ -339,6 +339,7 @@ namespace CADability.Actions
                         Solid replacement = Solid.MakeSolid(ActiveObject as Shell);
                         replacement.CopyAttributes(sld);
                         owner.Add(replacement);
+                        // here parametricProperty is already consistant with the BRep objects of ActiveObject
                         if (!string.IsNullOrEmpty(parametricsName) && parametricProperty != null)
                         {
                             parametricProperty.Name = parametricsName;

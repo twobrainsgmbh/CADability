@@ -1167,6 +1167,43 @@ namespace CADability.GeoObject
                             }
                         }
                         break;
+                    case "MenuId.Solid.SplitWithAll":
+                        {
+                            List<Solid> fragments = new List<Solid>();
+                            fragments.Add(solid);
+                            foreach (Solid sld in other)
+                            {
+                                List<Solid> newfragments = new List<Solid>();
+                                for (int i = 0; i < fragments.Count; i++)
+                                {
+                                    Solid[] res1 = Solid.Subtract(fragments[i], sld);
+                                    Solid[] res2 = Solid.Subtract(sld, fragments[i]);
+                                    Solid[] res3 = Solid.Intersect(fragments[i], sld);
+                                    if (res1 != null && res1.Length > 0)
+                                    {
+                                        if (res1 != null) newfragments.AddRange(res1);
+                                        if (res2 != null) newfragments.AddRange(res2);
+                                        if (res3 != null) newfragments.AddRange(res3);
+                                    }
+                                    else
+                                    {
+                                        newfragments.Add(fragments[i]);
+                                    }
+                                }
+                                fragments = newfragments;
+                            }
+                            IGeoObjectOwner owner = solid.Owner;
+                            owner.Remove(solid);
+                            foreach (Solid sld in other)
+                            {
+                                owner.Remove(sld);
+                            }
+                            for (int i = 0; i < fragments.Count; i++)
+                            {
+                                owner.Add(fragments[i]);
+                            }
+                        }
+                        break;
                     default:
                         frame.UIService.ShowMessageBox(StringTable.GetString("Menu.NotImplemented", StringTable.Category.label), StringTable.GetString("Error"), MessageBoxButtons.OK);
                         break;

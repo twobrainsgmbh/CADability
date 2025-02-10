@@ -6653,7 +6653,21 @@ namespace CADability.GeoObject
                 IEnumerable<Face> connect = CloseEdgeLoop(loop, featureFaces as HashSet<Face>);
                 if (connect != null)
                 {
-
+                    // faces in connect may not be reverse oriented faces of featur faces
+                    foreach (Face f1 in connect)
+                    {
+                        foreach (Face f2 in featureFaces)
+                        {
+                            if (f1.Surface.SameGeometry(f1.Domain,f2.Surface,f2.Domain,Precision.eps,out _))
+                            {
+                                GeoPoint p1 = f1.Surface.PointAt(f1.Domain.GetCenter());
+                                GeoVector n1 = f1.Surface.GetNormal(f1.Domain.GetCenter());
+                                GeoVector n2 = f2.Surface.GetNormal(f2.PositionOf(p1));
+                                if (Precision.SameNotOppositeDirection(n1, -n2)) return false; // two faces are reverse with geometric identical surfaces
+                                // this happens, when a plane as the only start face is closed by the same plane
+                            }
+                        }
+                    }
                     connection.AddRange(connect);
                     // in order to find the orientation (is this a hole or a detail sticking out) we need an edge of the loop and find the corresponding edge in the connected faces
                     Edge l0 = loop[0];
@@ -6676,7 +6690,7 @@ namespace CADability.GeoObject
                 }
                 else return false;
             }
-            return featureFaces.Any();
+            return featureFaces.Any() && connection.Any();
         }
 
         private IEnumerable<Face> CloseEdgeLoop(Edge[] loop, HashSet<Face> forbiddenFaces)
@@ -6707,7 +6721,7 @@ namespace CADability.GeoObject
             if (faceWithSurface != null)
             {   // the only surface, which sourrounds the loop, makes the face we need to close the loop
                 Face res = Face.FromEdges(faceWithSurface.Surface.Clone(), new ICurve[][] { outline });
-                return new Face[] { res };
+                if (res!=null) return new Face[] { res };
             }
             if (Curves.GetCommonPlane(outline, out Plane commonPlane))
             {   // all curves of the loop are in a common plane: we can make a planar face to close the loop
@@ -6817,7 +6831,7 @@ namespace CADability.GeoObject
                     surfaceEdges.IntersectWith(loop);
                     List<ICurve> curves = new List<ICurve>(surfaceEdges.Select(edge => edge.Curve3D.Clone()));
                     curves.AddRange(intersections[srf].Select(dsc => dsc.Curve3D));
-                    Face face = Face.MakeFace(srf, curves.ToArray());
+                    Face face = Face.MakeFace(srf.Clone(), curves.ToArray());
                     if (face != null) res.Add(face);
                 }
                 return res;

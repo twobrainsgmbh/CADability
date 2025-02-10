@@ -24,6 +24,9 @@ namespace CADability.Actions
         private BooleanInput preserveInput; // preserve this value, when other parametrics are applied
         private string name = "";
 
+        private Parametric parametric;
+        private bool validResult = false;
+
         public override string GetID()
         {
             return "Constr.Parametrics.Center";
@@ -84,7 +87,7 @@ namespace CADability.Actions
         }
         public override void OnDone()
         {
-            if (ActiveObject != null)
+            if (validResult)
             {
                 string parametricsName = nameInput.Content;
                 Solid sld = shell.Owner as Solid;
@@ -97,12 +100,14 @@ namespace CADability.Actions
                         Solid replacement = Solid.MakeSolid(ActiveObject as Shell);
                         replacement.CopyAttributes(sld);
                         owner.Add(replacement);
-                        if (!string.IsNullOrEmpty(parametricsName) )
+                        if (!string.IsNullOrEmpty(parametricsName))
                         {
-                            ParametricCenterProperty parametricProperty = new ParametricCenterProperty(parametricsName, facesToBeCentered, centerOntoObjects, new List<object> { centerPosition }, new List<object>(), ratio);
+                            ParametricCenterProperty parametricProperty = new ParametricCenterProperty(parametricsName, facesToBeCentered, centerOntoObjects, 
+                                new List<object> { centerPosition } , new List<object>(), ratio);
                             parametricProperty.Name = parametricsName;
                             parametricProperty.Preserve = preserveInput.Value;
-                            replacement.Shells[0].AddParametricProperty(parametricProperty);
+                            replacement.Shells[0].AddParametricProperty(parametricProperty.Clone(parametric)); // since replacement contains a cloned shell, we also need 
+                            // the parametric to be a clone in order to refer to the same BRep objects
                         }
                     }
                 }
@@ -222,19 +227,24 @@ namespace CADability.Actions
         }
         private bool Recalc()
         {
+            validResult = false;
             GeoVector translation = GetTranslationForCentering(facesToBeCentered, centerPosition, centerOntoObjects, ratio);
             if (translation.IsNullVector()) return false;
-            Parametric pm = new Parametric(shell);
+            parametric = new Parametric(shell);
             Dictionary<Face, GeoVector> toMove = new Dictionary<Face, GeoVector>();
             foreach (Face fc in facesToBeCentered) toMove[fc] = translation;
-            pm.MoveFaces(toMove, translation);
-            if (pm.Apply())
+            parametric.MoveFaces(toMove, translation);
+            if (parametric.Apply())
             {
-                Shell modified = pm.Result();
-                if (modified != null) { ActiveObject = modified; }
+                Shell modified = parametric.Result();
+                if (modified != null)
+                {
+                    ActiveObject = modified;
+                    validResult = true;
+                }
             }
             FeedBack.ClearSelected();
-            pm.GetDictionaries(out Dictionary<Face, Face> faceDict, out Dictionary<Edge, Edge> edgeDict, out Dictionary<Vertex, Vertex> vertexDict);
+            parametric.GetDictionaries(out Dictionary<Face, Face> faceDict, out Dictionary<Edge, Edge> edgeDict, out Dictionary<Vertex, Vertex> vertexDict);
             IEnumerable<Face> feedbackFaces = facesToBeCentered.Select(f => faceDict[f]);
             FeedBack.AddSelected(feedbackFaces);
             return true;

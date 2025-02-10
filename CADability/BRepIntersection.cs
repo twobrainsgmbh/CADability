@@ -3386,6 +3386,7 @@ namespace CADability
                     {   // this is an intersection edge invers to an original outline of the face: remove both the intersection edge and the original edge
                         intersectionEdges.Remove(edg);
                         originalEdges.Remove(avoidOriginalEdges[k1]);
+                        // in Difference2.cdb.json we need to keep this edge
                         edg.DisconnectFromFace(faceToSplit);
                     }
                     else
@@ -8540,9 +8541,11 @@ namespace CADability
                                     GeoVector n2 = item.Key.face2.Surface.GetNormal(item.Key.face2.Surface.PositionOf(m)).Normalized;
                                     Set<Edge> onFace1 = existingEdges.Intersection(new Set<Edge>(item.Key.face1.AllEdges));
                                     bool edgFound = false;
+                                    double tangentialPrecision = (item.Key.face1.GetExtent(0.0).Size + item.Key.face2.GetExtent(0.0).Size) * Precision.eps;
+                                    // it was Precision.eps before, but a tangential intersection at "Difference2.cdb.json" failed, which should have been there 
                                     foreach (Edge edg in onFace1)
                                     {
-                                        if (edg.Curve3D != null && edg.Curve3D.DistanceTo(m) < Precision.eps)
+                                        if (edg.Curve3D != null && edg.Curve3D.DistanceTo(m) < tangentialPrecision)
                                         {
                                             Face otherFace = edg.OtherFace(item.Key.face1);
                                             n1 += otherFace.Surface.GetNormal(otherFace.Surface.PositionOf(m)).Normalized;
@@ -8553,7 +8556,7 @@ namespace CADability
                                     Set<Edge> onFace2 = existingEdges.Intersection(new Set<Edge>(item.Key.face2.AllEdges));
                                     foreach (Edge edg in onFace2)
                                     {
-                                        if (edg.Curve3D != null && edg.Curve3D.DistanceTo(m) < Precision.eps)
+                                        if (edg.Curve3D != null && edg.Curve3D.DistanceTo(m) < tangentialPrecision)
                                         {
                                             Face otherFace = edg.OtherFace(item.Key.face2);
                                             n2 += otherFace.Surface.GetNormal(otherFace.Surface.PositionOf(m)).Normalized;
@@ -8569,7 +8572,7 @@ namespace CADability
                                             // now we go a little bit inside on the face with the edge. This is very seldom the case, so no problem making the same iteration once more
                                             foreach (Edge edg in onFace1)
                                             {
-                                                if (edg.Curve3D != null && edg.Curve3D.DistanceTo(m) < Precision.eps)
+                                                if (edg.Curve3D != null && edg.Curve3D.DistanceTo(m) < tangentialPrecision)
                                                 {
                                                     ICurve2D c2df1 = edg.Curve2D(item.Key.face1);
                                                     // from the middle of this edge go a small step into the inside of the face and see what the normal is at that point
@@ -8587,7 +8590,7 @@ namespace CADability
                                             }
                                             foreach (Edge edg in onFace2)
                                             {
-                                                if (edg.Curve3D != null && edg.Curve3D.DistanceTo(m) < Precision.eps)
+                                                if (edg.Curve3D != null && edg.Curve3D.DistanceTo(m) < tangentialPrecision)
                                                 {
                                                     ICurve2D c2df2 = edg.Curve2D(item.Key.face2);
                                                     // from the middle of this edge go a small step into the inside of the face and see what the normal is at that point

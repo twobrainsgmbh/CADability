@@ -230,7 +230,7 @@ namespace CADability.GeoObject
             extent = BoundingCube.EmptyBoundingCube;
             if (Constructed != null) Constructed(this);
 #if DEBUG
-            if (hashCode == 524)
+            if (hashCode >= 76)
             {
 
             }
@@ -3519,6 +3519,7 @@ namespace CADability.GeoObject
             {
                 bounds2d[i] = surface.GetProjectedCurve(sortedCurves[i], 0.0);
             }
+            if (!Precision.IsEqual(bounds2d[0].StartPoint, bounds2d[bounds2d.Length - 1].EndPoint)) return null;
             double area = Border.SignedArea(bounds2d);
             if (area<0)
             {
@@ -8057,6 +8058,7 @@ namespace CADability.GeoObject
                 bdrlist.Add(bdr);
             }
             // ggF borderlist sortieren nach Größe
+            if (bdrlist[0].Area < Precision.eps) return null;
             SimpleShape ss = new SimpleShape(bdrlist[0], bdrlist.GetRange(1, bdrlist.Count - 1).ToArray());
             return Face.MakeFace(surface, ss);
 

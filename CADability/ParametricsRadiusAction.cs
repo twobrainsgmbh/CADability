@@ -14,7 +14,7 @@ namespace CADability.Actions
     /// apply these changes. Also a <see cref="ParametricRadiusProperty"/> is created. If a name is provided for this property, it will be attached to the shell,
     /// so it can later be modified in the property grid of the solid, which wraps the shell.
     /// </summary>
-    class ParametricsRadius : ConstructAction
+    class ParametricsRadiusAction : ConstructAction
     {
         private Face[] facesWithRadius;
         private IFrame frame;
@@ -29,7 +29,7 @@ namespace CADability.Actions
         private ParametricRadiusProperty parametricProperty;
         private BooleanInput preserveInput;
 
-        public ParametricsRadius(Face[] facesWithRadius, IFrame frame, bool useRadius)
+        public ParametricsRadiusAction(Face[] facesWithRadius, IFrame frame, bool useRadius)
         {
             this.facesWithRadius = facesWithRadius;
             this.frame = frame;

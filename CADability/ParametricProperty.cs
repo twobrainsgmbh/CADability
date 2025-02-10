@@ -41,6 +41,11 @@ namespace CADability
         /// <param name="clonedVertices"></param>
         /// <returns></returns>
         public abstract ParametricProperty Clone(Dictionary<Face, Face> clonedFaces, Dictionary<Edge, Edge> clonedEdges, Dictionary<Vertex, Vertex> clonedVertices);
+        public ParametricProperty Clone(Parametric parametric)
+        {
+            parametric.GetDictionaries(out Dictionary<Face, Face> faceDict, out Dictionary<Edge, Edge> edgeDict, out Dictionary<Vertex, Vertex> vertexDict);
+            return Clone(faceDict, edgeDict, vertexDict);
+        }
         /// <summary>
         /// Execute the parametrics. This will change the shell and the resulting shell may be inconsistent. But maybe further applications of other parametrics to the shell
         /// make it consistent again
@@ -839,7 +844,7 @@ namespace CADability
         public override void GetObjectData(IJsonWriteData data)
         {
             base.GetObjectData(data);
-
+            
             data.AddProperty("FacesToCenter", facesToCenter);
             data.AddProperty("ObjectsToCenterOn", objectsToCenterOn);
             data.AddProperty("ReferenceForCentering", referenceForCentering);
