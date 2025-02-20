@@ -367,7 +367,4 @@ namespace CADability.GeoObject
         }
         #endregion
     }
-
-    /*
-     */
 }
