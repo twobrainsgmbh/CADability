@@ -1155,6 +1155,13 @@ namespace CADability.GeoObject
                 }
             }
         }
+        public ModOp ToUnitCircle
+        {
+            get
+            {
+                return plane.CoordSys.GlobalToLocal;
+            }
+        }
         private GeoPoint[] GetCashedApproximation(double precision)
         {
             lock (lockApproximationRecalc)
@@ -1207,12 +1214,7 @@ namespace CADability.GeoObject
                 }
             }
         }
-        /// <summary>
-        /// Returns the intersectionpoints of this ellipse with the provided plane <paramref name="toIntersectWith"/>.
-        /// The result is an array with 0 to 2 <see cref="GeoPoint"/>s.
-        /// </summary>
-        /// <param name="toIntersectWith">Plane to intersect with</param>
-        /// <returns>The intersectionpoints</returns>
+        
         public GeoPoint[] PlaneIntersection(Plane toIntersectWith)
         {
             GeoPoint iploc;

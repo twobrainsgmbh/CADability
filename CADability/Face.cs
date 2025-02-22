@@ -3559,7 +3559,7 @@ namespace CADability.GeoObject
                 }
                 else
                 {
-                    outline[i].SetSecondary(res, c2d, true);
+                    outline[i].SetSecondary(res, c2d, !outline[i].Forward(outline[i].PrimaryFace));
                 }
             }
             CheckOutlineDirection(res, outline, uperiod, vperiod, null);
@@ -3569,6 +3569,17 @@ namespace CADability.GeoObject
             foreach (Edge edge in res.Edges)
             {
                 if (edge.Curve3D is IGeoObject go) go.Style = EdgeStyle;
+            }
+            for (int i = 0; i < outline.Length; i++)
+            {
+                int next = (i + 1) % outline.Length;
+                Vertex v1 = outline[i].EndVertex(res);
+                Vertex v2 = outline[next].StartVertex(res);
+                double d = v1.Position | v2.Position;
+                if (v1!=v2 && d<Precision.eps) // which it must be 
+                {
+                    v2.MergeWith(v1);
+                }
             }
             if (res.surface is ISurfaceImpl si) si.usedArea = res.Domain;
 
@@ -3591,7 +3602,10 @@ namespace CADability.GeoObject
                     }
                     else
                     {
-                        outlineAndHoles[j][i].SetSecondary(res, surface.GetProjectedCurve(outlineAndHoles[j][i].Curve3D, 0.0), true);
+                        bool forward = !outlineAndHoles[j][i].Forward(outlineAndHoles[j][i].PrimaryFace); // must be d#oppostie oriented to primary face
+                        ICurve2D crv2d = surface.GetProjectedCurve(outlineAndHoles[j][i].Curve3D, 0.0);
+                        if (!forward) crv2d.Reverse();
+                        outlineAndHoles[j][i].SetSecondary(res, crv2d, forward);
                     }
                 }
                 CheckOutlineDirection(res, outlineAndHoles[j], uperiod, vperiod, null);

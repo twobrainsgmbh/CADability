@@ -75,6 +75,7 @@ namespace CADability.Actions
         public ParametricsDistanceAction(IEnumerable<Face> facesToMove, Line axis, IFrame frame) : base()
         {
             forwardFaces = new HashSet<Face>(facesToMove);
+            backwardFaces = new HashSet<Face>();
             shell = forwardFaces.First().Owner as Shell;
             this.axis = axis;
             try
@@ -463,11 +464,8 @@ namespace CADability.Actions
         private bool DistanceInput_SetLengthEvent(double length)
         {
             validResult = false;
-            if (forwardFaces.Count > 0 && backwardFaces.Count > 0)
-            {
-                distance = length;
-                return Refresh();
-            }
+            distance = length;
+            return Refresh();
             return false;
         }
 

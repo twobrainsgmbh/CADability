@@ -1346,14 +1346,25 @@ namespace CADability.GeoObject
         public override IGeoObject Clone()
         {   // ein unabhängiges Shell wird gekloned
             Dictionary<Edge, Edge> clonedEdges = new Dictionary<Edge, Edge>();
-
-            Shell res = Clone(clonedEdges); // dort findet auch CopyAttributes statt, damit die Faces ihre Farbe beibehalten
+            Dictionary<Vertex, Vertex> clonedVertices = new Dictionary<Vertex, Vertex>();
+            Dictionary<Face, Face> clonedFaces = new Dictionary<Face, Face>();
+            Shell res = Clone(clonedEdges, clonedVertices, clonedFaces); // dort findet auch CopyAttributes statt, damit die Faces ihre Farbe beibehalten
 
             res.edges = new Edge[clonedEdges.Values.Count];
             clonedEdges.Values.CopyTo(res.edges, 0);
             res.orientedAndSeamless = orientedAndSeamless;
             res.State = State;
-
+            if (parametricProperties != null) // clone the parametrics
+            {
+                foreach (ParametricProperty parametricProperty in parametricProperties)
+                {
+                    res.AddParametricProperty(parametricProperty.Clone(clonedFaces, clonedEdges, clonedVertices));
+                }
+            }
+            else
+            {
+                res.parametricProperties = null;
+            }
             return res;
         }
         /// <summary>
@@ -2921,7 +2932,7 @@ namespace CADability.GeoObject
                         if (other.Any())
                         {
                             Line ax = face.GetAxisOfRevolution();
-                            if (ax!=null) featureAxis.Add(ax);
+                            if (ax != null) featureAxis.Add(ax);
                             usedFaces.UnionWith(other);
                         }
                     }
@@ -3138,6 +3149,10 @@ namespace CADability.GeoObject
                 // CombineConnectedFaces(); still problems in 06_PN_4648_S_1185_1_I15_A13_AS_P100-1.stp !!!
             }
             return OpenEdges.Length == 0;
+        }
+        public bool AddFaces(IEnumerable<Face> faces)
+        {
+            return false;
         }
         /// <summary>
         /// Takes a (closed) loop of edges of this shell as parameter <paramref name="sortedEdges"/> and tries to create a shell, which connects the edges.
@@ -4043,8 +4058,8 @@ namespace CADability.GeoObject
                                 }
                             }
                         }
-                        e1.SetSecondary(connectingFace, c2de1, true);
-                        e3.SetSecondary(connectingFace, c2de3, false); // Richtung müsste überprüft werden, oder?
+                        e1.SetSecondary(connectingFace, c2de1, !e1.Forward(e1.PrimaryFace));
+                        e3.SetSecondary(connectingFace, c2de3, !e3.Forward(e3.PrimaryFace));
                         Line2D l2 = new Line2D(c2de3.EndPoint, c2de1.StartPoint);
                         Line2D l4 = new Line2D(c2de1.EndPoint, c2de3.StartPoint);
                         Edge e2 = new Edge(null, gsc.Make3dCurve(l2));
@@ -4070,7 +4085,13 @@ namespace CADability.GeoObject
                         if (pl2d.GetArea() < 0)
                             connectingFace.Set(gsc, new Edge[] { e4, e3, e2, e1 }, new Edge[0][]);
                         else
+                        {
+                            e1.SecondaryCurve2D.Reverse();
+                            e3.SecondaryCurve2D.Reverse();
+                            e2.PrimaryCurve2D.Reverse();
+                            e4.PrimaryCurve2D.Reverse();
                             connectingFace.Set(gsc, new Edge[] { e1, e2, e3, e4 }, new Edge[0][]);
+                        }
                         e2.UseVerticesForce(v1, v2, v3, v4); // muss nach Set kommen, da sonst face.surface nicht gesetzt ist
                         e4.UseVerticesForce(v1, v2, v3, v4);
                         connectingFace.ClearVertices();
@@ -4346,6 +4367,20 @@ namespace CADability.GeoObject
                 List<Face> allfaces = new List<Face>();
                 allfaces.AddRange(inner.Faces);
                 allfaces.AddRange(outer.Faces);
+                for (int i = 0; i < inner.Faces.Length; i++)
+                {
+                    if (!inner.Faces[i].CheckConsistency())
+                    {
+
+                    }
+                }
+                for (int i = 0; i < outer.Faces.Length; i++)
+                {
+                    if (!outer.Faces[i].CheckConsistency())
+                    {
+
+                    }
+                }
                 // finde jetzt "parallele" Edges, die mit einem Face zusammengeführt werden
                 Edge[] oe = this.OpenEdges;
                 // hier erstmal lineare Suche
@@ -4363,11 +4398,32 @@ namespace CADability.GeoObject
                         Plane pln;
                         if (Curves.GetCommonPlane(innerParallel.Curve3D, outerParallel.Curve3D, out pln))
                         {
+                            // determin orientation of the common plane:
                             PlaneSurface pls = new GeoObject.PlaneSurface(pln);
-                            e1 = new Edge(connectingFace, Line.MakeLine(innerParallel.StartVertex(innerParallel.PrimaryFace).Position, outerParallel.EndVertex(outerParallel.PrimaryFace).Position));
-                            e2 = new Edge(connectingFace, Line.MakeLine(outerParallel.StartVertex(outerParallel.PrimaryFace).Position, innerParallel.EndVertex(innerParallel.PrimaryFace).Position));
-                            Face fc = Face.MakeFace(pls, new Edge[] { innerParallel, e2, outerParallel, e1 });
-                            allfaces.Add(fc);
+                            ICurve2D op2d = pls.GetProjectedCurve(outerParallel.Curve3D, 0.0);
+                            if (outerParallel.Forward(outerParallel.PrimaryFace)) op2d.Reverse();
+                            ICurve2D ip2d = pls.GetProjectedCurve(innerParallel.Curve3D, 0.0);
+                            if (innerParallel.Forward(innerParallel.PrimaryFace)) ip2d.Reverse();
+                            Line2D l12d = new Line2D(op2d.EndPoint, ip2d.StartPoint);
+                            Line2D l22d = new Line2D(ip2d.EndPoint, op2d.StartPoint);
+                            SimpleShape ss;
+                            double sa = Border.SignedArea(new ICurve2D[] { op2d, l12d, ip2d, l22d });
+                            if (sa < 0)
+                            {
+                                ModOp2D rev = pls.ReverseOrientation();
+                                l12d = l12d.GetModified(rev) as Line2D;
+                                l22d = l22d.GetModified(rev) as Line2D;
+                                op2d = op2d.GetModified(rev);
+                                ip2d = ip2d.GetModified(rev);
+                                ss = new SimpleShape(new Border(new ICurve2D[] { op2d, l12d, ip2d, l22d }));
+                            }
+                            else
+                            {
+                                ss = new SimpleShape(new Border(new ICurve2D[] { op2d, l12d, ip2d, l22d }));
+                            }
+                            connectingFace = Face.MakeFace(pls, ss);
+                            connectingFace.CheckConsistency();
+                            allfaces.Add(connectingFace);
                         }
                         else
                         {
@@ -4392,13 +4448,19 @@ namespace CADability.GeoObject
                         }
                     }
                 }
-                connectFaces(allfaces.ToArray(), Precision.eps);
-                Shell res = MakeShell(allfaces.ToArray());
-                // Shell[] res = Make3D.SewFaces(allfaces.ToArray());
-                if (res.OpenEdges.Length == 0)
+                List<Face> clonedFaces = new List<Face>();
+                for (int i = 0; i < allfaces.Count; i++)
+                {
+                    if (!allfaces[i].CheckConsistency()) { }
+                    clonedFaces.Add(allfaces[i].Clone() as Face);
+                }
+                connectFaces(clonedFaces.ToArray(), Precision.eps);
+                // Shell res = MakeShell(clonedFaces.ToArray());
+                Shell[] res = Make3D.SewFaces(clonedFaces.ToArray());
+                if (res[0].OpenEdges.Length == 0)
                 {
                     Solid sld = Solid.Construct();
-                    sld.SetShell(res);
+                    sld.SetShell(res[0]);
                     return sld;
                 }
             }
@@ -5343,6 +5405,14 @@ namespace CADability.GeoObject
                 edges = null; // to force recalculation
             }
         }
+        internal void AddIntegratedFace(Face face, bool copyAttributes = true)
+        {
+            face.Owner = this;
+            if (copyAttributes) face.CopyAttributes(this);
+            Array.Resize(ref faces, faces.Length + 1);
+            faces[faces.Length - 1] = face;
+            edges = null;
+        }
         internal void AddFace(Face face)
         {
             // das neue Face hat eine oder mehrere Kanten gemeinsam mit der Shell
@@ -5424,13 +5494,13 @@ namespace CADability.GeoObject
         }
         public bool AddAndRemoveFaces(IEnumerable<Face> facesToAdd, IEnumerable<Face> facesToRemove)
         {
-            connectFaces(facesToAdd.ToArray(), Precision.eps); // makes sure that all faces are oriented the same way and there are no duplicate vertices
-            ColorDef cd = null;
-            if (colorDef != null && colorDef.Source != ColorDef.ColorSource.fromParent) cd = this.colorDef;
-            else if (Owner is Solid sld && sld.ColorDef != null) cd = sld.ColorDef;
-            if (cd != null) foreach (Face face in facesToAdd) face.ColorDef = cd;
-            using (new Changing(this, "SetFaces", this, faces))
+            using (new Changing(this, "CopyAll", this.Clone()))
             {
+                connectFaces(facesToAdd.ToArray(), Precision.eps); // makes sure that all faces are oriented the same way and there are no duplicate vertices
+                ColorDef cd = null;
+                if (colorDef != null && colorDef.Source != ColorDef.ColorSource.fromParent) cd = this.colorDef;
+                else if (Owner is Solid sld && sld.ColorDef != null) cd = sld.ColorDef;
+                if (cd != null) foreach (Face face in facesToAdd) face.ColorDef = cd;
                 HashSet<Face> remainingFaces = new HashSet<Face>(faces);
                 HashSet<Edge> disconnectedEdges = new HashSet<Edge>();
                 HashSet<Vertex> disconnectedVertices = new HashSet<Vertex>();
@@ -5688,16 +5758,6 @@ namespace CADability.GeoObject
 #if DEBUG
             if (!CheckConsistency()) { }
 #endif
-            IGeoObjectImpl changingObject = this;
-            if (Owner is Solid) changingObject = Owner as IGeoObjectImpl;
-            // hier wird ein deep clone der Faces gemacht, denn copyGeometry geht nicht als undo, da die Anzahl der Faces sich ändert
-            Face[] clonedFaces = (Face[])faces.Clone();
-            Dictionary<Edge, Edge> clonedEdges = new Dictionary<Edge, Edge>();
-            Dictionary<Vertex, Vertex> clonedVertices = new Dictionary<Vertex, Vertex>();
-            for (int i = 0; i < clonedFaces.Length; i++)
-            {
-                clonedFaces[i] = clonedFaces[i].Clone(clonedEdges, clonedVertices);
-            }
             Set<Face> allFaces = new Set<Face>(faces);
 #if DEBUG
             foreach (Face fcdbg in allFaces)
@@ -5716,7 +5776,7 @@ namespace CADability.GeoObject
                 }
             }
 #endif
-            using (new Changing(changingObject, "SetFaces", this, clonedFaces))
+            using (new Changing(this, "CopyAll", this.Clone(new Dictionary<Edge, Edge>())))
             {
                 double precision = this.GetExtent(0.0).Size * 1e-6;
                 bool combined = true;
@@ -5736,7 +5796,6 @@ namespace CADability.GeoObject
                         {
                             if (edge.PrimaryFace.Surface is CylindricalSurfaceNP || edge.PrimaryFace.Surface is SphericalSurfaceNP || edge.PrimaryFace.Surface is ConicalSurfaceNP) continue;
 #if DEBUG
-                            if (edge.GetHashCode() == 1227) { }
                             foreach (Edge dbgedg in edge.PrimaryFace.Edges)
                             {
                                 if (edge.Curve3D is InterpolatedDualSurfaceCurve)
@@ -5748,28 +5807,23 @@ namespace CADability.GeoObject
                             if (edge.PrimaryFace.Surface.IsUPeriodic || edge.PrimaryFace.Surface.IsVPeriodic)
                             {   // do not combine two faces, which are periodic and in the combination fill the whole period
                                 // these faces are explicitly kept separate
-                                // firstToSecond may move by a whole period. This is not respected here. but with the non periodic surfaces we want to get rid of periodic surfaces anyhow.
-                                Border outline = edge.PrimaryFace.Area.Outline; // three lines to check performance
-                                try
-                                {
-                                    ModOp2D inverse = firstToSecond.GetInverse();
-                                    Border firstoutline = outline.GetModified(inverse);
-                                    BoundingRect ext = firstoutline.Extent;
-                                    ext.MinMax(edge.SecondaryFace.Area.Outline.Extent);
-                                    if (edge.SecondaryFace.Surface.IsUPeriodic && ext.Width >= edge.SecondaryFace.Surface.UPeriod * 0.75)
-                                    {   // special case for cylinder: maybe firstToSecond should be +2.0*Math.Pi or -2.0*Math.Pi 
-                                        if (firstoutline.Extent.Left > edge.SecondaryFace.Area.Outline.Extent.Left) firstToSecond[0, 2] += 2.0 * Math.PI;
-                                        else firstToSecond[0, 2] -= 2.0 * Math.PI;
-                                        inverse = firstToSecond.GetInverse();
-                                        firstoutline = outline.GetModified(inverse);
-                                        // Border firstoutline = edge.PrimaryFace.Area.Outline.GetModified(firstToSecond.GetInverse()); // GetInverse is correct
-                                        ext = firstoutline.Extent;
-                                        ext.MinMax(edge.SecondaryFace.Area.Outline.Extent);
-                                        if (ext.Width >= edge.SecondaryFace.Surface.UPeriod * 0.75) continue;
+                                Border outline = edge.PrimaryFace.Area.Outline;
+                                ModOp2D inverse = firstToSecond.GetInverse();
+                                Border firstoutline = outline.GetModified(inverse);
+                                Border secondoutline = edge.SecondaryFace.Area.Outline.Clone();
+                                BoundingRect ext = firstoutline.Extent;
+                                double w = ext.Width;
+                                (double du, double dv) = SurfaceHelper.AdjustPeriodic(edge.SecondaryFace.Surface, ext, secondoutline);
+                                firstToSecond *= ModOp2D.Translate(du, dv);
+                                ext.MinMax(secondoutline.Extent);
+                                if (edge.SecondaryFace.Surface.IsUPeriodic && ext.Width >= edge.SecondaryFace.Surface.UPeriod * 0.75)
+                                {   // special case for cylinder etc.
+                                    if (ext.Width >= edge.SecondaryFace.Surface.UPeriod * 0.75)
+                                    {
+                                        if (ext.Width > w * 1.1 || ext.Width > edge.SecondaryFace.Surface.UPeriod * 0.95) continue;
                                     }
-                                    if (edge.SecondaryFace.Surface.IsVPeriodic && ext.Height >= edge.SecondaryFace.Surface.VPeriod * 0.75) continue;
                                 }
-                                catch { continue; }
+                                if (edge.SecondaryFace.Surface.IsVPeriodic && ext.Height >= edge.SecondaryFace.Surface.VPeriod * 0.75) continue;
                             }
                             if (edge.PrimaryFace.Surface is SurfaceOfRevolution) continue; // this must be fixed (e.g. in "1_Assembly_Light.stp")
 
@@ -6658,7 +6712,7 @@ namespace CADability.GeoObject
                     {
                         foreach (Face f2 in featureFaces)
                         {
-                            if (f1.Surface.SameGeometry(f1.Domain,f2.Surface,f2.Domain,Precision.eps,out _))
+                            if (f1.Surface.SameGeometry(f1.Domain, f2.Surface, f2.Domain, Precision.eps, out _))
                             {
                                 GeoPoint p1 = f1.Surface.PointAt(f1.Domain.GetCenter());
                                 GeoVector n1 = f1.Surface.GetNormal(f1.Domain.GetCenter());
@@ -6721,7 +6775,7 @@ namespace CADability.GeoObject
             if (faceWithSurface != null)
             {   // the only surface, which sourrounds the loop, makes the face we need to close the loop
                 Face res = Face.FromEdges(faceWithSurface.Surface.Clone(), new ICurve[][] { outline });
-                if (res!=null) return new Face[] { res };
+                if (res != null) return new Face[] { res };
             }
             if (Curves.GetCommonPlane(outline, out Plane commonPlane))
             {   // all curves of the loop are in a common plane: we can make a planar face to close the loop

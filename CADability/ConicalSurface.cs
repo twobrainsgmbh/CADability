@@ -173,7 +173,6 @@ namespace CADability.GeoObject
         /// <returns></returns>
         public override GeoPoint2D PositionOf(GeoPoint p)
         {
-            // if (voffset != 0.0) throw new ApplicationException("internal error: voffset must be 0.0");
             GeoPoint pu = toUnit * p;
             if (pu.z < 0.0)
             {
@@ -479,6 +478,14 @@ namespace CADability.GeoObject
             // x^2+y^2 == z^2
             GeoPoint sp = toUnit * startPoint;
             GeoVector dir = toUnit * direction;
+
+            double A = dir.x * dir.x + dir.y * dir.y - dir.z * dir.z;
+            double B = 2 * (sp.x * dir.x + sp.y * dir.y - sp.z * dir.z);
+            double C = sp.x * sp.x + sp.y * sp.y - sp.z * sp.z;
+            if (Math.Abs(B * B - 4 * A * C) < Precision.eps)
+            {   // tangential intersection
+                return new GeoPoint2D[] { PositionOf(toCone * (sp - B / (2 * A) * dir)) };
+            }
             // Mit Maxima: 
             // solve((spz+l*dirz)^2=(spx+l*dirx)^2+(spy+l*diry)^2,l);  string(%);
             // ergibt sich:
@@ -1096,7 +1103,7 @@ namespace CADability.GeoObject
                     GeoPoint2D zp = this.PositionOf(bp);
                     //Der Winkel zurückgeliefert bei PointAt() liegt zwischen -Pi und Pi
                     //aber im (u,v) System variert u zwischen null und 2Pi
-                    pnts[i].x = Math.PI + zp.x;
+                    pnts[i].x = 2 * Math.PI + zp.x;
                     pnts[i].y = zp.y;
                     //pnts[i] = zp;
                 }
@@ -1266,6 +1273,27 @@ namespace CADability.GeoObject
             // System.Diagnostics.Trace.WriteLine("Schwerig zu sagen");
             return base.GetPlaneIntersection(pl, umin, umax, vmin, vmax, precision);
         }
+        public override void Intersect(ICurve curve, BoundingRect uvExtent, out GeoPoint[] ips, out GeoPoint2D[] uvOnFaces, out double[] uOnCurve3Ds)
+        {
+            if (curve is Line line)
+            {
+                GeoPoint2D[] ip2d = GetLineIntersection(line.StartPoint, line.StartDirection);
+                ips = new GeoPoint[ip2d.Length];
+                uvOnFaces = new GeoPoint2D[ip2d.Length];
+                uOnCurve3Ds= new double[ip2d.Length];
+                for (int i = 0; i < ip2d.Length; i++)
+                {
+                    ips[i] = PointAt(ip2d[i]);
+                    uvOnFaces[i] = ip2d[i];
+                    uOnCurve3Ds[i] = curve.PositionOf(ips[i]);
+                }
+            }
+            else
+            {
+                base.Intersect(curve,uvExtent,out ips, out uvOnFaces, out uOnCurve3Ds);
+            }
+        }
+
         /// <summary>
         /// Overrides <see cref="CADability.GeoObject.ISurfaceImpl.CopyData (ISurface)"/>
         /// </summary>
@@ -1695,7 +1723,7 @@ namespace CADability.GeoObject
                             ep.x += 2 * Math.PI; // noch nicht getestet
                         }
                         return new Line2D(sp, ep);
-                        
+
                         //Unreachable code
                         /*
                         if (!forward && (ustart < uend))

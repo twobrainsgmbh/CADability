@@ -373,12 +373,16 @@ namespace CADability
                 // noch einen Richtungspfeil zufügen
                 GeoPoint2D[] arrowpnts = new GeoPoint2D[3];
                 double pos = 0.3 + rnd.NextDouble() * 0.4; // to have different positions when the same curve is displayed twice
-                GeoVector2D dir = edg.Curve2D(onThisFace).DirectionAt(pos).Normalized;
-                arrowpnts[1] = edg.Curve2D(onThisFace).PointAt(pos);
-                arrowpnts[0] = arrowpnts[1] - arrowsize * dir + arrowsize * dir.ToLeft();
-                arrowpnts[2] = arrowpnts[1] - arrowsize * dir + arrowsize * dir.ToRight();
-                Polyline2D pl2d = new Polyline2D(arrowpnts);
-                Add(pl2d, clr, edg.GetHashCode());
+                GeoVector2D dir = edg.Curve2D(onThisFace).DirectionAt(pos);
+                if (!dir.IsNullVector())
+                {
+                    dir.Norm();
+                    arrowpnts[1] = edg.Curve2D(onThisFace).PointAt(pos);
+                    arrowpnts[0] = arrowpnts[1] - arrowsize * dir + arrowsize * dir.ToLeft();
+                    arrowpnts[2] = arrowpnts[1] - arrowsize * dir + arrowsize * dir.ToRight();
+                    Polyline2D pl2d = new Polyline2D(arrowpnts);
+                    Add(pl2d, clr, edg.GetHashCode());
+                }
             }
         }
         internal void Add(IEnumerable<ICurve2D> crvs, double arrowsize, System.Drawing.Color clr, int debugHint)
@@ -389,12 +393,16 @@ namespace CADability
                 Add(crv, clr, debugHint);
                 // noch einen Richtungspfeil zufügen
                 GeoPoint2D[] arrowpnts = new GeoPoint2D[3];
-                GeoVector2D dir = crv.DirectionAt(0.5).Normalized;
-                arrowpnts[1] = crv.PointAt(0.5);
-                arrowpnts[0] = arrowpnts[1] - arrowsize * dir + arrowsize * dir.ToLeft();
-                arrowpnts[2] = arrowpnts[1] - arrowsize * dir + arrowsize * dir.ToRight();
-                Polyline2D pl2d = new Polyline2D(arrowpnts);
-                Add(pl2d, clr, debugHint * 100 + i);
+                GeoVector2D dir = crv.DirectionAt(0.5);
+                if (!dir.IsNullVector())
+                {
+                    dir.Norm();
+                    arrowpnts[1] = crv.PointAt(0.5);
+                    arrowpnts[0] = arrowpnts[1] - arrowsize * dir + arrowsize * dir.ToLeft();
+                    arrowpnts[2] = arrowpnts[1] - arrowsize * dir + arrowsize * dir.ToRight();
+                    Polyline2D pl2d = new Polyline2D(arrowpnts);
+                    Add(pl2d, clr, debugHint * 100 + i);
+                }
                 ++i;
             }
         }

@@ -3332,6 +3332,15 @@ namespace CADability
                 {
                     dcIntersectingFaces.Add(edg.OtherFace(faceToSplit), edg.GetHashCode());
                 }
+                DebuggerContainer dcIntEdges2D = new DebuggerContainer();
+                foreach (Edge edg in intersectionEdges)
+                {
+                    dcIntEdges2D.Add(edg.Curve2D(faceToSplit), Color.Blue, edg.GetHashCode());
+                }
+                foreach (Edge edg in faceToSplit.AllEdges)
+                {
+                    dcIntEdges2D.Add(edg.Curve2D(faceToSplit), Color.Red, edg.GetHashCode());
+                }
 #endif
                 bool hasNonManifoldEdge = false;
                 // some intersection edges are created twice (e.g. when an edge of shell2 is contained in a face of shell1)
@@ -3960,9 +3969,150 @@ namespace CADability
                             nonManifoldParts.Clear();
                         }
                     }
+                    else
+                    {
+                        if (TryFixMissingFaces(shell))
+                        {
+                            shell.CombineConnectedFaces(); // two connected faces which have the same surface are merged into one face
+                            if (operation == Operation.union) shell.ReverseOrientation(); // both had been reversed and the intersection had been calculated
+                            res.Add(shell);
+                        }
+                        shell.RecalcVertices();
+                        shell.TryConnectOpenEdges();
+
+                    }
                 }
             }
             return res.ToArray();
+        }
+        /// <summary>
+        /// After recombining the clipped faces and the original unmodified faces, there may be some faces missing. This is actually a bug, but with tangential faces
+        /// it is almost impossible to avoid this. So here we try to find the faces, which could fill loops of open edges. We use the faces of the
+        /// underlying shells of the operation as surfaces on which we create new faces, which fill the gaps.
+        /// </summary>
+        /// <param name="shell"></param>
+        /// <returns></returns>
+        private bool TryFixMissingFaces(Shell shell)
+        {
+            BoundingCube ext = shell1.GetExtent(0.0);
+            ext.MinMax(shell2.GetExtent(0.0));
+            // add all faces from the original shells to an octtree
+            OctTree<Face> originalFaces = new OctTree<Face>(ext, ext.Size * 1e-6);
+            foreach (Face face in shell1.Faces)
+            {
+                originalFaces.AddObject(face);
+            }
+            foreach (Face face in shell2.Faces)
+            {
+                originalFaces.AddObject(face);
+            }
+            // find original faces, which have the openedges of the shell to fix on them
+            Dictionary<Face, List<Edge>> potentialFaces = new Dictionary<Face, List<Edge>>();
+            foreach (Edge edge in shell.OpenEdges)
+            {
+                IEnumerable<Face> facesWithBothVertices = originalFaces.GetObjectsFromPoint(edge.Vertex1.Position).Intersect(originalFaces.GetObjectsFromPoint(edge.Vertex2.Position));
+                foreach (Face face in facesWithBothVertices)
+                {
+                    double dist = Math.Abs(face.Surface.GetDistance(edge.Vertex1.Position)) + Math.Abs(face.Surface.GetDistance(edge.Vertex2.Position));
+                    if (dist < Precision.eps * 10)
+                    {
+                        if (edge.Curve3D is IDualSurfaceCurve dsc) // which it often is
+                        {
+                            if (dsc.Surface1.SameGeometry(dsc.GetCurveOnSurface(dsc.Surface1).GetExtent(), face.Surface, face.Domain, Precision.eps, out _) ||
+                                dsc.Surface2.SameGeometry(dsc.GetCurveOnSurface(dsc.Surface2).GetExtent(), face.Surface, face.Domain, Precision.eps, out _))
+                            {
+                                if (!potentialFaces.TryGetValue(face, out List<Edge> edges)) potentialFaces[face] = edges = new List<Edge>();
+                                edges.Add(edge); // this edge fits to this original face
+                            }
+                        }
+                        else
+                        {
+                            if (Math.Abs(face.Surface.GetDistance(edge.Curve3D.PointAt(0.5))) < 10 * Precision.eps)
+                            {   // the middle point of the edge is also close to this face
+                                GeoPoint2D uv1 = face.Surface.PositionOf(edge.Vertex1.Position);
+                                GeoPoint2D uv2 = face.Surface.PositionOf(edge.Vertex2.Position);
+                                GeoPoint2D uv3 = face.Surface.PositionOf(edge.Curve3D.PointAt(0.5));
+                                SurfaceHelper.AdjustPeriodic(face.Surface, face.Domain, ref uv1);
+                                SurfaceHelper.AdjustPeriodic(face.Surface, face.Domain, ref uv2);
+                                SurfaceHelper.AdjustPeriodic(face.Surface, face.Domain, ref uv3);
+                                if (face.Area.Contains(uv1, true) && face.Area.Contains(uv2, true) && face.Area.Contains(uv3, true))
+                                //if (face.Contains(edge.Vertex1.Position, true) && face.Contains(edge.Vertex2.Position, true) && face.Contains(edge.Curve3D.PointAt(0.5), true))
+                                {
+                                    if (!potentialFaces.TryGetValue(face, out List<Edge> edges)) potentialFaces[face] = edges = new List<Edge>();
+                                    edges.Add(edge); // this edge fits to this original face
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // check for the faces with the most open edges on them
+            List<Face> facesToAdd = new List<Face>();
+            HashSet<Edge> stillOpenEdges = new HashSet<Edge>(shell.OpenEdges);
+            // orient the surfaces according to the operation
+            foreach (KeyValuePair<Face, List<Edge>> item in potentialFaces.OrderByDescending(kv => kv.Value.Count))
+            {
+                // the orientation of the shells are correct. In case of union they are reversed later
+                List<ICurve2D> uvCurves = new List<ICurve2D>();
+                Dictionary<ICurve2D, Edge> usedEdge = new Dictionary<ICurve2D, Edge>();
+                foreach (Edge edge in item.Value)
+                {
+                    if (!stillOpenEdges.Contains(edge)) continue;
+                    ICurve2D crv = item.Key.Surface.GetProjectedCurve(edge.Curve3D, 0.0);
+                    SurfaceHelper.AdjustPeriodic(item.Key.Surface, item.Key.Domain, crv);
+                    uvCurves.Add(crv);
+                    usedEdge[crv] = edge;
+                    crv.UserData.Add("usedEdge", edge);
+                }
+                CompoundShape cs = CompoundShape.CreateFromList(uvCurves.ToArray(), Precision.eps);
+                if (cs != null && cs.SimpleShapes.Length == 1)
+                {
+                    List<Edge[]> faceBounds = new List<Edge[]>();
+                    List<Edge> outline = new List<Edge>();
+                    foreach (ICurve2D segment in cs.SimpleShapes[0].Segments)
+                    {
+                        if (segment.UserData.Contains("usedEdge"))
+                        {
+                            Edge found = segment.UserData.GetData("usedEdge") as Edge;
+                            outline.Add(found);
+                            stillOpenEdges.Remove(found);
+                            segment.UserData.Remove("usedEdge");
+                        }
+                        else
+                        {
+                            // create a new edge, which doesn't correspond to an open existing edge. This should not happen
+                            return false;
+                        }
+                    }
+                    faceBounds.Add(outline.ToArray());
+                    for (int i = 0; i < cs.SimpleShapes[0].NumHoles; i++)
+                    {
+                        List<Edge> hole = new List<Edge>();
+                        foreach (ICurve2D segment in cs.SimpleShapes[0].Hole(i).Segments)
+                        {
+                            if (segment.UserData.Contains("usedEdge"))
+                            {
+                                Edge found = segment.UserData.GetData("usedEdge") as Edge;
+                                hole.Add(found);
+                                stillOpenEdges.Remove(found);
+                                segment.UserData.Remove("usedEdge");
+                            }
+                            else
+                            {
+                                // create a new edge, which doesn't correspond to an open existing edge. This should not happen
+                                return false;
+                            }
+                        }
+                        faceBounds.Add(hole.ToArray());
+                    }
+                    // facesToAdd.AddIfNotNull();
+                    Face newFace = Face.MakeFace(item.Key.Surface, faceBounds.ToArray());
+                    if (newFace != null) shell.AddIntegratedFace(newFace, true);
+                }
+                if (!stillOpenEdges.Any()) break; // all open edges have been used
+            }
+
+            return shell.OpenEdgesExceptPoles.Length == 0;
         }
 
         private Shell[] ClippedParts(Set<Face> trimmedFaces)
@@ -5336,7 +5486,7 @@ namespace CADability
                 // Add all edges of face2, which are inside face1
                 Set<Edge> connectingEdges = new Set<Edge>(Vertex.ConnectingEdges(edg.Vertex1, edg.Vertex2));
                 Set<Edge> cmn = connectingEdges.Intersection(toUse);
-                if (cmn.Count > 0 && SameEdge(cmn.First(), edg, precision))
+                if (cmn.Count > 0 && cmn.Any(e => SameEdge(e, edg, precision)))
                 {
                     continue; // this edge is common to face1 and face2, we already have it in toUse
                 }
@@ -5706,7 +5856,8 @@ namespace CADability
                     crvs2d.Add(ecs[i][j].Curve2D(face));
                 }
                 // only use correct oriented borders. We have at least one case, where there is a wrong oriented cycle: "Overlapping2.cdb.json"
-                if (Border.SignedArea(crvs2d.ToArray()) < 0) ecs.RemoveAt(i);
+                // no, we also need the holes!
+                // if (Border.SignedArea(crvs2d.ToArray()) < 0) ecs.RemoveAt(i);
             }
 #if DEBUG
             DebuggerContainer dc1 = new DebuggerContainer();
@@ -8325,22 +8476,6 @@ namespace CADability
                     dc0.Add(pnt, vtx.GetHashCode());
                 }
 #endif
-                // alle Vertices verwerfen, die Edges auf beiden faces darstellen. Der Schnitt existiert schon als Edge auf beiden Faces
-                // Der DEnkfehler: 3 vertices, zwei werden entfernt, weil es zwischen beiden eine Edge gibt auf beiden Faces
-                // ABER: zwischen zwei anderen vertices von den dreien gibt es eine Edge nur auf einem Face, die muss genommen werden!
-
-                // The following is probably no longer needed: collect the edges, which exist on both faces
-                //foreach (Edge edg1 in existsOnFace1)
-                //{
-                //    foreach (Edge edg2 in existsOnFace2)
-                //    {
-                //        if ((edg1.Vertex1 == edg2.Vertex1 && edg1.Vertex2 == edg2.Vertex2) || (edg1.Vertex1 == edg2.Vertex2 && edg1.Vertex2 == edg2.Vertex1))
-                //        {
-                //            // zwei edges auf overlappingFaces sind identisch, d.h. der Schnitt muss nicht berechnet werden, da er bereits als kante existiert
-                //            existsOnBothFaces.Add(edg1); // es geht ja nur um die vertices
-                //        }
-                //    }
-                //}
 
                 if (involvedVertices.Count < 2) continue;
 
@@ -8496,13 +8631,19 @@ namespace CADability
                                 if (!item.Key.face1.Contains(ref uv, true))
                                 {   // it still might be a point on the edge,also test it in 3d, because it might be imprecise in 2d
                                     uv = item.Key.face1.Surface.PositionOf(c3ds[i].PointAt((u1 + u2) / 2.0));
-                                    if (!item.Key.face1.Contains(ref uv, true)) continue;
+                                    if (!item.Key.face1.Contains(ref uv, true))
+                                    {   // still too strong condition, we only need to exclude e.g. wrong halves of a circle
+                                        if (item.Key.face1.Area.GetPosition(uv, item.Key.face1.Domain.Size * 1e-5) == Border.Position.Outside) continue;
+                                    }
                                 }
                                 uv = crvsOnSurface2[i].PointAt((params2dFace2[i, j1] + params2dFace2[i, j2]) / 2.0);
                                 if (!item.Key.face2.Contains(ref uv, true))
                                 {
                                     uv = item.Key.face2.Surface.PositionOf(c3ds[i].PointAt((u1 + u2) / 2.0));
-                                    if (!item.Key.face2.Contains(ref uv, true)) continue;
+                                    if (!item.Key.face2.Contains(ref uv, true))
+                                    {
+                                        if (item.Key.face2.Area.GetPosition(uv, item.Key.face2.Domain.Size * 1e-5) == Border.Position.Outside) continue;
+                                    }
                                 }
                             }
 
@@ -8530,41 +8671,73 @@ namespace CADability
                             GeoVector normalsCrossedEnd = item.Key.face1.Surface.GetNormal(paramsuvsurf1[j2]) ^ item.Key.face2.Surface.GetNormal(paramsuvsurf2[j2]);
                             if (normalsCrossedStart.Length < Precision.eps && normalsCrossedEnd.Length < Precision.eps)
                             {
+                                // it seems to be tangential at the endpoints of the intersection curve: test in the middle of the intersection curve
                                 GeoPoint m = tr.PointAt(0.5);
                                 GeoVector normalsCrossedMiddle = item.Key.face1.Surface.GetNormal(item.Key.face1.Surface.PositionOf(m)) ^ item.Key.face2.Surface.GetNormal(item.Key.face2.Surface.PositionOf(m));
                                 if (normalsCrossedMiddle.Length < Precision.eps)
                                 {
+                                    // it is also tangential at the midpoint of the intersection curve
+                                    // we now use the uv points in the surfaces and slowly walk from the uv point in the direction of the center of the domain
+                                    // (2d extent), until we find a point, where the normals are not parallel any more.
+                                    GeoPoint2D uvf1 = item.Key.face1.Surface.PositionOf(m);
+                                    SurfaceHelper.AdjustPeriodic(item.Key.face1.Surface, item.Key.face1.Domain, ref uvf1);
+                                    GeoPoint2D uvf2 = item.Key.face2.Surface.PositionOf(m);
+                                    SurfaceHelper.AdjustPeriodic(item.Key.face2.Surface, item.Key.face2.Domain, ref uvf2);
+                                    GeoVector2D toCenter1 = item.Key.face1.Domain.GetCenter() - uvf1;
+                                    GeoVector2D toCenter2 = item.Key.face2.Domain.GetCenter() - uvf2;
+                                    // normalis the step vectors to the size of the extent
+                                    if (Math.Abs(toCenter1.x) > Math.Abs(toCenter1.y)) toCenter1.Length = item.Key.face1.Domain.Width * 1e-3; // 1/1000 of the extent
+                                    else if (Math.Abs(toCenter1.y) > 0) toCenter1.Length = item.Key.face1.Domain.Height * 1e-3; // 1/1000 of the extent
+                                    else toCenter1 = new GeoVector2D(item.Key.face1.Domain.Width * 1e-3, item.Key.face1.Domain.Height * 1e-3); // was exactely in the center
+                                    if (Math.Abs(toCenter2.x) > Math.Abs(toCenter2.y)) toCenter2.Length = item.Key.face2.Domain.Width * 1e-3; // 1/1000 of the extent
+                                    else if (Math.Abs(toCenter2.y) > 0) toCenter2.Length = item.Key.face2.Domain.Height * 1e-3; // 1/1000 of the extent
+                                    else toCenter2 = new GeoVector2D(item.Key.face2.Domain.Width * 1e-3, item.Key.face2.Domain.Height * 1e-3); // was exactely in the center
+                                    // walk to the center until the normals are no longer parallel
+                                    while (item.Key.face1.Domain.ContainsEps(uvf1, -0.01) && item.Key.face2.Domain.ContainsEps(uvf2, -0.01))
+                                    {
+                                        uvf1 += toCenter1;
+                                        uvf2 += toCenter2;
+                                        GeoVector nn1 = item.Key.face1.Surface.GetNormal(uvf1).Normalized;
+                                        GeoVector nn2 = item.Key.face2.Surface.GetNormal(uvf2).Normalized;
+                                        toCenter1 = 2 * toCenter1;
+                                        toCenter2 = 2 * toCenter2;
+                                        normalsCrossedMiddle = nn1 ^ nn2;
+                                        if (normalsCrossedMiddle.Length > Precision.eps) break;
+                                    }
+
+                                    double tangentialPrecision = (item.Key.face1.GetExtent(0.0).Size + item.Key.face2.GetExtent(0.0).Size) * Precision.eps;
                                     // Still ignoring the case where there could be a real intersection e.g. when a surface crosses a plane like the "S" crosses the tangent at the middle
                                     // When this intersection curve coincides with an existing edge on one of the faces, we use the combined normalvector of both involved faces
                                     Set<Edge> existingEdges = new Set<Edge>(Vertex.ConnectingEdges(usedVertices[j1], usedVertices[j2]));
                                     GeoVector n1 = item.Key.face1.Surface.GetNormal(item.Key.face1.Surface.PositionOf(m)).Normalized;
                                     GeoVector n2 = item.Key.face2.Surface.GetNormal(item.Key.face2.Surface.PositionOf(m)).Normalized;
                                     Set<Edge> onFace1 = existingEdges.Intersection(new Set<Edge>(item.Key.face1.AllEdges));
-                                    bool edgFound = false;
-                                    double tangentialPrecision = (item.Key.face1.GetExtent(0.0).Size + item.Key.face2.GetExtent(0.0).Size) * Precision.eps;
-                                    // it was Precision.eps before, but a tangential intersection at "Difference2.cdb.json" failed, which should have been there 
-                                    foreach (Edge edg in onFace1)
-                                    {
-                                        if (edg.Curve3D != null && edg.Curve3D.DistanceTo(m) < tangentialPrecision)
-                                        {
-                                            Face otherFace = edg.OtherFace(item.Key.face1);
-                                            n1 += otherFace.Surface.GetNormal(otherFace.Surface.PositionOf(m)).Normalized;
-                                            edgFound = true;
-                                            break;
-                                        }
-                                    }
                                     Set<Edge> onFace2 = existingEdges.Intersection(new Set<Edge>(item.Key.face2.AllEdges));
-                                    foreach (Edge edg in onFace2)
-                                    {
-                                        if (edg.Curve3D != null && edg.Curve3D.DistanceTo(m) < tangentialPrecision)
-                                        {
-                                            Face otherFace = edg.OtherFace(item.Key.face2);
-                                            n2 += otherFace.Surface.GetNormal(otherFace.Surface.PositionOf(m)).Normalized;
-                                            edgFound = true;
-                                            break;
-                                        }
-                                    }
-                                    if (edgFound)
+                                    //bool edgFound = false;
+                                    //// it was Precision.eps before, but a tangential intersection at "Difference2.cdb.json" failed, which should have been there 
+                                    //// in many cases we are close to an edge on one of the faces or both.
+                                    //// find this edge and step a little inside into this face
+                                    //foreach (Edge edg in onFace1)
+                                    //{
+                                    //    if (edg.Curve3D != null && edg.Curve3D.DistanceTo(m) < tangentialPrecision)
+                                    //    {
+                                    //        Face otherFace = edg.OtherFace(item.Key.face1);
+                                    //        n1 += otherFace.Surface.GetNormal(otherFace.Surface.PositionOf(m)).Normalized;
+                                    //        edgFound = true;
+                                    //        break;
+                                    //    }
+                                    //}
+                                    //foreach (Edge edg in onFace2)
+                                    //{
+                                    //    if (edg.Curve3D != null && edg.Curve3D.DistanceTo(m) < tangentialPrecision)
+                                    //    {
+                                    //        Face otherFace = edg.OtherFace(item.Key.face2);
+                                    //        n2 += otherFace.Surface.GetNormal(otherFace.Surface.PositionOf(m)).Normalized;
+                                    //        edgFound = true;
+                                    //        break;
+                                    //    }
+                                    //}
+                                    if (normalsCrossedMiddle.Length < Precision.eps) //edgFound)
                                     {
                                         normalsCrossedMiddle = n1 ^ n2;
                                         if (normalsCrossedMiddle.Length < Precision.eps)
@@ -8629,7 +8802,11 @@ namespace CADability
                             else con1.Reverse();
                             GeoPoint2D uv1 = con1.PointAt(0.5);
                             GeoPoint2D uv2 = con2.PointAt(0.5);
-                            if (!item.Key.face1.Contains(ref uv1, true) || !item.Key.face2.Contains(ref uv2, true)) continue;
+                            if (!item.Key.face1.Contains(ref uv1, true) || !item.Key.face2.Contains(ref uv2, true))
+                            {   // the condition is too strong. Use the same relaxed condition as above
+                                if (item.Key.face1.Area.GetPosition(uv1, item.Key.face1.Domain.Size * 1e-5) == Border.Position.Outside &&
+                                    item.Key.face2.Area.GetPosition(uv2, item.Key.face2.Domain.Size * 1e-5) == Border.Position.Outside) continue;
+                            }
                             Edge edge = new Edge(item.Key.face1, tr, item.Key.face1, con1, dirs1, item.Key.face2, con2, !dirs1);
                             edge.edgeInfo = new EdgeInfo(edge);
                             edge.edgeInfo.isIntersection = true;

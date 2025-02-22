@@ -77,6 +77,16 @@ namespace CADability.GeoObject
                 return r.Length;
             }
         }
+        /// <summary>
+        /// The ring radius of the torus
+        /// </summary>
+        public double MajorRadius
+        {
+            get
+            {
+                return Math.Abs(toTorus.Factor);
+            }
+        }
         internal ModOp ToUnit
         {
             get
@@ -1788,6 +1798,88 @@ namespace CADability.GeoObject
         /// <param name="uOnCurve3Ds"></param>
         public override void Intersect(ICurve curve, BoundingRect uvExtent, out GeoPoint[] ips, out GeoPoint2D[] uvOnFaces, out double[] uOnCurve3Ds)
         {
+            GeoPoint tangentialFound = GeoPoint.Invalid;
+            if (curve is Line line)
+            {
+                GeoPoint[] tangentialIntersections = Geometry.CircleLineDist(GetAxisEllipse(), line.StartPoint, line.StartDirection);
+                for (int i = 0; i < tangentialIntersections.Length; i += 2)
+                {
+                    double d = tangentialIntersections[i] | tangentialIntersections[i + 1];
+                    if (Math.Abs(d - this.MinorRadius) < Precision.eps)
+                    {   // there is a tangential intersection between this line and the torus
+                        // the pair of point is alway fist point on the circle, second on the line
+                        double pos = line.PositionOf(tangentialIntersections[i + 1]);
+                        if (pos > -Precision.eps && pos < 1 + Precision.eps)
+                        {
+                            tangentialFound = tangentialIntersections[i + 1];
+                        }
+                    }
+                }
+            }
+            if (!(curve is Ellipse) && curve is IExplicitPCurve3D iexpc)
+            {
+
+                ImplicitPSurface psurf = (this as IImplicitPSurface).GetImplicitPSurface();
+                GeoPoint[] apnts = psurf.Intersect(iexpc.GetExplicitPCurve3D(), out double[] u);
+                List<double> luOnCurve3Ds = new List<double>();
+                List<GeoPoint2D> luvOnFaces = new List<GeoPoint2D>();
+                List<GeoPoint> lips = new List<GeoPoint>();
+                for (int i = 0; i < apnts.Length; ++i)
+                {
+                    Surfaces.NewtonIntersect(this, uvExtent, curve, ref apnts[i]); // polynom root don't yield exactt results. We make it better here
+                    double uu = curve.PositionOf(apnts[i]);
+                    GeoPoint2D uv = this.PositionOf(apnts[i]);
+                    SurfaceHelper.AdjustPeriodic(this, uvExtent, ref uv);
+                    if (uu > -Precision.eps && uu < 1 + Precision.eps && uvExtent.ContainsEps(uv, -0.01))
+                    {
+                        lips.Add(apnts[i]);
+                        luOnCurve3Ds.Add(uu);
+                        luvOnFaces.Add(uv);
+                    }
+                }
+                if (tangentialFound.IsValid)
+                {
+                    bool alreadyFound = false;
+                    // we could have a tangential intersection and two more normal intersections, but the distance would be big
+                    for (int i = 0; i < lips.Count; i++)
+                    {
+                        if ((lips[i] | tangentialFound) < (MajorRadius + MinorRadius) / 100)
+                        {
+                            lips[i] = tangentialFound;
+                            luOnCurve3Ds[i] = curve.PositionOf(tangentialFound);
+                            GeoPoint2D uv = this.PositionOf(tangentialFound);
+                            SurfaceHelper.AdjustPeriodic(this, uvExtent, ref uv);
+                            luvOnFaces[i] = uv;
+                            alreadyFound = true;
+                        }
+                    }
+                    if (!alreadyFound)
+                    {
+                        double uu = curve.PositionOf(tangentialFound);
+                        GeoPoint2D uv = this.PositionOf(tangentialFound);
+                        SurfaceHelper.AdjustPeriodic(this, uvExtent, ref uv);
+                        if (uu > -Precision.eps && uu < 1 + Precision.eps && uvExtent.ContainsEps(uv, -0.01))
+                        {
+                            lips.Add(tangentialFound);
+                            luOnCurve3Ds.Add(uu);
+                            luvOnFaces.Add(uv);
+                        }
+                    }
+                }
+                for (int i = lips.Count - 1; i > 0; --i)
+                {
+                    if (Precision.IsEqual(lips[i], lips[i - 1]))
+                    {
+                        lips.RemoveAt(i);
+                        luvOnFaces.RemoveAt(i);
+                        luOnCurve3Ds.RemoveAt(i);
+                    }
+                }
+                ips = lips.ToArray();
+                uvOnFaces = luvOnFaces.ToArray();
+                uOnCurve3Ds = luOnCurve3Ds.ToArray();
+                return;
+            }
             if (curve is Line)
             {
                 ips = GetLineIntersection3D((curve as Line).StartPoint, (curve as Line).StartDirection);
@@ -2533,6 +2625,15 @@ namespace CADability.GeoObject
             }
             if (other is CylindricalSurface cylindricalSurface)
             {   // we need tangential points to split the result there
+                if (extremePositions != null)
+                {
+                    List<Tuple<double, double, double, double>> swapped = new List<Tuple<double, double, double, double>>();
+                    for (int i = 0; i < extremePositions.Count; i++)
+                    {
+                        swapped.Add(new Tuple<double, double, double, double>(extremePositions[0].Item3, extremePositions[0].Item4, extremePositions[0].Item1, extremePositions[0].Item2));
+                    }
+                    extremePositions = swapped;
+                }
                 IDualSurfaceCurve[] res = cylindricalSurface.GetDualSurfaceCurves(otherBounds, this, thisBounds, seeds, extremePositions);
                 if (res != null)
                 {

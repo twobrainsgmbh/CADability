@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using Wintellect.PowerCollections;
 using MathNet.Numerics.LinearAlgebra.Factorization;
+using System.Linq;
 #if WEBASSEMBLY
 using CADability.WebDrawing;
 #else
@@ -3087,11 +3088,11 @@ namespace CADability.GeoObject
                 }
                 return new ProjectedCurve(curve, this, true, restricted, precision);
             }
-            if (!usedArea.IsInfinite) 
+            if (!usedArea.IsInfinite)
                 return new ProjectedCurve(curve, this, true, BoundingRect.EmptyBoundingRect, precision);
-            else 
+            else
                 return new ProjectedCurve(curve, this, true, usedArea, precision);
-            
+
             //Unreachable code
             /*
             int n = 16;
@@ -4652,7 +4653,7 @@ namespace CADability.GeoObject
                 }
             }
             return max;
-            
+
             //Unreachable code
             /*
             BoxedSurfaceEx.RawPointNormalAt(sp, out sp3d, out sn); // Punkt und Normale auf die Fläche am Startpunkt
@@ -6285,12 +6286,44 @@ namespace CADability.GeoObject
         internal static IDualSurfaceCurve[] IntersectInner(ISurface surface1, BoundingRect ext1, ISurface surface2, BoundingRect ext2)
         {
             int ep = surface1.GetExtremePositions(ext1, surface2, ext2, out List<Tuple<double, double, double, double>> extremePositions);
-            IDualSurfaceCurve[] candidates = surface1.GetDualSurfaceCurves(ext1, surface2, ext2, null, extremePositions);
             List<IDualSurfaceCurve> res = new List<IDualSurfaceCurve>();
-            for (int i = 0; i < candidates.Length; i++)
-            {
-                if (candidates[i].Curve3D.IsClosed) res.Add(candidates[i]);
-                else if (Precision.Equals(candidates[i].Curve3D.StartPoint, candidates[i].Curve3D.EndPoint)) res.Add(candidates[i]);
+            if (extremePositions != null && extremePositions.Count > 0)
+            {   // lets calculate some seeds from the fixed curves on one of the surfaces
+                List<GeoPoint> seeds = new List<GeoPoint>();
+                for (int i = 0; i < extremePositions.Count; i++)
+                {
+                    ICurve crv = null;
+                    if (!double.IsNaN(extremePositions[i].Item1)) crv = surface1.FixedU(extremePositions[i].Item1, ext2.Bottom, ext2.Top);
+                    else if (!double.IsNaN(extremePositions[i].Item2)) crv = surface1.FixedV(extremePositions[i].Item2, ext2.Left, ext2.Right);
+                    if (!double.IsNaN(extremePositions[i].Item3)) crv = surface2.FixedU(extremePositions[i].Item3, ext1.Bottom, ext1.Top);
+                    else if (!double.IsNaN(extremePositions[i].Item4)) crv = surface2.FixedV(extremePositions[i].Item4, ext1.Left, ext1.Right);
+                    if (crv != null)
+                    {
+                        if (!double.IsNaN(extremePositions[i].Item1) && !double.IsNaN(extremePositions[i].Item2))
+                        {
+                            // crv is on surface1
+                            surface2.Intersect(crv, ext2, out GeoPoint[] ips, out GeoPoint2D[] uvOnFaces, out double[] uOnCurve3Ds);
+                            seeds.AddRange(ips);
+                        }
+                        else
+                        {
+                            // crv is on surface2
+                            surface1.Intersect(crv, ext1, out GeoPoint[] ips, out GeoPoint2D[] uvOnFaces, out double[] uOnCurve3Ds);
+                            seeds.AddRange(ips);
+                        }
+                    }
+                }
+                // seeds are not sorted. The curve must be closed. We simply repeat the first seed as the last seed
+                if (seeds.Count > 1)
+                {
+                    seeds.Add(seeds.First());
+                    IDualSurfaceCurve[] candidates = surface1.GetDualSurfaceCurves(ext1, surface2, ext2, seeds, null);
+                    for (int i = 0; i < candidates.Length; i++)
+                    {
+                        if (candidates[i].Curve3D.IsClosed) res.Add(candidates[i]);
+                        else if (Precision.Equals(candidates[i].Curve3D.StartPoint, candidates[i].Curve3D.EndPoint)) res.Add(candidates[i]);
+                    }
+                }
             }
             if (res.Count == 0 && ep == -1)
             {
@@ -6375,8 +6408,34 @@ namespace CADability.GeoObject
             }
             return (dist <= Precision.eps);
         }
+        internal static bool NewtonIntersect(ISurface surface, BoundingRect ext, ICurve crv, ref GeoPoint testPoint)
+        {
+            GeoPoint2D uv = surface.PositionOf(testPoint);
+            SurfaceHelper.AdjustPeriodic(surface, ext, ref uv);
+            double u = crv.PositionOf(testPoint);
+            double dist = surface.PointAt(uv) | crv.PointAt(u);
+            try
+            {
+                int maxIteration = 10;
+                while (maxIteration > 0) // Precision.eps)
+                {
+                    --maxIteration;
+                    Plane pln = new Plane(surface.PointAt(uv), surface.GetNormal(uv));
+                    GeoPoint loc = testPoint;
+                    GeoVector dir = crv.DirectionAt(u);
+                    testPoint = pln.Intersect(testPoint, dir);
+                    uv = surface.PositionOf(testPoint);
+                    u = crv.PositionOf(testPoint);
+                    double newdist = surface.PointAt(uv) | testPoint;
+                    if (newdist >= dist) break;
+                    else dist = newdist;
+                }
+            }
+            catch (PlaneException) {  } // we are tangential!
+            return (dist <= Precision.eps);
+        }
 
-        internal static bool NewtonPerpendicular(ISurface surface, ref GeoPoint2D uv, BoundingRect ext, GeoVector dir)
+        internal static bool NewtonPerpendicular(ISurface surface, BoundingRect ext, ICurve crv, ref GeoPoint testPoint)
         {
 
             //GeoVector du, dv, duu, dvv, duv;
@@ -14690,6 +14749,32 @@ namespace CADability.GeoObject
                 }
             }
 
+        }
+        internal static (double du, double dv) AdjustPeriodic(ISurface surface, BoundingRect bounds, Border bdr)
+        {
+            if (surface.IsUPeriodic || surface.IsVPeriodic)
+            {
+                GeoPoint2D mp = bdr.Extent.GetCenter();
+                double du = 0.0, dv = 0.0;
+                if (surface.IsUPeriodic)
+                {
+                    double um = (bounds.Left + bounds.Right) / 2;
+                    while (Math.Abs(mp.x + du - um) > Math.Abs(mp.x + du - surface.UPeriod - um)) du -= surface.UPeriod;
+                    while (Math.Abs(mp.x + du - um) > Math.Abs(mp.x + du + surface.UPeriod - um)) du += surface.UPeriod;
+                }
+                if (surface.IsVPeriodic)
+                {
+                    double vm = (bounds.Bottom + bounds.Top) / 2;
+                    while (Math.Abs(mp.y + dv - vm) > Math.Abs(mp.y + dv - surface.VPeriod - vm)) dv -= surface.VPeriod;
+                    while (Math.Abs(mp.y + dv - vm) > Math.Abs(mp.y + dv + surface.VPeriod - vm)) dv += surface.VPeriod;
+                }
+                if (du != 0.0 || dv != 0.0)
+                {
+                    bdr.Move(du, dv);
+                }
+                return (du, dv);
+            }
+            return (0, 0);
         }
         public static void AdjustPeriodic(ISurface surface, BoundingRect bounds, ICurve2D cv2d)
         {

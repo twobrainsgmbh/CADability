@@ -5,6 +5,7 @@ using MathNet.Numerics.LinearAlgebra.Double;
 using MathNet.Numerics.LinearAlgebra.Factorization;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using Wintellect.PowerCollections;
 
 namespace CADability
@@ -1679,7 +1680,7 @@ namespace CADability
             var pc2 = dx * dx + dy * dy;
             var pc = Math.Sqrt(pc2);
 
-            if (pc < radius - Precision.eps) 
+            if (pc < radius - Precision.eps)
                 return new GeoPoint2D[0]; // no solution
 
             // R is radius of  circle centered in P, r2 is R^2
@@ -1766,7 +1767,7 @@ namespace CADability
                 GeoPoint2D[] tan1 = TangentPointCircle(c, center1, radius1);
                 if (tan1 == null || tan1.Length != 2)
                     throw new InvalidOperationException("TangentPointCircle did not return the expected tangent points.");
-                
+
                 GeoPoint2D[] tan2 = TangentPointCircle(c, center2, radius2);
                 if (tan2 == null || tan2.Length != 2)
                     throw new InvalidOperationException("TangentPointCircle did not return the expected tangent points.");
@@ -1979,6 +1980,12 @@ namespace CADability
             double d = Math.Abs(Geometry.DistPL(center, pointofline, direction));
             if (d / radius > 1 + Precision.eps)
                 return new GeoPoint2D[0];
+
+            if (Math.Abs(d-radius) < Precision.eps)
+            {
+                // line is tangential to radius
+                return new GeoPoint2D[] { DropPL(center, pointofline, direction) };
+            }
 
             double root = -dx * dx * y * y + (2 * dx * dy * x - 2 * cx * dx * dy + 2 * cy * dx * dx) * y - dy * dy * x * x + (2 * cx * dy * dy - 2 * cy * dx * dy) * x + (dy * dy + dx * dx) * radius * radius - cx * cx * dy * dy + 2 * cx * cy * dx * dy - cy * cy * dx * dx;
             if (root < 0.0)
@@ -3084,6 +3091,7 @@ namespace CADability
         //    }
         //    return erg;
         //}
+
         /// <summary>
         /// tries to find a center and radius for a circle which best fits to the provided points
         /// </summary>
@@ -3092,7 +3100,7 @@ namespace CADability
         /// <param name="radius">radius of the circle</param>
         /// <returns>maximum error</returns>
         public static double CircleFit(GeoPoint2D[] points, out GeoPoint2D center, out double radius)
-        {   
+        {
             // aus GeometricTools, siehe dort auch "Wm4ApprQuadraticFit2.h" für besseren Startwert
 
             // initial guess
@@ -3864,6 +3872,92 @@ namespace CADability
                 }
             }
             return false;
+        }
+        public static GeoPoint[] CircleLineDist(Ellipse circle, GeoPoint lineLocation, GeoVector lineDirection)
+        {
+            Ellipse uc = circle.Clone() as Ellipse;
+            ModOp cToUnit = ModOp.Scale(1 / circle.Radius) * circle.ToUnitCircle; // cToUnit transforms the circle to the unit circle
+            GeoVector unitLineDirection = cToUnit * lineDirection;
+            // a rotation makes the line direction parallel to the xz plane
+            ModOp toUnit = ModOp.Rotate(GeoVector.ZAxis, -new SweepAngle(unitLineDirection.x, unitLineDirection.y)) * cToUnit;
+            // toUnit transforms the line and circle so that circle becomes unit circle and line is parallel to the xz plane
+            unitLineDirection = toUnit * lineDirection;
+            GeoPoint unitLineLocation = toUnit * lineLocation;
+            ModOp toWorld = toUnit.GetInverse();
+
+            // line defined by (t, c, d t + e), where t is the parameter (i.e. [0, c, e] + t * [1, 0, d]), circle by (cos θ, sin θ, 0)
+            // u = cos θ,  sin θ = √(1 - u²)
+            // u^4 - 2 d e u^3 + [ -1 + d² e² + c² (1 + d²)^2 ] u² + 2 d e u - d² e² = 0
+            // t = (cos θ - d e)/(1 + d²)
+            // ld = ld/ld.x  [ll=unitLineLocation, ld = unitLineDirection]
+            // ll + s*ld = [0, c, e], where c=ll.y, i.e. ll.x+s*ld.x = 0; s = -ll.x/ld.x, ld.x may not be 0, it would be a line in z-direction
+            List<GeoPoint> res = new List<GeoPoint>();
+            if (unitLineDirection.x != 0.0)
+            {
+                // move the line location point along the line, so that the x component becomes 0 and scale the line direction so that the x component becomes 1
+                unitLineDirection = (1 / unitLineDirection.x) * unitLineDirection; // unitLineDirection.x should be 1 now
+                unitLineLocation = unitLineLocation + -unitLineLocation.x / unitLineDirection.x * unitLineDirection; // unitLineLocation.x should be 0 now
+
+                double c = unitLineLocation.y;
+                double e = unitLineLocation.z;
+                double d = unitLineDirection.z;
+                Polynom quartic = new Polynom(1, "u4", -2 * d * e, "u3", -1 + d * d * e * e + c * c * (1 + d * d) * (1 + d * d), "u2", 2 * d * e, "u", -d * d * e * e, "");
+                double[] roots = quartic.Roots();
+
+                double lastRoot = double.MaxValue / 2.0;
+                for (int i = 0; i < roots.Length; i++)
+                {
+                    if (roots[i] >= -1 && roots[i] <= 1)
+                    {
+                        if (Math.Abs(roots[i] - lastRoot) < 1e-10) continue; // double solution
+                        lastRoot = roots[i];
+                        double cosTheta = roots[i];
+                        double sinTheta = Math.Sqrt(1 - cosTheta * cosTheta);
+                        // double theta = Math.Acos(cosTheta); we don't need it
+                        GeoVector tangentToCircle = new GeoVector(-sinTheta, cosTheta, 0);
+                        GeoPoint onCircle = new GeoPoint(cosTheta, sinTheta, 0);
+                        GeoPoint onLine = unitLineLocation + (cosTheta - d * d) / (1 + d * d) * unitLineDirection;
+                        GeoVector circleToLine = onLine - onCircle;
+                        double perpToCircle = circleToLine * tangentToCircle; // is it really perpendicular to the circle
+                        double perpToLine = circleToLine * unitLineDirection; // is it really perpendicular to the circle
+                        // the quartic polynom yields more results than necessary, some of them are wrong, because the equation has been squared
+                        if (Math.Abs(perpToCircle / (circleToLine.Length * tangentToCircle.Length)) < 1e-5 && 
+                            Math.Abs(perpToLine / (circleToLine.Length * unitLineDirection.Length)) < 1e-5)
+                        {
+                            res.Add(toWorld * onCircle);
+                            res.Add(toWorld * onLine);
+                        }
+                        sinTheta = -sinTheta; // the other root of Math.Sqrt(1 - cosTheta * cosTheta)
+                        tangentToCircle = new GeoVector(-sinTheta, cosTheta, 0);
+                        onCircle = new GeoPoint(cosTheta, sinTheta, 0);
+                        onLine = unitLineLocation + (cosTheta - d * d) / (1 + d * d) * unitLineDirection;
+                        circleToLine = onLine - onCircle;
+                        perpToCircle = circleToLine * tangentToCircle; // is it really perpendicular to the circle
+                        perpToLine = circleToLine * unitLineDirection; // is it really perpendicular to the circle
+                        // the quartic polynom yields more results than necessary, some of them are wrong, because the equation has been squared
+                        if (Math.Abs(perpToCircle / (circleToLine.Length * tangentToCircle.Length)) < 1e-5 &&
+                            Math.Abs(perpToLine / (circleToLine.Length * unitLineDirection.Length)) < 1e-5)
+                        {
+                            res.Add(toWorld * onCircle);
+                            res.Add(toWorld * onLine);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // a line in z direction. should be easy to solve
+            }
+#if DEBUG
+            DebuggerContainer dc = new DebuggerContainer();
+            dc.Add(circle, Color.Red);
+            dc.Add(Line.TwoPoints(lineLocation, lineLocation + lineDirection), Color.Red);
+            for (int i = 0; i < res.Count; i += 2)
+            {
+                dc.Add(Line.TwoPoints(res[i], res[i + 1]), Color.Green);
+            }
+#endif
+            return res.ToArray();
         }
         public static GeoPoint[] CircleLinePerpDist(Ellipse circle, GeoPoint lineLocation, GeoVector lineDirection)
         {   // according to https://www.geometrictools.com/Documentation/DistanceToCircle3.pdf

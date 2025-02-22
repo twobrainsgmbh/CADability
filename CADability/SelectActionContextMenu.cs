@@ -142,7 +142,11 @@ namespace CADability
 
                 for (int i = 0; i < fl.Count; i++)
                 {
-                    if (fl[i] is Face fc)
+                    if (fl[i] is Solid sld)
+                    {
+                        solids.Add(sld);
+                    }
+                    else if (fl[i] is Face fc)
                     {
                         faces.Add(fc);
                         if (fc.Owner is Shell sh)
@@ -151,7 +155,7 @@ namespace CADability
                             else shells.Add(sh);
                         }
                     }
-                    if (fl[i] is ICurve crv)
+                    else if (fl[i] is ICurve crv)
                     {
                         if (fl[i].Owner is Edge edge) edges.Add(edge);
                         else if (fl[i].UserData.Contains("CADability.AxisOf"))
@@ -165,7 +169,7 @@ namespace CADability
                         }
                     }
                 }
-                if (edges.Count>0)
+                if (edges.Count > 0)
                 {
                     Shell edgesShell = (edges.First().Owner as Face).Owner as Shell;
                     HashSet<Edge> connectedEdges = Shell.connectedSameGeometryEdges(edges); // add all faces which have the same surface and are connected
@@ -178,7 +182,7 @@ namespace CADability
                         }
                     }
                 }
-                if (faces.Count>0)
+                if (faces.Count > 0)
                 {
                     Shell facesShell = faces.First().Owner as Shell;
                     if (facesShell != null)
@@ -1047,25 +1051,28 @@ namespace CADability
                         {
                             Face capturedFace = fc;
                             Face otherFace = edge.OtherFace(fc);
-                            (Axis rotationAxis, GeoVector fromHere, GeoVector toHere) = ParametricsAngleAction.GetRotationAxis(fc, otherFace, clickBeam);
-                            if (rotationAxis.IsValid)
+                            if (otherFace != null)
                             {
-                                GeoObjectList feedbackArrow = currentView.Projection.MakeRotationArrow(rotationAxis, fromHere, toHere);
-                                MenuWithHandler rotateMenu = new MenuWithHandler("MenuId.FaceAngle");
-                                rotateMenu.OnCommand = (menuId) =>
+                                (Axis rotationAxis, GeoVector fromHere, GeoVector toHere) = ParametricsAngleAction.GetRotationAxis(fc, otherFace, clickBeam);
+                                if (rotationAxis.IsValid)
                                 {
-                                    ParametricsAngleAction pa = new ParametricsAngleAction(capturedFace, otherFace, rotationAxis, fromHere, toHere, edge, selectAction.Frame);
-                                    selectAction.Frame.SetAction(pa);
-                                    return true;
-                                };
-                                rotateMenu.OnSelected = (menuId, selected) =>
-                                {
-                                    currentMenuSelection.Clear();
-                                    //currentMenuSelection.Add(capturedFace);
-                                    currentMenuSelection.AddRange(feedbackArrow);
-                                    currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
-                                };
-                                rotateMenus.Add(rotateMenu);
+                                    GeoObjectList feedbackArrow = currentView.Projection.MakeRotationArrow(rotationAxis, fromHere, toHere);
+                                    MenuWithHandler rotateMenu = new MenuWithHandler("MenuId.FaceAngle");
+                                    rotateMenu.OnCommand = (menuId) =>
+                                    {
+                                        ParametricsAngleAction pa = new ParametricsAngleAction(capturedFace, otherFace, rotationAxis, fromHere, toHere, edge, selectAction.Frame);
+                                        selectAction.Frame.SetAction(pa);
+                                        return true;
+                                    };
+                                    rotateMenu.OnSelected = (menuId, selected) =>
+                                    {
+                                        currentMenuSelection.Clear();
+                                        //currentMenuSelection.Add(capturedFace);
+                                        currentMenuSelection.AddRange(feedbackArrow);
+                                        currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
+                                    };
+                                    rotateMenus.Add(rotateMenu);
+                                }
                             }
                         }
                     }
@@ -1213,13 +1220,7 @@ namespace CADability
             };
             removeFeature.OnCommand = (menuId) =>
             {
-                using (vw.Canvas.Frame.Project.Undo.UndoFrame)
-                {
-                    bool addRemoveOk = shell.AddAndRemoveFaces(connection, featureFaces);
-                }
-#if DEBUG
-                bool testok = shell.CheckConsistency();
-#endif
+                bool addRemoveOk = shell.AddAndRemoveFaces(connection, featureFaces);
                 currentMenuSelection.Clear();
                 currentView.Invalidate(PaintBuffer.DrawingAspect.Select, currentView.DisplayRectangle);
                 return true;

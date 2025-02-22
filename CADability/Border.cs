@@ -1685,7 +1685,7 @@ namespace CADability.Shapes
         {
             // 1. schneller aber grober Vortest auf außerhalb
             // bool dbg = this.IsClosed;
-            // Recalc(out dbg); // warum steht das hier, macht Performance Probleme
+            // Recalc(out bool dbg); // warum steht das hier, macht Performance Probleme
             if (isClosed)
             {
                 if (BoundingRect.Disjoint(rect, Extent)) return Position.Outside;
