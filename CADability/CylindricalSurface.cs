@@ -2259,6 +2259,7 @@ namespace CADability.GeoObject
 			{
 				DoubleProperty radius = new DoubleProperty(frame, "CylindricalSurface.Radius");
 				radius.ReadOnly = true;
+				radius.SetDouble(RadiusX);
 				radius.OnGetValue = () => RadiusX;
 				se.Add(radius);
 			}
