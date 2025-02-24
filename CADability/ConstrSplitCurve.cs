@@ -87,7 +87,6 @@ namespace CADability.Actions
 				int currentIndex = i;
 				DoubleProperty doubleProperty = new DoubleProperty(Frame, "Constr.SplitCurve.Distance");
 				doubleProperty.LabelText = StringTable.GetFormattedString("Constr.SplitCurve.Distance" + ".Label", i + 1);
-				doubleProperty.UserData.Add("Index", i);
 				doubleProperty.OnGetValue = () =>
 				{
 					double factor = 1.0;
