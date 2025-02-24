@@ -40,6 +40,28 @@ namespace CADability.Forms
             ToolBars.CreateOrRestoreToolbars(topToolStripContainer, cadFrame);
             Application.Idle += new EventHandler(OnIdle); // update the toolbars (menus are updated when they popup)
         }
+        /// <summary>
+        /// Resets the main menu of the form. After MenuResource.SetMenuResource has been loaded, the mainmenu in CADability 
+        /// is changed to the new resource. In order to set this menu in the form, call this method.
+        /// </summary>
+        /// <param name="debuggerPlaygroundClass">if not null, specifies an additional menue class, which will be created by reflection</param>
+        public void ResetMainMenu(string debuggerPlaygroundClass)
+        {
+            MenuWithHandler[] mainMenu = MenuResource.LoadMenuDefinition("SDI Menu", true, cadFrame);
+            if (!string.IsNullOrEmpty(debuggerPlaygroundClass))
+            {
+                // in the following lines a "DebuggerPlayground" object is created via reflection. This class is a playground to write testcode
+                // which is not included in the sources. This is why it is constructed via reflection, there is no need to have this class in the project.
+                Type dbgplygnd = Type.GetType(debuggerPlaygroundClass, false);
+                if (dbgplygnd != null)
+                {
+                    MethodInfo connect = dbgplygnd.GetMethod("Connect");
+                    if (connect != null) mainMenu = connect.Invoke(null, new object[] { cadFrame, mainMenu }) as MenuWithHandler[];
+                }
+            }
+            Menu = MenuManager.MakeMainMenu(mainMenu);
+            cadFrame.FormMenu = Menu;
+        }
         // Access the components of the MainForm from the CadFrame. 
         public ProgressForm ProgressForm
         {

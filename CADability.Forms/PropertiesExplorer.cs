@@ -352,7 +352,20 @@ namespace CADability.Forms
             {
                 if (tabPages[i].TitleId == titleId)
                 {
+                    if (!tabPages[i].Visible) tabPages[i].Show();
                     tabControl.SelectedIndex = i;
+                    return true;
+                }
+            }
+            return false;
+        }
+        public bool RemovePropertyPage(string titleId)
+        {
+            for (int i = 0; i < tabPages.Count; i++)
+            {
+                if (tabPages[i].TitleId == titleId)
+                {
+                    tabControl.TabPages.Remove(tabPages[i].Parent as TabPage);
                     return true;
                 }
             }
@@ -404,7 +417,6 @@ namespace CADability.Forms
             if (EntryWithTextBox != null && EntryWithTextBox != selectedEntry) HideTextBox();
             if (EntryWithListBox != null && EntryWithListBox != selectedEntry) HideListBox();
         }
-
         public void PreProcessKeyDown(Substitutes.KeyEventArgs e)
         {   // this is being called after the ActiveAction has preprocessed (and not handled) the key down message
             // we can handle it here, before it gets handled by maybe and edit text box or something else (menu?)
@@ -485,7 +497,6 @@ namespace CADability.Forms
                     break;
             }
         }
-
         public void HideEntry(string entryId, bool hide)
         {
             if (hide) entriesToHide.Add(entryId);

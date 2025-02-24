@@ -23,6 +23,7 @@ namespace CADability.UserInterface
         IPropertyPage GetPropertyPage(string titleId);
         void DisplayHelp(string helpID);
         bool ShowPropertyPage(string titleId);
+        bool RemovePropertyPage(string titleId);
         IFrame Frame { get; set; }
         void PreProcessKeyDown(KeyEventArgs e);
         void HideEntry(string entryId, bool hide);

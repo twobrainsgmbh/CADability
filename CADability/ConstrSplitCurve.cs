@@ -83,11 +83,11 @@ namespace CADability.Actions
             DoubleProperty[] doubleproperties = new DoubleProperty[number];
             for (int i = 0; i < number; ++i)
             {
-                DoubleProperty doubleProperty = new DoubleProperty("Constr.SplitCurve.Distance", Frame);
+                DoubleProperty doubleProperty = new DoubleProperty(Frame, "Constr.SplitCurve.Distance");
                 doubleProperty.LabelText = StringTable.GetFormattedString("Constr.SplitCurve.Distance" + ".Label", i + 1);
-                doubleProperty.UserData.Add("Index", i);
-                doubleProperty.GetDoubleEvent += new DoubleProperty.GetDoubleDelegate(OnGetDistance);
-                doubleProperty.SetDoubleEvent += new DoubleProperty.SetDoubleDelegate(OnSetDistance);
+                int ind = i;
+                doubleProperty.OnGetValue = () => { return OnGetDistance(ind);  };
+                doubleProperty.OnSetValue = (val) => { OnSetDistance(ind, val); };
                 doubleproperties[i] = doubleProperty;
             }
             distances.SetShowProperties(doubleproperties);
@@ -105,10 +105,8 @@ namespace CADability.Actions
                 base.Finish();
             }
         }
-        void OnSetDistance(DoubleProperty sender, double l)
+        void OnSetDistance(int index, double l)
         {   // benutzereingabe für eine bestimmte Länge
-            // der Index geht über Userdate
-            int index = (int)sender.UserData.GetData("Index");
             double factor = 1.0;
             switch (mode)
             {
@@ -177,9 +175,8 @@ namespace CADability.Actions
             }
             Recalc();
         }
-        double OnGetDistance(DoubleProperty sender)
-        {   // der Index steht in UserData
-            int index = (int)sender.UserData.GetData("Index");
+        double OnGetDistance(int index )
+        {   
             double factor = 1.0;
             switch (mode)
             {
