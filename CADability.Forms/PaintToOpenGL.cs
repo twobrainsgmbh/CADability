@@ -1986,7 +1986,7 @@ namespace CADability.Forms
                 {
                     Gl.glMatrixMode(Gl.GL_MODELVIEW);
                     Gl.glLoadIdentity();
-                    Gl.glTranslated(precision * projectionDirection.x, precision * projectionDirection.y, precision * projectionDirection.z);
+                    Gl.glTranslated(2 * precision * projectionDirection.x, 2 * precision * projectionDirection.y, 2 * precision * projectionDirection.z);
                 }
                 paintSurfaces = true;
                 paintEdges = false;
@@ -2172,7 +2172,7 @@ namespace CADability.Forms
                 }
 #if DEBUG
                 //System.Diagnostics.Trace.Write("still open: ");
-                foreach (KeyValuePair<int,string> l in openLists)
+                foreach (KeyValuePair<int, string> l in openLists)
                 {
                     //System.Diagnostics.Trace.Write(l.Value + ", ");
                 }
@@ -2216,7 +2216,7 @@ namespace CADability.Forms
                 if (isDeleted)
                     return;
 
-                isDeleted = true;                
+                isDeleted = true;
             }
             openLists.Remove(ListNumber);
 #if DEBUG

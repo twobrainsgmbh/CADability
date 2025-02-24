@@ -1584,7 +1584,7 @@ namespace CADability
             bool oldSelect = PaintToSelect.SelectMode;
             PaintToSelect.SelectMode = true;
             PaintToSelect.SelectColor = Color.FromArgb(196, Color.Yellow);
-            //PaintToSelect.SetColor (Color.Yellow);
+            PaintToSelect.SetColor (Color.Yellow);
             //PaintToSelect.UseZBuffer(false);
             bool pse = PaintToSelect.PaintSurfaceEdges;
             PaintToSelect.PaintSurfaceEdges = false;
@@ -1597,8 +1597,9 @@ namespace CADability
                     go.PaintTo3D(PaintToSelect);
                 }
                 displayList = PaintToSelect.CloseList();
-                PaintToSelect.SelectedList(displayList, wobbleWidth);
-                //PaintToSelect.List(displayList);
+                // PaintToSelect.SelectedList(displayList, wobbleWidth);
+                PaintToSelect.PaintFaces(PaintTo3D.PaintMode.CurvesOnly); // a little bit into the foreground
+                PaintToSelect.List(displayList);
             }
             PaintToSelect.SelectMode = oldSelect;
             PaintToSelect.PaintSurfaceEdges = pse;
