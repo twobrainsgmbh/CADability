@@ -56,7 +56,7 @@ namespace CADability.Actions
             SetInput(distanceInput, modeInput);
             base.OnSetAction();
 
-            FeedBack.SelectOutline = false;
+            FeedBack.SelectOutline = true;
             validResult = false;
         }
         private int ModeInput_GetChoiceEvent()

@@ -14,11 +14,13 @@ using System.Xml;
 using CADability.UserInterface;
 using System.Runtime.InteropServices;
 using static ShapeIt.MainForm;
+using System.IO;
 
 namespace ShapeIt
 {
     public partial class MainForm : CadForm
     {
+        private DateTime lastSaved; // time, when the current file has been saved the last time, see OnIdle
         public MainForm(string[] args) : base(args)
         {   // interpret the command line arguments as a name of a file, which should be opened
             string fileName = "";
@@ -42,22 +44,19 @@ namespace ShapeIt
             if (toOpen == null) CadFrame.GenerateNewProject();
             else CadFrame.Project = toOpen;
             this.Text = "ShapeIt with CADability";
-            //this.Width = 1280; //1266
-            //this.Height= 720;//733
-            //this.SetBounds(
-            //    this.Left, this.Top,
-            //    1280, 720,
-            //    BoundsSpecified.Size); 
             bool exp = Settings.GlobalSettings.GetBoolValue("Experimental.TestNewContextMenu", false);
             bool tst = Settings.GlobalSettings.GetBoolValue("ShapeIt.Initialized", false);
             Settings.GlobalSettings.SetValue("ShapeIt.Initialized", true);
-            CadFrame.FileNameChangedEvent += (name) => 
+            CadFrame.FileNameChangedEvent += (name) =>
             {
                 if (string.IsNullOrEmpty(name)) this.Text = "ShapeIt with CADability";
                 else this.Text = "ShapeIt -- " + name;
+                lastSaved = DateTime.Now; // a new file has been opened
             };
+            CadFrame.ProjectClosedEvent += OnProjectClosed;
+            CadFrame.ProjectOpenedEvent += OnProjectOpened;
+            CadFrame.UIService.ApplicationIdle += OnIdle;
             CadFrame.ControlCenter.RemovePropertyPage("View");
-
             Assembly ThisAssembly = Assembly.GetExecutingAssembly();
             using (System.IO.Stream str = ThisAssembly.GetManifestResourceStream("ShapeIt.MenuResource.xml"))
             {
@@ -66,6 +65,40 @@ namespace ShapeIt
                 MenuResource.SetMenuResource(menuDocument);
                 ResetMainMenu(null);
             }
+            lastSaved = DateTime.Now;
+        }
+
+
+        /// <summary>
+        /// Called when CADability is idle. We use it to save the current project data to a temp file in case of a crash
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        void OnIdle(object sender, EventArgs e)
+        {
+            if (CadFrame.Project.IsModified && (DateTime.Now - lastSaved).TotalMinutes > 2)
+            {
+                CadFrame.Project.IsModified = false;
+                string path = Path.GetTempPath();
+                path = Path.Combine(path, "ShapeIt");
+                DirectoryInfo dirInfo = Directory.CreateDirectory(path);
+                if (string.IsNullOrEmpty(CadFrame.Project.FileName)) path = Path.Combine(path, "noname.cdb.json");
+                else
+                {
+                    string fileName = Path.GetFileNameWithoutExtension(CadFrame.Project.FileName);
+                    path = Path.Combine(path, fileName + "_.cdb.json");
+                }
+                CadFrame.Project.WriteToFile(path);
+                lastSaved = DateTime.Now;
+            }
+        }
+        void OnProjectClosed(Project theProject, IFrame theFrame)
+        {
+            // manage autosave OnIdle
+        }
+        private void OnProjectOpened(Project theProject, IFrame theFrame)
+        {
+            // manage autosave OnIdle
         }
         protected override void OnLoad(EventArgs e)
         {
