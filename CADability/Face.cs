@@ -1827,20 +1827,20 @@ namespace CADability.GeoObject
                                         if (loops[i][j].vertex2 != loops[i][j].createdEdges[0].Vertex1 && loops[i][j].vertex2 != loops[i][j].createdEdges[0].Vertex2) reverse = true;
                                     }
                                     if (reverse) loops[i][j].createdEdges.Reverse();
-//#if DEBUG
-//                                    bool ok = true;
-//                                    if (loops[i][j].forward)
-//                                    {
-//                                        if (loops[i][j].vertex2 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex1
-//                                            && loops[i][j].vertex2 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex2) ok = false;
-//                                    }
-//                                    else
-//                                    {
-//                                        if (loops[i][j].vertex1 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex1
-//                                            && loops[i][j].vertex1 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex2) ok = false;
-//                                    }
-//                                    // System.Diagnostics.Debug.Assert(OK); this may happen and is valid
-//#endif
+                                    //#if DEBUG
+                                    //                                    bool ok = true;
+                                    //                                    if (loops[i][j].forward)
+                                    //                                    {
+                                    //                                        if (loops[i][j].vertex2 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex1
+                                    //                                            && loops[i][j].vertex2 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex2) ok = false;
+                                    //                                    }
+                                    //                                    else
+                                    //                                    {
+                                    //                                        if (loops[i][j].vertex1 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex1
+                                    //                                            && loops[i][j].vertex1 != loops[i][j].createdEdges[loops[i][j].createdEdges.Count - 1].Vertex2) ok = false;
+                                    //                                    }
+                                    //                                    // System.Diagnostics.Debug.Assert(OK); this may happen and is valid
+                                    //#endif
                                 }
                                 for (int k = 0; k < loops[i][j].createdEdges.Count; k++)
                                 {   // in most cases this is only a single edge, unless it has been splitted before
@@ -3521,7 +3521,7 @@ namespace CADability.GeoObject
             }
             if (!Precision.IsEqual(bounds2d[0].StartPoint, bounds2d[bounds2d.Length - 1].EndPoint)) return null;
             double area = Border.SignedArea(bounds2d);
-            if (area<0)
+            if (area < 0)
             {
                 sortedCurves.Reverse();
                 for (int i = 0; i < sortedCurves.Count; i++)
@@ -3576,7 +3576,7 @@ namespace CADability.GeoObject
                 Vertex v1 = outline[i].EndVertex(res);
                 Vertex v2 = outline[next].StartVertex(res);
                 double d = v1.Position | v2.Position;
-                if (v1!=v2 && d<Precision.eps) // which it must be 
+                if (v1 != v2 && d < Precision.eps) // which it must be 
                 {
                     v2.MergeWith(v1);
                 }
@@ -3867,7 +3867,7 @@ namespace CADability.GeoObject
             GeoObjectList res = new GeoObjectList(ToSort.Count);
             if (ToSort.Count == 0) return res;
             GeoObjectList ToRemove = new GeoObjectList(ToSort);
-            
+
             int found = 0;
             GeoPoint LastEndPoint = new GeoPoint();
             GeoPoint BestPoint = new GeoPoint();
@@ -5676,7 +5676,7 @@ namespace CADability.GeoObject
             {
                 if (outline[i].Curve3D is IGeoObject crv) // kann null sein
                 {
-                    if (crv.HitTest(spf.pickArea,false)) crv.FindSnapPoint(spf);
+                    if (crv.HitTest(spf.pickArea, false)) crv.FindSnapPoint(spf);
                 }
             }
             for (int i = 0; i < holes.Length; i++)
@@ -8675,6 +8675,24 @@ namespace CADability.GeoObject
                 uvOnFaces = new GeoPoint2D[] { surface.PositionOf(edg.Curve3D.StartPoint), surface.PositionOf(edg.Curve3D.EndPoint) };
                 uOnCurve3Ds = new double[] { 0.0, 1.0 };
             }
+            if (ips.Length > 0 && edg.Curve3D is InterpolatedDualSurfaceCurve dsc && !dsc.Surface1.SameGeometry(dsc.GetBoundingRect(true), surface, Domain, prec, out _) && !dsc.Surface2.SameGeometry(dsc.GetBoundingRect(false), surface, Domain, prec, out _))
+            {   // this point is the intersection point of three surfaces, Surfaces.IntersectThreeSurfaces makes a better newton approximation of the point
+                for (int i = 0; i < ips.Length; i++)
+                {
+                    GeoPoint tmp = ips[i];
+                    bool ok = Surfaces.IntersectThreeSurfaces(dsc.Surface1, dsc.GetBoundingRect(true), dsc.Surface2, dsc.GetBoundingRect(false),
+                        Surface, Domain, ref ips[i], out GeoPoint2D uv1, out GeoPoint2D uv2, out GeoPoint2D uv3);
+                    if (ok)
+                    {
+                        uOnCurve3Ds[i] = edg.Curve3D.PositionOf(ips[i]);
+                        uvOnFaces[i] = Surface.PositionOf(ips[i]);
+                    }
+                    else
+                    {
+                        ips[i] = tmp;
+                    }
+                }
+            }
             List<GeoPoint> lip = new List<GeoPoint>();
             List<GeoPoint2D> luvOnFace = new List<GeoPoint2D>();
             List<double> luOnCurve3D = new List<double>();
@@ -8683,10 +8701,13 @@ namespace CADability.GeoObject
             {
                 if (Contains(ref uvOnFaces[i], true) && uOnCurve3Ds[i] >= -1e-6 && uOnCurve3Ds[i] <= 1.0 + 1e-6) // geändert auf 1e-6, da wir in BRepIntersection das so brauchen
                 {
-                    lip.Add(ips[i]);
-                    luvOnFace.Add(uvOnFaces[i]);
-                    luOnCurve3D.Add(uOnCurve3Ds[i]);
-                    lposition.Add(Area.GetPosition(uvOnFaces[i], prec));
+                    if (lip.Count == 0 || !Precision.IsEqual(lip.Last(), ips[i]))
+                    {
+                        lip.Add(ips[i]);
+                        luvOnFace.Add(uvOnFaces[i]);
+                        luOnCurve3D.Add(uOnCurve3Ds[i]);
+                        lposition.Add(Area.GetPosition(uvOnFaces[i], prec));
+                    }
                 }
                 else if (uOnCurve3Ds[i] >= -1e-6 && uOnCurve3Ds[i] <= 1.0 + 1e-6) // check on border or edge
                 {
@@ -9038,7 +9059,7 @@ namespace CADability.GeoObject
                     {   // the face is not connected to one of the surfaces of the idsc. Find the other surface
                         ISurface otherSurface = null;
                         BoundingRect otherDomain = BoundingRect.EmptyBoundingRect;
-                        if (idsc.Surface2.SameGeometry(idsc.Domain2, this.surface, modifiedBounds,0.0, out ModOp2D m2d))
+                        if (idsc.Surface2.SameGeometry(idsc.Domain2, this.surface, modifiedBounds, 0.0, out ModOp2D m2d))
                         {
                             otherSurface = idsc.Surface1;
                             otherDomain = idsc.Domain1;

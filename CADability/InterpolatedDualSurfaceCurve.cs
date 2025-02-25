@@ -1641,6 +1641,25 @@ namespace CADability
             }
             return res;
         }
+        public BoundingRect GetBoundingRect(bool onSurface1)
+        {
+            BoundingRect res = BoundingRect.EmptyBoundingRect;
+            if (onSurface1)
+            {
+                for (int i = 0; i < basePoints.Length; i++)
+                {
+                    res.MinMax(basePoints[i].psurface1);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < basePoints.Length; i++)
+                {
+                    res.MinMax(basePoints[i].psurface2);
+                }
+            }
+            return res;
+        }
         //public override bool HitTest(ref BoundingCube cube, double precision)
         //{   // soll in GeneralCurve mit TetraederHülle gemacht werden, vorläufig:
         //    for (int i = 0; i < basePoints.Length - 1; ++i)

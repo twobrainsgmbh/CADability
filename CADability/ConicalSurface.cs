@@ -196,14 +196,21 @@ namespace CADability.GeoObject
         {
             try
             {
-                Plane pln = new Plane(Location, Axis, fromHere - Location);
-                // in this plane the x-axis is the conical axis, the origin is the apex of the cone
-                Angle dira = OpeningAngle / 2.0;
-                // this line through origin with angle dira and -dira are the envelope lines of the cone
-                GeoPoint2D fromHere2d = pln.Project(fromHere);
-                GeoPoint2D fp1 = Geometry.DropPL(fromHere2d, GeoPoint2D.Origin, new GeoVector2D(dira));
-                GeoPoint2D fp2 = Geometry.DropPL(fromHere2d, GeoPoint2D.Origin, new GeoVector2D(-dira));
-                return new GeoPoint2D[] { PositionOf(pln.ToGlobal(fp1)), PositionOf(pln.ToGlobal(fp2)) };
+                if (!(fromHere - Location).IsNullVector())
+                {
+                    Plane pln = new Plane(Location, Axis, fromHere - Location);
+                    if (pln.IsValid())
+                    {
+                        // in this plane the x-axis is the conical axis, the origin is the apex of the cone
+                        Angle dira = OpeningAngle / 2.0;
+                        // this line through origin with angle dira and -dira are the envelope lines of the cone
+                        GeoPoint2D fromHere2d = pln.Project(fromHere);
+                        GeoPoint2D fp1 = Geometry.DropPL(fromHere2d, GeoPoint2D.Origin, new GeoVector2D(dira));
+                        GeoPoint2D fp2 = Geometry.DropPL(fromHere2d, GeoPoint2D.Origin, new GeoVector2D(-dira));
+                        return new GeoPoint2D[] { PositionOf(pln.ToGlobal(fp1)), PositionOf(pln.ToGlobal(fp2)) };
+                    }
+                }
+                return new GeoPoint2D[0];
             }
             catch
             {   // fromHere is on the axis
@@ -1280,7 +1287,7 @@ namespace CADability.GeoObject
                 GeoPoint2D[] ip2d = GetLineIntersection(line.StartPoint, line.StartDirection);
                 ips = new GeoPoint[ip2d.Length];
                 uvOnFaces = new GeoPoint2D[ip2d.Length];
-                uOnCurve3Ds= new double[ip2d.Length];
+                uOnCurve3Ds = new double[ip2d.Length];
                 for (int i = 0; i < ip2d.Length; i++)
                 {
                     ips[i] = PointAt(ip2d[i]);
@@ -1290,7 +1297,7 @@ namespace CADability.GeoObject
             }
             else
             {
-                base.Intersect(curve,uvExtent,out ips, out uvOnFaces, out uOnCurve3Ds);
+                base.Intersect(curve, uvExtent, out ips, out uvOnFaces, out uOnCurve3Ds);
             }
         }
 

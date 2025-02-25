@@ -6293,29 +6293,43 @@ namespace CADability.GeoObject
                 for (int i = 0; i < extremePositions.Count; i++)
                 {
                     ICurve crv = null;
-                    if (!double.IsNaN(extremePositions[i].Item1)) crv = surface1.FixedU(extremePositions[i].Item1, ext2.Bottom, ext2.Top);
-                    else if (!double.IsNaN(extremePositions[i].Item2)) crv = surface1.FixedV(extremePositions[i].Item2, ext2.Left, ext2.Right);
-                    if (!double.IsNaN(extremePositions[i].Item3)) crv = surface2.FixedU(extremePositions[i].Item3, ext1.Bottom, ext1.Top);
-                    else if (!double.IsNaN(extremePositions[i].Item4)) crv = surface2.FixedV(extremePositions[i].Item4, ext1.Left, ext1.Right);
+                    if (!double.IsNaN(extremePositions[i].Item1) && ext1.Left <= extremePositions[i].Item1 && ext1.Right >= extremePositions[i].Item1) crv = surface1.FixedU(extremePositions[i].Item1, ext2.Bottom, ext2.Top);
+                    else if (!double.IsNaN(extremePositions[i].Item2) && ext1.Bottom <= extremePositions[i].Item2 && ext1.Top >= extremePositions[i].Item2) crv = surface1.FixedV(extremePositions[i].Item2, ext2.Left, ext2.Right);
+                    if (!double.IsNaN(extremePositions[i].Item3) && ext2.Left <= extremePositions[i].Item3 && ext2.Right >= extremePositions[i].Item3) crv = surface2.FixedU(extremePositions[i].Item3, ext1.Bottom, ext1.Top);
+                    else if (!double.IsNaN(extremePositions[i].Item4) && ext2.Bottom <= extremePositions[i].Item4 && ext2.Top >= extremePositions[i].Item4) crv = surface2.FixedV(extremePositions[i].Item4, ext1.Left, ext1.Right);
                     if (crv != null)
                     {
                         if (!double.IsNaN(extremePositions[i].Item1) && !double.IsNaN(extremePositions[i].Item2))
                         {
                             // crv is on surface1
                             surface2.Intersect(crv, ext2, out GeoPoint[] ips, out GeoPoint2D[] uvOnFaces, out double[] uOnCurve3Ds);
-                            seeds.AddRange(ips);
+                            for (int j = 0; j < ips.Length; j++)
+                            {
+                                if (ext2.Contains(uvOnFaces[j]) && uOnCurve3Ds[j] >= 0.0 && uOnCurve3Ds[j] <= 1.0) seeds.Add(ips[j]);
+                            }
+
                         }
                         else
                         {
                             // crv is on surface2
                             surface1.Intersect(crv, ext1, out GeoPoint[] ips, out GeoPoint2D[] uvOnFaces, out double[] uOnCurve3Ds);
-                            seeds.AddRange(ips);
+                            for (int j = 0; j < ips.Length; j++)
+                            {
+                                if (ext1.Contains(uvOnFaces[j]) && uOnCurve3Ds[j] >= 0.0 && uOnCurve3Ds[j] <= 1.0) seeds.Add(ips[j]);
+                            }
                         }
                     }
                 }
                 // seeds are not sorted. The curve must be closed. We simply repeat the first seed as the last seed
                 if (seeds.Count > 1)
-                {
+                {   // seeds are not sorted. But if we have 4 seeds, two curves have been used , the first curve created seed 0 and 1, the second 2 and 3
+                    // so we better exchange 1 and 2
+                    if (seeds.Count==4)
+                    {
+                        GeoPoint tmp = seeds[1];
+                        seeds[1] = seeds[2];
+                        seeds[2] = tmp;
+                    }
                     seeds.Add(seeds.First());
                     IDualSurfaceCurve[] candidates = surface1.GetDualSurfaceCurves(ext1, surface2, ext2, seeds, null);
                     for (int i = 0; i < candidates.Length; i++)
@@ -6431,7 +6445,7 @@ namespace CADability.GeoObject
                     else dist = newdist;
                 }
             }
-            catch (PlaneException) {  } // we are tangential!
+            catch (PlaneException) { } // we are tangential!
             return (dist <= Precision.eps);
         }
 

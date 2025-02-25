@@ -12,6 +12,8 @@ using System.Windows.Forms;
 using System.Reflection;
 using System.Xml;
 using CADability.UserInterface;
+using System.Runtime.InteropServices;
+using static ShapeIt.MainForm;
 
 namespace ShapeIt
 {
@@ -40,6 +42,12 @@ namespace ShapeIt
             if (toOpen == null) CadFrame.GenerateNewProject();
             else CadFrame.Project = toOpen;
             this.Text = "ShapeIt with CADability";
+            //this.Width = 1280; //1266
+            //this.Height= 720;//733
+            //this.SetBounds(
+            //    this.Left, this.Top,
+            //    1280, 720,
+            //    BoundsSpecified.Size); 
             bool exp = Settings.GlobalSettings.GetBoolValue("Experimental.TestNewContextMenu", false);
             bool tst = Settings.GlobalSettings.GetBoolValue("ShapeIt.Initialized", false);
             Settings.GlobalSettings.SetValue("ShapeIt.Initialized", true);
@@ -58,6 +66,14 @@ namespace ShapeIt
                 MenuResource.SetMenuResource(menuDocument);
                 ResetMainMenu(null);
             }
+        }
+        protected override void OnLoad(EventArgs e)
+        {
+            base.OnLoad(e);
+
+            // Setze hier die exakte Fenstergröße (inklusive Rahmen) auf 1280x720
+            this.Size = new Size(1294, 727);
+
         }
 
         public override bool OnCommand(string MenuId)
