@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Reflection;
 using System.Windows.Forms;
 
 namespace CADability.Forms
@@ -161,11 +162,11 @@ namespace CADability.Forms
                 }
                 if (entries[index].Flags.HasFlag(PropertyEntryType.Lockable))
                 {   // test the lock/unlock
-                    buttonRect = new Rectangle(area.Right - buttonWidth- ButtonImages.ButtonImageList.ImageSize.Width, area.Top, ButtonImages.ButtonImageList.ImageSize.Width, area.Height); // square rect at the right end
+                    buttonRect = new Rectangle(area.Right - buttonWidth - ButtonImages.ButtonImageList.ImageSize.Width, area.Top, ButtonImages.ButtonImageList.ImageSize.Width, area.Height); // square rect at the right end
                     ControlPaint.DrawButton(graphics, buttonRect, ButtonState.Flat);
                     dy = (area.Height - ButtonImages.ButtonImageList.ImageSize.Height) / 2;
-                    if (entries[index].IsLocked) ButtonImages.ButtonImageList.Draw(graphics, buttonRect.Left, buttonRect.Top+dy, 154); // the "locked" symbol
-                    else ButtonImages.ButtonImageList.Draw(graphics, buttonRect.Left, buttonRect.Top+dy, 155); // the "unlocked" symbol
+                    if (entries[index].IsLocked) ButtonImages.ButtonImageList.Draw(graphics, buttonRect.Left, buttonRect.Top + dy, 154); // the "locked" symbol
+                    else ButtonImages.ButtonImageList.Draw(graphics, buttonRect.Left, buttonRect.Top + dy, 155); // the "unlocked" symbol
                 }
             }
             else if (entries[index].Flags.HasFlag(PropertyEntryType.DropDown))
@@ -182,6 +183,11 @@ namespace CADability.Forms
                 //    if (w2 == 0) graphics.FillRectangle(SystemBrushes.ControlText, xm, ym + i, 1, 1); // a single pixel
                 //    else graphics.DrawLine(SystemPens.ControlText, xm - w2, ym + i, xm + w2, ym + i); // the horizontal "minus" line
                 //}
+            }
+            else if (entries[index].Flags.HasFlag(PropertyEntryType.DirectMenu))
+            {   // draw a combo button
+                Rectangle buttonRect = new Rectangle(area.Right - buttonWidth, area.Top, buttonWidth, area.Height);
+                ControlPaint.DrawScrollButton(graphics, buttonRect, ScrollButton.Right, ButtonState.Flat);
             }
             else if (entries[index].Flags.HasFlag(PropertyEntryType.CancelButton) || entries[index].Flags.HasFlag(PropertyEntryType.OKButton))
             {
@@ -448,6 +454,9 @@ namespace CADability.Forms
                 case EMousePos.onLockButton:
                     entries[index].ButtonClicked(PropertyEntryButton.locked);
                     break;
+                case EMousePos.onDirectMenu:
+                    entries[index].ButtonClicked(PropertyEntryButton.directMenu);
+                    break;
                 case EMousePos.onContextMenu:
                     if (entries[index].ContextMenu == null)
                     {
@@ -531,7 +540,7 @@ namespace CADability.Forms
             }
             (this as IPropertyPage).Selected = selectedEntry;
         }
-        enum EMousePos { outside, onTreeButton, onLabel, onValue, onDropDownButton, onContextMenu, onOkButton, onCancelButton, onLockButton, onMiddleLine, onCheckbox }
+        enum EMousePos { outside, onTreeButton, onLabel, onValue, onDropDownButton, onContextMenu, onOkButton, onCancelButton, onLockButton, onMiddleLine, onCheckbox, onDirectMenu }
         private (int index, EMousePos position, Rectangle hitItem) GetMousePosition(MouseEventArgs e)
         {
             if (entries == null) return (-1, EMousePos.outside, Rectangle.Empty);
@@ -547,11 +556,12 @@ namespace CADability.Forms
             if (entries[index].Flags.HasFlag(PropertyEntryType.HasSubEntries) && e.Location.X >= treeLeft && e.Location.X <= treeRight) return (index, EMousePos.onTreeButton, new Rectangle(treeLeft, bottom, treeRight - treeLeft, lineHeight));
             if (entries[index].Value != null && e.Location.X >= treeLeft && e.Location.X <= middle) return (index, EMousePos.onLabel, new Rectangle(treeLeft, bottom, middle - treeLeft, lineHeight));
             if (entries[index].Flags.HasFlag(PropertyEntryType.ContextMenu) && e.Location.X >= ClientRectangle.Width - buttonWidth) return (index, EMousePos.onContextMenu, new Rectangle(ClientRectangle.Width - buttonWidth, bottom, buttonWidth, lineHeight));
+            if (entries[index].Flags.HasFlag(PropertyEntryType.DirectMenu) && e.Location.X >= ClientRectangle.Width - buttonWidth) return (index, EMousePos.onDirectMenu, new Rectangle(ClientRectangle.Width - buttonWidth, bottom, buttonWidth, lineHeight));
             if (entries[index].Flags.HasFlag(PropertyEntryType.DropDown) && e.Location.X >= ClientRectangle.Width - buttonWidth) return (index, EMousePos.onDropDownButton, new Rectangle(middle, bottom, ClientRectangle.Width - middle, lineHeight));
             if (entries[index].Flags.HasFlag(PropertyEntryType.CancelButton) && e.Location.X >= ClientRectangle.Width - lineHeight) return (index, EMousePos.onCancelButton, new Rectangle(ClientRectangle.Width - lineHeight, bottom, lineHeight, lineHeight));
             if (entries[index].Flags.HasFlag(PropertyEntryType.OKButton) && e.Location.X >= ClientRectangle.Width - 2 * lineHeight) return (index, EMousePos.onOkButton, new Rectangle(ClientRectangle.Width - 2 * lineHeight, bottom, lineHeight, lineHeight)); //OK and Cancel buttons have width = lineHeight (18)
-			if (entries[index].Flags.HasFlag(PropertyEntryType.Lockable) && e.Location.X >= ClientRectangle.Width - ButtonImages.ButtonImageList.ImageSize.Width - buttonWidth) return (index, EMousePos.onLockButton, new Rectangle(ClientRectangle.Width - 2 * lineHeight, bottom, lineHeight, lineHeight)); //Lock button has width of the image and is before ContextMenu, context menu has width = buttonWidth
-			if (entries[index].Value == null && e.Location.X >= treeLeft) return (index, EMousePos.onLabel, new Rectangle(treeLeft, bottom, ClientSize.Width - treeLeft, lineHeight));
+            if (entries[index].Flags.HasFlag(PropertyEntryType.Lockable) && e.Location.X >= ClientRectangle.Width - ButtonImages.ButtonImageList.ImageSize.Width - buttonWidth) return (index, EMousePos.onLockButton, new Rectangle(ClientRectangle.Width - 2 * lineHeight, bottom, lineHeight, lineHeight)); //Lock button has width of the image and is before ContextMenu, context menu has width = buttonWidth
+            if (entries[index].Value == null && e.Location.X >= treeLeft) return (index, EMousePos.onLabel, new Rectangle(treeLeft, bottom, ClientSize.Width - treeLeft, lineHeight));
             if (entries[index].Value != null && e.Location.X >= middle) return (index, EMousePos.onValue, new Rectangle(middle, bottom, ClientRectangle.Width - middle, lineHeight));
             return (index, EMousePos.outside, Rectangle.Empty);
         }
@@ -798,6 +808,10 @@ namespace CADability.Forms
                 else if (selectedEntry.Flags.HasFlag(PropertyEntryType.HasSubEntries))
                 {
                     OpenOrCloseSubEntries(selected);
+                }
+                else if (selectedEntry.Flags.HasFlag(PropertyEntryType.DirectMenu))
+                {   // execute the menu as if the direct menu button had been clicked
+                    selectedEntry.ButtonClicked(PropertyEntryButton.directMenu);
                 }
             }
         }

@@ -1528,6 +1528,36 @@ namespace CADability
             return res;
         }
         /// <summary>
+        /// Make an dimension arrow between p1 and p2. Dimension help line connect to d1 and d2
+        /// </summary>
+        /// <param name="p1"></param>
+        /// <param name="p2"></param>
+        /// <param name="d1"></param>
+        /// <param name="d2"></param>
+        /// <param name="plane"></param>
+        /// <param name="mode"></param>
+        /// <returns></returns>
+        public GeoObjectList MakeArrow(GeoPoint p1, GeoPoint p2, GeoPoint d1, GeoPoint d2, Plane plane, ArrowMode mode)
+        {
+            GeoObjectList res = new GeoObjectList();
+            // we need a plane which contains the line p1-p2 as the x-axis
+            if (plane.IsValid())
+            {
+                try
+                {
+                    Plane arrowPlane = new Plane(p1, p2 - p1, (p2 - p1) ^ plane.Normal);
+                    double headx = arrowPlane.Project(p2).x;
+                    double arrowSize = (Height + Width) * 0.008 * DeviceToWorldFactor; // 1% of the display size 
+                    res.Add(Line.TwoPoints(p1, p2));
+                    res.Add(Face.MakeFace(new PlaneSurface(arrowPlane), new SimpleShape(Border.MakeCircle(GeoPoint2D.Origin, arrowSize))));
+                    res.Add(Face.MakeFace(new PlaneSurface(arrowPlane), new SimpleShape(Border.MakePolygon(new GeoPoint2D[] { new GeoPoint2D(headx, 0), new GeoPoint2D(headx - arrowSize, arrowSize), new GeoPoint2D(headx - arrowSize, -arrowSize) }))));
+                    // paintTo3D.TriangulateText auf false setzen!
+                }
+                catch (PlaneException) { }
+            }
+            return res;
+        }
+        /// <summary>
         /// make an arrow showing a rotation operation. The rotation is around the <paramref name="axis"/>
         /// and goes from the vector <paramref name="fromHere"/> to the vector <paramref name="toHere"/>.
         /// </summary>

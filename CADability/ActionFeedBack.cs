@@ -139,6 +139,17 @@ namespace CADability.Actions
             }
             return repaintObjects.Count - 1;
         }
+        public int Add(IEnumerable<IGeoObject> feedBackObjects)
+        {
+            foreach (IGeoObject go in feedBackObjects)
+            {
+                IFeedBack feedBackObject = go as IFeedBack;
+                repaintObjects.Add(feedBackObject);
+                feedBackObject.FeedBackChangedEvent += new FeedBackChangedDelegate(OnFeedBackChanged);
+                OnFeedBackChanged(feedBackObject);
+            }
+            return repaintObjects.Count - 1;
+        }
 
         void OnFeedBackChanged(IFeedBack sender)
         {

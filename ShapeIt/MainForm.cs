@@ -82,13 +82,16 @@ namespace ShapeIt
                 string path = Path.GetTempPath();
                 path = Path.Combine(path, "ShapeIt");
                 DirectoryInfo dirInfo = Directory.CreateDirectory(path);
+                string currentFileName = CadFrame.Project.FileName;
                 if (string.IsNullOrEmpty(CadFrame.Project.FileName)) path = Path.Combine(path, "noname.cdb.json");
                 else
                 {
                     string fileName = Path.GetFileNameWithoutExtension(CadFrame.Project.FileName);
+                    if (fileName.EndsWith(".cdb")) fileName = Path.GetFileNameWithoutExtension(fileName); // we usually have two extensions: .cdb.json
                     path = Path.Combine(path, fileName + "_.cdb.json");
                 }
                 CadFrame.Project.WriteToFile(path);
+                CadFrame.Project.FileName = currentFileName; // Project.WriteToFile changes the Project.FileName, restore the current name
                 lastSaved = DateTime.Now;
             }
         }
@@ -104,7 +107,7 @@ namespace ShapeIt
         {
             base.OnLoad(e);
 
-            // Setze hier die exakte Fenstergröße (inklusive Rahmen) auf 1280x720
+            // this is for recording the session with 1280x720 pixel. 
             this.Size = new Size(1294, 727);
 
         }
