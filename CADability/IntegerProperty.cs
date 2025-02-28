@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.Serialization;
@@ -11,7 +10,7 @@ namespace CADability.UserInterface
     /// Display an editable integer value in the property grid.
     /// </summary>
     [Serializable()]
-    public class IntegerProperty : EditableProperty<int>, ISerializable, ISettingChanged, ICommandHandler, IDeserializationCallback, IJsonSerialize, IJsonSerializeDone
+    public class IntegerProperty : EditableProperty<int>, ISerializable, ICommandHandler, IDeserializationCallback, IJsonSerialize, IJsonSerializeDone
     {
         private object ObjectWithInt;
         private PropertyInfo TheProperty;
@@ -195,7 +194,6 @@ namespace CADability.UserInterface
                     IsSetting = false;
                 }
             }
-            //if (SettingChangedEvent!=null) SettingChangedEvent(settingName,this);
         }
         public bool NotifyOnLostFocusOnly { get; set; }
         private int GetInt()
@@ -396,13 +394,7 @@ namespace CADability.UserInterface
         }
 
         #endregion
-
-        #region ISettingChanged Members
-
-        public event CADability.SettingChangedDelegate SettingChangedEvent;
-
-        #endregion
-
+		
         #region ICommandHandler Members
 
         bool ICommandHandler.OnCommand(string MenuId)
@@ -440,6 +432,4 @@ namespace CADability.UserInterface
 
         #endregion
     }
-
-
 }

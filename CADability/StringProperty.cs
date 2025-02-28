@@ -1,12 +1,10 @@
 ﻿using System;
-using System.Globalization;
-using System.Reflection;
 using System.Runtime.Serialization;
 
 namespace CADability.UserInterface
 {
     [Serializable()]
-    public class StringProperty : EditableProperty<string>, ISerializable, ISettingChanged
+    public class StringProperty : EditableProperty<string>, ISerializable
     {
         public StringProperty(object ObjectWithProperty, string PropertyName, string resourceId) : base(ObjectWithProperty, PropertyName, resourceId)
         {
@@ -105,10 +103,6 @@ namespace CADability.UserInterface
             info.AddValue("InternalValue", GetValue(), typeof(string));
             info.AddValue("ResourceId", resourceIdInternal, typeof(string));
         }
-        #endregion
-
-        #region ISettingChanged Members
-        public event CADability.SettingChangedDelegate SettingChangedEvent;
         #endregion
     }
 }
