@@ -896,6 +896,7 @@ namespace CADability.Shapes
         {	// Berechnet QuadTree, segmentToIndex und extent. Erwartet wird das segment Array
             // in korrekter Reihenfolge. Bei geschlossenen Borders wird ggf. umgedreht
             reversed = false;
+			quadTree = null;
             BoundingRect ext = new BoundingRect(System.Double.MaxValue, System.Double.MaxValue, System.Double.MinValue, System.Double.MinValue);
             // BoundingRect.EmptyBoundingRect;
             segmentToIndex = new Hashtable(segment.Length);
