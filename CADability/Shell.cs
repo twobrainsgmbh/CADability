@@ -213,7 +213,7 @@ namespace CADability.GeoObject
         public static Shell FromFaces(Face[] faces, bool connect = false)
         {
             Shell res = Shell.Construct();
-            if (connect) connectFaces(faces, Precision.eps);
+            if (connect) ConnectFaces(faces, Precision.eps);
             res.SetFaces(faces);
             return res;
         }
@@ -4454,7 +4454,7 @@ namespace CADability.GeoObject
                     if (!allfaces[i].CheckConsistency()) { }
                     clonedFaces.Add(allfaces[i].Clone() as Face);
                 }
-                connectFaces(clonedFaces.ToArray(), Precision.eps);
+                ConnectFaces(clonedFaces.ToArray(), Precision.eps);
                 // Shell res = MakeShell(clonedFaces.ToArray());
                 Shell[] res = Make3D.SewFaces(clonedFaces.ToArray());
                 if (res[0].OpenEdges.Length == 0)
@@ -4839,7 +4839,7 @@ namespace CADability.GeoObject
                 dcf.Add(fce, fce.GetHashCode());
             }
 #endif
-            connectFaces(affectedFaces.ToArray(), precision); // jetzt sind alle Kanten verbunden
+            ConnectFaces(affectedFaces.ToArray(), precision); // jetzt sind alle Kanten verbunden
                                                               // aber die Kanten in replaceBy, die aufgebrochen wurden, haben noch innere Punkte, die nicht verbunden sind
                                                               // auf der einen Seite haben wir die aufgebrochenen Kanten, die nicht wieder verbunden wurden, weli ihr Gegenstück
                                                               // geteilt wurde, auf der anderen Seite die offenen kanten von replaceby, das sind die geteilten
@@ -4987,7 +4987,7 @@ namespace CADability.GeoObject
             //    }
             //}
         }
-        internal static void connectFaces(Face[] toConnect, double precision)
+        public static void ConnectFaces(Face[] toConnect, double precision)
         {
             Set<Vertex> toAdd = new Set<Vertex>(); // alle vertices von offenen Kanten
             BoundingCube ext = BoundingCube.EmptyBoundingCube;
@@ -5379,8 +5379,11 @@ namespace CADability.GeoObject
                 this.SetFaces(facesset.ToArray());
             }
         }
-
+#if DEBUG
+        public bool CheckConsistency()
+#else
         internal bool CheckConsistency()
+#endif
         {
             for (int i = 0; i < Faces.Length; i++)
             {
@@ -5496,7 +5499,7 @@ namespace CADability.GeoObject
         {
             using (new Changing(this, "CopyAll", this.Clone()))
             {
-                connectFaces(facesToAdd.ToArray(), Precision.eps); // makes sure that all faces are oriented the same way and there are no duplicate vertices
+                ConnectFaces(facesToAdd.ToArray(), Precision.eps); // makes sure that all faces are oriented the same way and there are no duplicate vertices
                 ColorDef cd = null;
                 if (colorDef != null && colorDef.Source != ColorDef.ColorSource.fromParent) cd = this.colorDef;
                 else if (Owner is Solid sld && sld.ColorDef != null) cd = sld.ColorDef;
@@ -6595,7 +6598,7 @@ namespace CADability.GeoObject
         /// </summary>
         /// <param name="edges"></param>
         /// <returns></returns>
-        internal static HashSet<Edge> connectedSameGeometryEdges(IEnumerable<Edge> edges)
+        public static HashSet<Edge> ConnectedSameGeometryEdges(IEnumerable<Edge> edges)
         {
             HashSet<Edge> res = new HashSet<Edge>(edges);
             IEnumerable<Edge> edgesToIterate = edges;
@@ -6629,7 +6632,7 @@ namespace CADability.GeoObject
         /// </summary>
         /// <param name="faces"></param>
         /// <returns></returns>
-        internal static HashSet<Face> connectedSameGeometryFaces(IEnumerable<Face> faces)
+        public static HashSet<Face> ConnectedSameGeometryFaces(IEnumerable<Face> faces)
         {
             HashSet<Face> res = new HashSet<Face>(faces);
             IEnumerable<Face> facesToIterate = faces;
@@ -7087,7 +7090,7 @@ namespace CADability.GeoObject
                 {
                     List<Face> feature = ClonePart(subset);
                     feature.AddRange(caps);
-                    Shell.connectFaces(feature.ToArray(), Precision.eps);
+                    Shell.ConnectFaces(feature.ToArray(), Precision.eps);
                     Shell fs = Shell.MakeShell(feature.ToArray(), false);
                     fs.AssertOutwardOrientation();
                     res.Add(fs);

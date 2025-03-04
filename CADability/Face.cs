@@ -8489,7 +8489,7 @@ namespace CADability.GeoObject
             }
             return res.ToArray();
         }
-        internal GeoPoint[] GetLineIntersection(GeoPoint sp, GeoVector direction)
+        public GeoPoint[] GetLineIntersection(GeoPoint sp, GeoVector direction)
         {
             GeoPoint2D[] all = this.surface.GetLineIntersection(sp, direction);
             List<GeoPoint> res = new List<GeoPoint>();

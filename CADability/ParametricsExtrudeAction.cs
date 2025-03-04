@@ -9,7 +9,7 @@ using System.Text;
 
 namespace CADability.Actions
 {
-    internal class ParametricsExtrudeAction : ConstructAction
+    public class ParametricsExtrudeAction : ConstructAction
     {
         public Shell shell; // the shell beeing manipulated by this action
         public HashSet<Face> Faces { get; } // the faces beeing stretched

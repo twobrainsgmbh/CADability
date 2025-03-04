@@ -608,7 +608,7 @@ namespace CADability.GeoObject
             upper.Modify(ModOp.Translate(extrusion));
             res.Add(upper);
             Face[] fcs = res.ToArray();
-            Shell.connectFaces(fcs, minLen * 1e-3);
+            Shell.ConnectFaces(fcs, minLen * 1e-3);
             Shell shell = Shell.Construct();
             shell.SetFaces(fcs);
             shell.RecalcVertices();

@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 
 namespace CADability.UserInterface
 {
@@ -11,11 +12,11 @@ namespace CADability.UserInterface
 
     public class SimplePropertyGroup : PropertyEntryImpl
     {
-        private ArrayList subentries;
+        private List<IPropertyEntry> subentries;
         public SimplePropertyGroup(string resourceId)
         {
             this.resourceIdInternal = resourceId;
-            subentries = new ArrayList();
+            subentries = new List<IPropertyEntry>();
         }
         public void Add(IPropertyEntry subEntry)
         {
@@ -43,7 +44,7 @@ namespace CADability.UserInterface
         {
             get
             {
-                return (IPropertyEntry[])subentries.ToArray(typeof(IPropertyEntry));
+                return subentries.ToArray();
             }
         }
         #endregion

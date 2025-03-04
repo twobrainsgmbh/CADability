@@ -2059,7 +2059,7 @@ namespace CADability
                 secondaryFace = value;
             }
         }
-        internal IGeoObject Owner
+        public IGeoObject Owner
         {
             get
             {

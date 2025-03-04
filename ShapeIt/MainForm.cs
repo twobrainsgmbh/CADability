@@ -15,6 +15,7 @@ using CADability.UserInterface;
 using System.Runtime.InteropServices;
 using static ShapeIt.MainForm;
 using System.IO;
+using CADability.Actions;
 
 namespace ShapeIt
 {
@@ -66,8 +67,12 @@ namespace ShapeIt
                 ResetMainMenu(null);
             }
             lastSaved = DateTime.Now;
+            // the following installs the property page for modelling. This connects all modelling
+            // tasks of ShapeIt with CADability
+            IPropertyPage modellingPropPage = CadFrame.ControlCenter.AddPropertyPage("Modelling", 6);
+            modellingPropPage.Add(new ModellingPropertyEntries(CadFrame), false);
+            CadFrame.ControlCenter.ShowPropertyPage("Modelling");
         }
-
 
         /// <summary>
         /// Called when CADability is idle. We use it to save the current project data to a temp file in case of a crash

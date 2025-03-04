@@ -1354,7 +1354,7 @@ namespace CADability.Shapes
             holes = newholes;
         }
 
-        internal GeoPoint2D GetSomeInnerPoint()
+        public GeoPoint2D GetSomeInnerPoint()
         {
             BoundingRect ext = this.GetExtent() * 1.1;
             // Problem: zwei sich berührende Löcher, die Cliplinie geht genau durch die Berührstelle

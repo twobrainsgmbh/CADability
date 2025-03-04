@@ -139,7 +139,7 @@ namespace CADability
             {
                 get { return frontCenter; }
             }
-            internal GeoVector Direction
+            public GeoVector Direction
             {
                 get
                 {

@@ -86,7 +86,7 @@ namespace CADability
                 {
                     Shell edgesShell = null;
                     if (selectedEdges.Count > 0) edgesShell = (selectedEdges.First().Owner as Face).Owner as Shell;
-                    selectedEdges = Shell.connectedSameGeometryEdges(selectedEdges); // add all faces which have the same surface and are connected
+                    selectedEdges = Shell.ConnectedSameGeometryEdges(selectedEdges); // add all faces which have the same surface and are connected
                     if (edgesShell != null)
                     {
                         if (edgesShell.FeatureFromLoops(selectedEdges, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
@@ -102,7 +102,7 @@ namespace CADability
                     if (selectedFaces.Count > 0) facesShell = selectedFaces.First().Owner as Shell;
                     if (facesShell != null)
                     {
-                        selectedFaces = Shell.connectedSameGeometryFaces(selectedFaces); // add all faces which have the same surface and are connected
+                        selectedFaces = Shell.ConnectedSameGeometryFaces(selectedFaces); // add all faces which have the same surface and are connected
                         if (facesShell.FeatureFromFaces(selectedFaces, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
                         {
                             // there is a feature. Multiple different features are not considered, we would need FeaturesFromFaces
@@ -172,7 +172,7 @@ namespace CADability
                 if (edges.Count > 0)
                 {
                     Shell edgesShell = (edges.First().Owner as Face).Owner as Shell;
-                    HashSet<Edge> connectedEdges = Shell.connectedSameGeometryEdges(edges); // add all faces which have the same surface and are connected
+                    HashSet<Edge> connectedEdges = Shell.ConnectedSameGeometryEdges(edges); // add all faces which have the same surface and are connected
                     if (edgesShell != null)
                     {
                         if (edgesShell.FeatureFromLoops(connectedEdges, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
@@ -187,7 +187,7 @@ namespace CADability
                     Shell facesShell = faces.First().Owner as Shell;
                     if (facesShell != null)
                     {
-                        HashSet<Face> connectedFaces = Shell.connectedSameGeometryFaces(faces); // add all faces which have the same surface and are connected
+                        HashSet<Face> connectedFaces = Shell.ConnectedSameGeometryFaces(faces); // add all faces which have the same surface and are connected
                         if (facesShell.FeatureFromFaces(connectedFaces, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
                         {
                             // there is a feature. Multiple different features are not considered, we would need FeaturesFromFaces
@@ -880,7 +880,7 @@ namespace CADability
             MenuWithHandler mh = new MenuWithHandler();
             mh.ID = "MenuId.Edge";
             mh.Text = StringTable.GetString("MenuId.Edge", StringTable.Category.label);
-            HashSet<Edge> edges = Shell.connectedSameGeometryEdges(new Edge[] { edg });
+            HashSet<Edge> edges = Shell.ConnectedSameGeometryEdges(new Edge[] { edg });
             mh.OnSelected = (menuId, selected) =>
             {   // show the provided edge and the "same geometry connected" edges as feedback
                 currentMenuSelection.Clear();
@@ -952,7 +952,7 @@ namespace CADability
 
         private MenuWithHandler CreateFaceMenu(SelectObjectsAction selectAction, IView vw, Face fc, Axis clickBeam)
         {
-            HashSet<Face> faces = Shell.connectedSameGeometryFaces(new Face[] { fc });
+            HashSet<Face> faces = Shell.ConnectedSameGeometryFaces(new Face[] { fc });
             MenuWithHandler mh = new MenuWithHandler();
             mh.ID = "MenuId.Face";
             mh.Text = StringTable.GetString("MenuId.Face", StringTable.Category.label);
@@ -1114,7 +1114,7 @@ namespace CADability
             ff.AddRange(connection.Select(fc => fc.Clone() as Face));
             BoundingCube ext = BoundingCube.EmptyBoundingCube;
             ext.MinMax(ff);
-            Shell.connectFaces(ff.ToArray(), Math.Max(Precision.eps, ext.Size * 1e-6));
+            Shell.ConnectFaces(ff.ToArray(), Math.Max(Precision.eps, ext.Size * 1e-6));
             Shell feature = Shell.FromFaces(ff.ToArray());
             feature.AssertOutwardOrientation();
             uv = ff[0].Surface.PositionOf(xyz);

@@ -801,6 +801,9 @@
 	<data name="SymbolTabPage">
 		<info>Symbole zur Verwendung im Projekt</info>
 	</data>
+	<data name="ModellingTabPage">
+		<info>Modellierwerkzeuge zum Verändern der Geometrie eines Körpers</info>
+	</data>
 	<data name="Line.Length">
 		<label>Länge</label>
 		<info>Anzeige für die Länge der Linie\n; Eingabe der Länge, der Startpunkt bleibt unverändert</info>

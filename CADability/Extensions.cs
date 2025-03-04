@@ -153,7 +153,7 @@ namespace CADability
             }
         }
     }
-    static partial class Extensions
+    public static partial class Extensions
     {
         public static IEnumerable<T> Combine<T>(params IEnumerable<T>[] enumerators)
         {

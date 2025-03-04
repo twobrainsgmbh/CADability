@@ -801,6 +801,9 @@
 	<data name="SymbolTabPage">
 		<info>Symbols available for use in the project</info>
 	</data>
+	<data name="ModellingTabPage">
+		<info>Modelling mode where you can change the geometry of a solid body</info>
+	</data>
 	<data name="Line.Length">
 		<label>Length</label>
 		<info>Length of the line</info>
