@@ -679,7 +679,7 @@ namespace CADability.GeoObject
             }
             return nn + (maxNameindex + 1).ToString();
         }
-        internal double GetGauge(Face startHere, out HashSet<Face> frontSide, out HashSet<Face> backSide)
+        public double GetGauge(Face startHere, out HashSet<Face> frontSide, out HashSet<Face> backSide)
         {
             double thickness = double.MaxValue;
             frontSide = new HashSet<Face>();
@@ -806,7 +806,7 @@ namespace CADability.GeoObject
             }
             return thickness;
         }
-        internal int GetFaceDistances(Face distanceFrom, out List<Face> distanceTo, out List<double> distance, out List<GeoPoint> pointsFrom, out List<GeoPoint> pointsTo)
+        public int GetFaceDistances(Face distanceFrom, out List<Face> distanceTo, out List<double> distance, out List<GeoPoint> pointsFrom, out List<GeoPoint> pointsTo)
         {
             distanceTo = new List<Face>();
             distance = new List<double>();

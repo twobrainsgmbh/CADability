@@ -271,7 +271,7 @@ namespace ShapeIt
                 {
                     if (Constr3DRuledSolid.ruledSolidTest(path1, path2))
                     {
-                        PropertyEntryDirectMenu ruledSolid = new PropertyEntryDirectMenu("MenuId.Constr.Solid.RuledSolid");
+                        DirectMenuEntry ruledSolid = new DirectMenuEntry("MenuId.Constr.Solid.RuledSolid");
                         ruledSolid.ExecuteMenu = (frame) =>
                             {
                                 Constr3DRuledSolid.ruledSolidDo(path1, path2, selectAction.Frame);
@@ -330,8 +330,9 @@ namespace ShapeIt
         private void AddFaceProperties(IView vw, Face fc, Axis clickBeam)
         {
             HashSet<Face> faces = Shell.ConnectedSameGeometryFaces(new Face[] { fc });
-            PropertyEntryDirectMenu mh = new PropertyEntryDirectMenu("MenuId.Face", false); // use without menu, only
-            mh.IsSelected = (selected, frame) =>
+            // faceEntry: a simple group entry, which contains all face modelling menus
+            SelectEntry faceEntry = new SelectEntry("MenuId.Face", true); // only handles selection
+            faceEntry.IsSelected = (selected, frame) =>
             {   // show the provided face and the "same geometry connected" faces as feedback
                 currentMenuSelection.Clear();
                 if (selected) currentMenuSelection.AddRange(faces.ToArray());
@@ -339,55 +340,67 @@ namespace ShapeIt
                 return true;
             };
 
-            List<MenuWithHandler> lmh = new List<MenuWithHandler>();
-            MenuWithHandler selectMoreFaces = new MenuWithHandler("MenuId.SelectMoreFaces");
-            lmh.Add(selectMoreFaces);
-            selectMoreFaces.OnCommand = (menuId) =>
+            // select more faces: the following clicks only regard faces and adds them to the accumulatedObjects list
+            DirectMenuEntry selectMoreFaces = new DirectMenuEntry("MenuId.SelectMoreFaces");
+            selectMoreFaces.ExecuteMenu = (frame) =>
             {
-                selectAction.SetSelectedObjects(new GeoObjectList(faces.ToArray()));
-                selectAction.Accumulate(PickMode.onlyFaces);
+                accumulatedObjects.AddRange(faces);
+                isAccumulating = true;
                 return true;
             };
-            /*
-            lmh.AddRange(GetFacesSubmenus(fc));
+            selectMoreFaces.IsSelected = (selected, frame) =>
+            {   // show the provided face and the "same geometry connected" faces as feedback
+                currentMenuSelection.Clear();
+                if (selected) currentMenuSelection.AddRange(faces.ToArray());
+                vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                return true;
+            };
+            faceEntry.Add(selectMoreFaces);
+
+            // lmh.AddRange(GetFacesSubmenus(fc));
             if (fc.Owner is Shell owningShell)
             {
                 // can we find a thickness or gauge in the shell?
                 double thickness = owningShell.GetGauge(fc, out HashSet<Face> frontSide, out HashSet<Face> backSide);
                 if (thickness != double.MaxValue && thickness > 0.0 && frontSide.Count > 0)
                 {
-                    MenuWithHandler gauge = new MenuWithHandler("MenuId.Gauge");
-                    gauge.OnCommand = (menuId) =>
+                    DirectMenuEntry gauge = new DirectMenuEntry("MenuId.Gauge");
+                    gauge.ExecuteMenu= (frame) =>
                     {
                         ParametricsOffsetAction po = new ParametricsOffsetAction(frontSide, backSide, selectAction.Frame, thickness);
                         selectAction.Frame.SetAction(po);
                         return true;
                     };
-                    gauge.OnSelected = (menuId, selected) =>
+                    gauge.IsSelected = (selected, frame) =>
                     {
                         currentMenuSelection.Clear();
-                        currentMenuSelection.AddRange(frontSide.ToArray());
-                        currentMenuSelection.AddRange(backSide.ToArray());
+                        if (selected)
+                        {
+                            currentMenuSelection.AddRange(frontSide.ToArray());
+                            currentMenuSelection.AddRange(backSide.ToArray());
+                        }
                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                        return true;
                     };
-                    lmh.Add(gauge);
+                    faceEntry.Add(gauge);
                 }
                 // is there a way to center these faces in the shell?
                 {
-                    MenuWithHandler center = new MenuWithHandler("MenuId.Center");
-                    center.OnCommand = (menuId) =>
+                    DirectMenuEntry center = new DirectMenuEntry("MenuId.Center");
+                    center.ExecuteMenu = (frame) =>
                     {
                         ParametricsCenterAction pca = new ParametricsCenterAction(faces);
                         selectAction.Frame.SetAction(pca);
                         return true;
                     };
-                    center.OnSelected = (menuId, selected) =>
+                    center.IsSelected = (selected, frame) =>
                     {
                         currentMenuSelection.Clear();
-                        currentMenuSelection.AddRange(faces.ToArray());
+                        if (selected) currentMenuSelection.AddRange(faces.ToArray());
                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                        return true;
                     };
-                    lmh.Add(center);
+                    faceEntry.Add(center);
                 }
                 int n = owningShell.GetFaceDistances(fc, out List<Face> distanceTo, out List<double> distance, out List<GeoPoint> pointsFrom, out List<GeoPoint> pointsTo);
                 for (int j = 0; j < n; j++)
@@ -400,26 +413,30 @@ namespace ShapeIt
                         GeoPoint capturedPoint1 = pointsFrom[j];
                         GeoPoint capturedPoint2 = pointsTo[j];
                         GeoObjectList feedbackArrow = vw.Projection.MakeArrow(pointsFrom[j], pointsTo[j], vw.Projection.ProjectionPlane, Projection.ArrowMode.circleArrow);
-                        MenuWithHandler faceDist = new MenuWithHandler("MenuId.FaceDistance");
-                        faceDist.OnCommand = (menuId) =>
+                        DirectMenuEntry faceDist = new DirectMenuEntry("MenuId.FaceDistance");
+                        faceDist.ExecuteMenu = (frame) =>
                         {
                             ParametricsDistanceAction pd = new ParametricsDistanceAction(capturedFaceI, capturedDistTo, capturedPoint1, capturedPoint2, selectAction.Frame);
                             selectAction.Frame.SetAction(pd);
                             return true;
                         };
-                        faceDist.OnSelected = (menuId, selected) =>
+                        faceDist.IsSelected = (selected, frame) =>
                         {
                             currentMenuSelection.Clear();
-                            currentMenuSelection.AddRange(capturedFaceI.ToArray());
-                            currentMenuSelection.AddRange(capturedDistTo.ToArray());
-                            currentMenuSelection.AddRange(feedbackArrow);
+                            if (selected)
+                            {
+                                currentMenuSelection.AddRange(capturedFaceI.ToArray());
+                                currentMenuSelection.AddRange(capturedDistTo.ToArray());
+                                currentMenuSelection.AddRange(feedbackArrow);
+                            }
                             vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                            return true;
                         };
-                        lmh.Add(faceDist);
+                        faceEntry.Add(faceDist);
                     }
                 }
                 // Check for possibilities to rotate this face.
-                List<MenuWithHandler> rotateMenus = new List<MenuWithHandler>();
+                List<DirectMenuEntry> rotateMenus = new List<DirectMenuEntry>();
                 if (fc.Surface is PlaneSurface ps)
                 {
                     foreach (Edge edge in fc.OutlineEdges)
@@ -434,19 +451,23 @@ namespace ShapeIt
                                 if (rotationAxis.IsValid)
                                 {
                                     GeoObjectList feedbackArrow = vw.Projection.MakeRotationArrow(rotationAxis, fromHere, toHere);
-                                    MenuWithHandler rotateMenu = new MenuWithHandler("MenuId.FaceAngle");
-                                    rotateMenu.OnCommand = (menuId) =>
+                                    DirectMenuEntry rotateMenu = new DirectMenuEntry("MenuId.FaceAngle");
+                                    rotateMenu.ExecuteMenu = (frame) =>
                                     {
                                         ParametricsAngleAction pa = new ParametricsAngleAction(capturedFace, otherFace, rotationAxis, fromHere, toHere, edge, selectAction.Frame);
                                         selectAction.Frame.SetAction(pa);
                                         return true;
                                     };
-                                    rotateMenu.OnSelected = (menuId, selected) =>
+                                    rotateMenu.IsSelected = (selected, frame) =>
                                     {
                                         currentMenuSelection.Clear();
                                         //currentMenuSelection.Add(capturedFace);
-                                        currentMenuSelection.AddRange(feedbackArrow);
+                                        if (selected)
+                                        {
+                                            currentMenuSelection.AddRange(feedbackArrow);
+                                        }
                                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                                        return true;
                                     };
                                     rotateMenus.Add(rotateMenu);
                                 }
@@ -456,19 +477,17 @@ namespace ShapeIt
                 }
                 if (rotateMenus.Count > 0)
                 {
-                    if (rotateMenus.Count == 1) lmh.Add(rotateMenus[0]);
+                    if (rotateMenus.Count == 1) faceEntry.Add(rotateMenus[0]);
                     else
                     {
-                        MenuWithHandler rm = new MenuWithHandler("MenuId.FacesAngle");
-                        rm.SubMenus = rotateMenus.ToArray();
-                        lmh.Add(rm);
+                        SimplePropertyGroup rm = new SimplePropertyGroup("MenuId.FacesAngle");
+                        rm.Add(rotateMenus.ToArray());
+                        faceEntry.Add(rm);
                     }
                 }
                 // else: more to come!
             }
-            mh.SubMenus = lmh.ToArray();
-            return mh;
-            */
+            this.subEntries.Add(faceEntry);
         }
 
         private void AddExtensionProperties(Face fc, Projection.PickArea pa, IView vw)
@@ -503,7 +522,7 @@ namespace ShapeIt
                     maxObject = fc.Edges.MinBy(e => -loopPlanes[i].Distance(e.Vertex1.Position)).Vertex1;
                 }
                 GeoObjectList feedbackArrow = ParametricsExtrudeAction.MakeLengthArrow(fc.Owner as Shell, minObject, maxObject, fc, loopPlanes[i].Normal, pointOnFace, vw.Projection);
-                PropertyEntryDirectMenu extrudeMenu = new PropertyEntryDirectMenu("MenuId.ExtrusionLength");
+                DirectMenuEntry extrudeMenu = new DirectMenuEntry("MenuId.ExtrusionLength");
                 extrudeMenu.IsSelected = (selected, frame) =>
                 {
                     if (selected)
@@ -571,11 +590,11 @@ namespace ShapeIt
                 }
             };
 
-            PropertyEntryDirectMenu copyFeature = new PropertyEntryDirectMenu("MenuId.Feature.CopyToClipboard");
-            PropertyEntryDirectMenu positionFeature = new PropertyEntryDirectMenu("MenuId.Feature.Position");
-            PropertyEntryDirectMenu nameFeature = new PropertyEntryDirectMenu("MenuId.Feature.Name");
-            PropertyEntryDirectMenu removeFeature = new PropertyEntryDirectMenu("MenuId.Feature.Remove");
-            PropertyEntryDirectMenu splitFeature = new PropertyEntryDirectMenu("MenuId.Feature.Split");
+            DirectMenuEntry copyFeature = new DirectMenuEntry("MenuId.Feature.CopyToClipboard");
+            DirectMenuEntry positionFeature = new DirectMenuEntry("MenuId.Feature.Position");
+            DirectMenuEntry nameFeature = new DirectMenuEntry("MenuId.Feature.Name");
+            DirectMenuEntry removeFeature = new DirectMenuEntry("MenuId.Feature.Remove");
+            DirectMenuEntry splitFeature = new DirectMenuEntry("MenuId.Feature.Split");
             mh.Add(new IPropertyEntry[] { copyFeature, positionFeature, nameFeature, removeFeature, splitFeature });
             // this is very rudimentary. We have to provide a version of ParametricsDistanceAction, where you can select from and to object. Only axis is implemented
             GeoObjectList fa = feature.FeatureAxis;

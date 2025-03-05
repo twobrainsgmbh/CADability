@@ -8,7 +8,7 @@ using static CADability.Actions.ConstructAction;
 
 namespace CADability.Actions
 {
-    internal class ParametricsDistanceAction : ConstructAction
+    public class ParametricsDistanceAction : ConstructAction
     {
         private GeoPoint point1; // the first point of the line defining the distance
         private GeoPoint point2; // the second point of the line defining the distance. these points are not changed but together with distance they define how facesToMove and facesToKeep have to be moved

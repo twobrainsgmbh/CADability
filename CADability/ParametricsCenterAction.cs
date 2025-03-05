@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 
 namespace CADability.Actions
 {
-    internal class ParametricsCenterAction : ConstructAction
+    public class ParametricsCenterAction : ConstructAction
     {
         public Shell shell; // the shell beeing manipulated by this action
         public HashSet<Face> facesToBeCentered; // the faces beeing centered

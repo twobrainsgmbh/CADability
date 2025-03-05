@@ -17,7 +17,7 @@ namespace CADability.Actions
     /// When parallel, it is the normal of the common plane somewhere at the extent of the faces.
     /// For axis object and plane this is ambiguous, when the axis is perpendicular to the plane
     /// </summary>
-    internal class ParametricsAngleAction : ConstructAction
+    public class ParametricsAngleAction : ConstructAction
     {
         Shell shell;
         List<Face> forwardFaces; // all faces in the forward direction of the rotation
