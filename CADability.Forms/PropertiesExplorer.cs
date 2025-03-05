@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace CADability.Forms
@@ -366,6 +367,7 @@ namespace CADability.Forms
                 if (tabPages[i].TitleId == titleId)
                 {
                     tabControl.TabPages.Remove(tabPages[i].Parent as TabPage);
+                    tabPages.RemoveAt(i);
                     return true;
                 }
             }

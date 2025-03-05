@@ -17,12 +17,15 @@ namespace ShapeIt
     /// </summary>
     internal class PropertyEntryDirectMenu : PropertyEntryImpl
     {
+        PropertyEntryType flags;
         /// <summary>
         /// Marks this entry as selectable and having a directMenu button and behaviour
         /// </summary>
-        public override PropertyEntryType Flags => PropertyEntryType.Selectable | PropertyEntryType.DirectMenu;
-        public PropertyEntryDirectMenu(string resourceId) : base(resourceId)
+        public override PropertyEntryType Flags => flags;
+        public PropertyEntryDirectMenu(string resourceId, bool useMenu = true) : base(resourceId)
         {
+            if (useMenu) flags = PropertyEntryType.Selectable | PropertyEntryType.DirectMenu;
+            else flags = PropertyEntryType.Selectable;
         }
         /// <summary>
         /// Supply your code here, which is executed when the menu button is clicked or enter is pressed
@@ -38,7 +41,7 @@ namespace ShapeIt
         /// <param name="button"></param>
         public override void ButtonClicked(PropertyEntryButton button)
         {
-            ExecuteMenu(Frame);
+            if (Flags.HasFlag(PropertyEntryType.DirectMenu)) ExecuteMenu(Frame);
         }
         /// <summary>
         /// Handles the selection of this entry and calls <see cref="IsSelected"/>(true).

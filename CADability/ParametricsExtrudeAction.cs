@@ -581,10 +581,10 @@ namespace CADability.Actions
         /// <param name="pickPoint"></param>
         /// <param name="projection"></param>
         /// <returns></returns>
-        public static GeoObjectList MakeLengthArrow(Shell onThisShell, object fromHere, object toHere, Face onThisFace, GeoPoint pickPoint, Projection projection)
+        public static GeoObjectList MakeLengthArrow(Shell onThisShell, object fromHere, object toHere, Face onThisFace, GeoVector forceDirection, GeoPoint pickPoint, Projection projection)
         {
             GeoObjectList res = null;
-            (GeoPoint startPoint, GeoPoint endPoint) d = DistanceBetweenObjects(fromHere, toHere, GeoVector.Invalid, GeoPoint.Invalid, out GeoVector freedom, out GeoPoint dimStartPoint, out GeoPoint dimEndPoint);
+            (GeoPoint startPoint, GeoPoint endPoint) d = DistanceBetweenObjects(fromHere, toHere, forceDirection, GeoPoint.Invalid, out GeoVector freedom, out GeoPoint dimStartPoint, out GeoPoint dimEndPoint);
             if (d.startPoint.IsValid)
             {   // find a position, where the arrow would be visible
                 Plane pln = new Plane(d.startPoint, d.endPoint - d.startPoint, GeoVector.ZAxis);

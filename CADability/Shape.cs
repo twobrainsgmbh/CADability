@@ -196,7 +196,7 @@ namespace CADability.Shapes
             }
             return true;
         }
-        internal Border.Position GetPosition(GeoPoint2D p, double prec = 0.0)
+        public Border.Position GetPosition(GeoPoint2D p, double prec = 0.0)
         {
             Border.Position pos = outline.GetPosition(p, prec);
             if (pos == Border.Position.Outside) return Border.Position.Outside;

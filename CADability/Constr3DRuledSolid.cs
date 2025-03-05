@@ -5,7 +5,7 @@ using System.Collections;
 
 namespace CADability.Actions
 {
-    internal class Constr3DRuledSolid : ConstructAction
+    public class Constr3DRuledSolid : ConstructAction
     {
         private GeoObjectInput geoObjectInput1;
         private GeoObjectInput geoObjectInput2;

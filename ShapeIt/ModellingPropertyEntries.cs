@@ -17,6 +17,39 @@ using Wintellect.PowerCollections;
 
 namespace ShapeIt
 {
+    /// <summary>
+    /// Class to enable Edges to reside in an <see cref="OctTree{T}"/>
+    /// </summary>
+    class EdgeInOctTree : IOctTreeInsertable
+    {
+        public Edge Edge { get; private set; }
+        public EdgeInOctTree(Edge edge) { Edge = edge; }
+
+        public BoundingCube GetExtent(double precision)
+        {
+            return Edge.Curve3D.GetExtent();
+        }
+
+        public bool HitTest(ref BoundingCube cube, double precision)
+        {
+            return Edge.Curve3D.HitTest(cube);
+        }
+
+        public bool HitTest(Projection projection, BoundingRect rect, bool onlyInside)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool HitTest(Projection.PickArea area, bool onlyInside)
+        {
+            throw new NotImplementedException();
+        }
+
+        public double Position(GeoPoint fromHere, GeoVector direction, double precision)
+        {
+            throw new NotImplementedException();
+        }
+    }
     internal class ModellingPropertyEntries : PropertyEntryImpl
     {
         private List<IPropertyEntry> subEntries = new List<IPropertyEntry>(); // the list of property entries in this property page
@@ -25,6 +58,8 @@ namespace ShapeIt
         private bool isAccumulating; // expect more clicks to add same objects of a certain type (edges, faces)
         private List<IGeoObject> accumulatedObjects = new List<IGeoObject>(); // objects beeing accumulated
         private GeoObjectList currentMenuSelection = new GeoObjectList(); // List of highlighted objects to be displayed, when a entry is selected
+        private IPaintTo3DList displayList;
+        private bool modelligIsActive; // if true, there is no normal or "old" CADability selection, but every mouseclick of the SelectObjectsAction is handled here
         public ModellingPropertyEntries(IFrame cadFrame) : base("Modelling.Properties")
         {
             this.cadFrame = cadFrame;
@@ -36,9 +71,27 @@ namespace ShapeIt
             cadFrame.ActionTerminatedEvent += ActionTerminated;
             cadFrame.ActionStartedEvent += ActionStarted;
             isAccumulating = false;
-
+            cadFrame.ViewsChangedEvent += ViewsChanged;
+            modelligIsActive = true;
         }
-
+        #region CADability events
+        private void ViewsChanged(IFrame theFrame)
+        {
+            cadFrame = theFrame;
+            selectAction = cadFrame.ActiveAction as SelectObjectsAction; // which should always be the case
+            if (selectAction != null)
+            {
+                selectAction.FilterMouseMessagesEvent -= FilterSelectMouseMessages; // no problem, if it wasn't set
+                selectAction.FilterMouseMessagesEvent += FilterSelectMouseMessages;
+            }
+            theFrame.ActiveView.SetPaintHandler(PaintBuffer.DrawingAspect.Select, OnRepaintSelect);
+            if (modelligIsActive)
+            {
+                propertyPage?.BringToFront();
+                cadFrame.SetControlCenterFocus("Modelling", "Modelling.Properties", true, false);
+                // cadFrame.ControlCenter.ShowPropertyPage("Modelling");
+            }
+        }
         private void ActionStarted(CADability.Actions.Action action)
         {
         }
@@ -49,15 +102,55 @@ namespace ShapeIt
                 cadFrame.ControlCenter.ShowPropertyPage("Modelling");
             }
         }
-        public override PropertyEntryType Flags => PropertyEntryType.Selectable | PropertyEntryType.GroupTitle | PropertyEntryType.HasSubEntries; // PropertyEntryType.ContextMenu | 
-        public override IPropertyEntry[] SubItems => subEntries.ToArray();
         private void FilterSelectMouseMessages(SelectObjectsAction.MouseAction mouseAction, CADability.Substitutes.MouseEventArgs e, IView vw, ref bool handled)
         {
-            if (mouseAction == SelectObjectsAction.MouseAction.MouseUp && e.Button == CADability.Substitutes.MouseButtons.Left)
+            if (modelligIsActive)
             {
-                ComposeModellingEntries(e.Location, vw);
+                // TODO: other mouse activities: cursor, drag rect etc.
+                if (mouseAction == SelectObjectsAction.MouseAction.MouseUp && e.Button == CADability.Substitutes.MouseButtons.Left)
+                {
+                    ComposeModellingEntries(e.Location, vw);
+                    IsOpen = true;
+                    Refresh();
+                    handled = true;
+                }
             }
         }
+        #endregion
+        #region PropertyEntry implementation
+        public override PropertyEntryType Flags => PropertyEntryType.Selectable | PropertyEntryType.GroupTitle | PropertyEntryType.Checkable | PropertyEntryType.HasSubEntries; // PropertyEntryType.ContextMenu | 
+        public override IPropertyEntry[] SubItems => subEntries.ToArray();
+        public override string Value
+        {
+            get
+            {
+                // Value == "0"(not checked), "1"(checked), "2" (indetermined or disabled)
+                return modelligIsActive ? "1" : "0";
+            }
+        }
+        public override void ButtonClicked(PropertyEntryButton button)
+        {
+            if (button == PropertyEntryButton.check)
+            {
+                modelligIsActive = !modelligIsActive;
+                propertyPage?.Refresh(this);
+                if (modelligIsActive)
+                {
+                    cadFrame.ActiveView.SetPaintHandler(PaintBuffer.DrawingAspect.Select, OnRepaintSelect);
+                }
+                else
+                {
+                    cadFrame.ActiveView.RemovePaintHandler(PaintBuffer.DrawingAspect.Select, OnRepaintSelect);
+                }
+            }
+        }
+        public override void Selected(IPropertyEntry previousSelected)
+        {
+            currentMenuSelection.Clear();
+            cadFrame.ActiveView.Invalidate(PaintBuffer.DrawingAspect.Select, cadFrame.ActiveView.DisplayRectangle);
+            base.Selected(previousSelected);
+        }
+        #endregion
         private void ComposeModellingEntries(System.Drawing.Point mousePoint, IView vw)
         {   // a mouse left button up took place. Compose all the entries for objects, which can be handled by 
             // the object(s) under the mouse cursor
@@ -66,12 +159,12 @@ namespace ShapeIt
             int pickRadius = selectAction.Frame.GetIntSetting("Select.PickRadius", 5);
             Projection.PickArea pa = vw.Projection.GetPickSpace(new Rectangle(mousePoint.X - pickRadius, mousePoint.Y - pickRadius, pickRadius * 2, pickRadius * 2));
             Axis clickBeam = new Axis(pa.FrontCenter, pa.Direction);
+            IEnumerable<Layer> visiblaLayers = new List<Layer>();
+            if (vw is ModelView mv) visiblaLayers = mv.GetVisibleLayers();
+            objectsUnderCursor = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(visiblaLayers), PickMode.singleFaceAndCurve, null); // returns all the faces or edges under the cursor
             if (isAccumulating && accumulatedObjects.Count > 0)
             {
-                IEnumerable<Layer> visiblaLayers = new List<Layer>();
-                if (vw is ModelView mv) visiblaLayers = mv.GetVisibleLayers();
                 // we are in accumulation mode. 
-                objectsUnderCursor = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(visiblaLayers), PickMode.singleFaceAndCurve, null); // returns all the face under the cursor
                 for (int i = 0; i < objectsUnderCursor.Count; i++)
                 {
                     if (accumulatedObjects[0] is ICurve && objectsUnderCursor[i] is ICurve || accumulatedObjects[0].GetType() == objectsUnderCursor[i].GetType())
@@ -157,13 +250,230 @@ namespace ShapeIt
                 {   // build the menu with extrusions and rotations
                     AddExtensionProperties(fc, pa, vw);
                 }
+                foreach (Face fc in faces)
+                {
+                    AddFaceProperties(vw, fc, clickBeam);
+                }
+                foreach (Edge edg in edges)
+                {
+                    AddEdgeProperties(vw, edg, clickBeam);
+                }
+                foreach (Solid sld in solids)
+                {
+                    AddSolidProperties(vw, sld);
+                }
+                if (curves.Count > 1)
+                {
+                    if (CanMakePath(curves)) AddMakePath(vw, curves);
+                }
+                bool suppresRuledSolid = false;
+                if (curves.Count == 2 && curves[0] is Path path1 && curves[1] is Path path2)
+                {
+                    if (Constr3DRuledSolid.ruledSolidTest(path1, path2))
+                    {
+                        PropertyEntryDirectMenu ruledSolid = new PropertyEntryDirectMenu("MenuId.Constr.Solid.RuledSolid");
+                        ruledSolid.ExecuteMenu = (frame) =>
+                            {
+                                Constr3DRuledSolid.ruledSolidDo(path1, path2, selectAction.Frame);
+                                return true;
+                            };
+                        ruledSolid.IsSelected = (selected, frame) =>
+                        {
+                            if (selected)
+                            {
+                                currentMenuSelection.Clear();
+                                for (int i = 0; i < curves.Count; i++)
+                                {
+                                    currentMenuSelection.Add(curves[i] as IGeoObject);
+                                }
+                                vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+
+                            }
+                            return true;
+                        };
+                        suppresRuledSolid = true;
+                    }
+                }
+                for (int i = 0; i < curves.Count; i++)
+                {
+                    AddCurveProperties(selectAction, vw, curves[i], suppresRuledSolid);
+                }
 
             }
+
+            IPropertyPage pp = propertyPage;
+            if (pp != null)
+            {
+                // pp.Refresh(this); // doesn't do the job, so we must remove and add
+                pp.Remove(this); // to reflect this newly composed entry
+                pp.Add(this, true);
+                if (subEntries.Count > 0) pp.SelectEntry(subEntries[0]);
+            }
+        }
+
+        private void AddCurveProperties(SelectObjectsAction selectAction, IView vw, ICurve curve, bool suppresRuledSolid)
+        {
+        }
+
+        private void AddMakePath(IView vw, List<ICurve> curves)
+        {
+        }
+
+        private void AddSolidProperties(IView vw, Solid sld)
+        {
+        }
+
+        private void AddEdgeProperties(IView vw, Edge edg, Axis clickBeam)
+        {
+        }
+
+        private void AddFaceProperties(IView vw, Face fc, Axis clickBeam)
+        {
+            HashSet<Face> faces = Shell.ConnectedSameGeometryFaces(new Face[] { fc });
+            PropertyEntryDirectMenu mh = new PropertyEntryDirectMenu("MenuId.Face", false); // use without menu, only
+            mh.IsSelected = (selected, frame) =>
+            {   // show the provided face and the "same geometry connected" faces as feedback
+                currentMenuSelection.Clear();
+                if (selected) currentMenuSelection.AddRange(faces.ToArray());
+                vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                return true;
+            };
+
+            List<MenuWithHandler> lmh = new List<MenuWithHandler>();
+            MenuWithHandler selectMoreFaces = new MenuWithHandler("MenuId.SelectMoreFaces");
+            lmh.Add(selectMoreFaces);
+            selectMoreFaces.OnCommand = (menuId) =>
+            {
+                selectAction.SetSelectedObjects(new GeoObjectList(faces.ToArray()));
+                selectAction.Accumulate(PickMode.onlyFaces);
+                return true;
+            };
+            /*
+            lmh.AddRange(GetFacesSubmenus(fc));
+            if (fc.Owner is Shell owningShell)
+            {
+                // can we find a thickness or gauge in the shell?
+                double thickness = owningShell.GetGauge(fc, out HashSet<Face> frontSide, out HashSet<Face> backSide);
+                if (thickness != double.MaxValue && thickness > 0.0 && frontSide.Count > 0)
+                {
+                    MenuWithHandler gauge = new MenuWithHandler("MenuId.Gauge");
+                    gauge.OnCommand = (menuId) =>
+                    {
+                        ParametricsOffsetAction po = new ParametricsOffsetAction(frontSide, backSide, selectAction.Frame, thickness);
+                        selectAction.Frame.SetAction(po);
+                        return true;
+                    };
+                    gauge.OnSelected = (menuId, selected) =>
+                    {
+                        currentMenuSelection.Clear();
+                        currentMenuSelection.AddRange(frontSide.ToArray());
+                        currentMenuSelection.AddRange(backSide.ToArray());
+                        vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                    };
+                    lmh.Add(gauge);
+                }
+                // is there a way to center these faces in the shell?
+                {
+                    MenuWithHandler center = new MenuWithHandler("MenuId.Center");
+                    center.OnCommand = (menuId) =>
+                    {
+                        ParametricsCenterAction pca = new ParametricsCenterAction(faces);
+                        selectAction.Frame.SetAction(pca);
+                        return true;
+                    };
+                    center.OnSelected = (menuId, selected) =>
+                    {
+                        currentMenuSelection.Clear();
+                        currentMenuSelection.AddRange(faces.ToArray());
+                        vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                    };
+                    lmh.Add(center);
+                }
+                int n = owningShell.GetFaceDistances(fc, out List<Face> distanceTo, out List<double> distance, out List<GeoPoint> pointsFrom, out List<GeoPoint> pointsTo);
+                for (int j = 0; j < n; j++)
+                {
+                    if (backSide == null || !backSide.Contains(distanceTo[j])) // this is not already used as gauge
+                    {
+                        HashSet<Face> capturedFaceI = new HashSet<Face>(new Face[] { fc });
+                        HashSet<Face> capturedDistTo = new HashSet<Face>(new Face[] { distanceTo[j] });
+                        double capturedDistance = distance[j];
+                        GeoPoint capturedPoint1 = pointsFrom[j];
+                        GeoPoint capturedPoint2 = pointsTo[j];
+                        GeoObjectList feedbackArrow = vw.Projection.MakeArrow(pointsFrom[j], pointsTo[j], vw.Projection.ProjectionPlane, Projection.ArrowMode.circleArrow);
+                        MenuWithHandler faceDist = new MenuWithHandler("MenuId.FaceDistance");
+                        faceDist.OnCommand = (menuId) =>
+                        {
+                            ParametricsDistanceAction pd = new ParametricsDistanceAction(capturedFaceI, capturedDistTo, capturedPoint1, capturedPoint2, selectAction.Frame);
+                            selectAction.Frame.SetAction(pd);
+                            return true;
+                        };
+                        faceDist.OnSelected = (menuId, selected) =>
+                        {
+                            currentMenuSelection.Clear();
+                            currentMenuSelection.AddRange(capturedFaceI.ToArray());
+                            currentMenuSelection.AddRange(capturedDistTo.ToArray());
+                            currentMenuSelection.AddRange(feedbackArrow);
+                            vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                        };
+                        lmh.Add(faceDist);
+                    }
+                }
+                // Check for possibilities to rotate this face.
+                List<MenuWithHandler> rotateMenus = new List<MenuWithHandler>();
+                if (fc.Surface is PlaneSurface ps)
+                {
+                    foreach (Edge edge in fc.OutlineEdges)
+                    {
+                        if (!edge.IsTangentialEdge())
+                        {
+                            Face capturedFace = fc;
+                            Face otherFace = edge.OtherFace(fc);
+                            if (otherFace != null)
+                            {
+                                (Axis rotationAxis, GeoVector fromHere, GeoVector toHere) = ParametricsAngleAction.GetRotationAxis(fc, otherFace, clickBeam);
+                                if (rotationAxis.IsValid)
+                                {
+                                    GeoObjectList feedbackArrow = vw.Projection.MakeRotationArrow(rotationAxis, fromHere, toHere);
+                                    MenuWithHandler rotateMenu = new MenuWithHandler("MenuId.FaceAngle");
+                                    rotateMenu.OnCommand = (menuId) =>
+                                    {
+                                        ParametricsAngleAction pa = new ParametricsAngleAction(capturedFace, otherFace, rotationAxis, fromHere, toHere, edge, selectAction.Frame);
+                                        selectAction.Frame.SetAction(pa);
+                                        return true;
+                                    };
+                                    rotateMenu.OnSelected = (menuId, selected) =>
+                                    {
+                                        currentMenuSelection.Clear();
+                                        //currentMenuSelection.Add(capturedFace);
+                                        currentMenuSelection.AddRange(feedbackArrow);
+                                        vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                                    };
+                                    rotateMenus.Add(rotateMenu);
+                                }
+                            }
+                        }
+                    }
+                }
+                if (rotateMenus.Count > 0)
+                {
+                    if (rotateMenus.Count == 1) lmh.Add(rotateMenus[0]);
+                    else
+                    {
+                        MenuWithHandler rm = new MenuWithHandler("MenuId.FacesAngle");
+                        rm.SubMenus = rotateMenus.ToArray();
+                        lmh.Add(rm);
+                    }
+                }
+                // else: more to come!
+            }
+            mh.SubMenus = lmh.ToArray();
+            return mh;
+            */
         }
 
         private void AddExtensionProperties(Face fc, Projection.PickArea pa, IView vw)
         {
-            FindExtrusionLoops(fc, pa, out List<ICurve[]> loopCurves, out List<Face[]> loopFaces, out List<Edge[]> loopEdges, out List<Plane> loopPlanes, out List<SimpleShape> loopShapes);
+            FindExtrusionLoops(fc, pa, out List<ICurve[]> loopCurves, out List<Face[]> loopFaces, out List<Edge[]> loopEdges, out List<Plane> loopPlanes, out List<SimpleShape> loopShapes, out GeoPoint pointOnFace);
             for (int i = 0; i < loopCurves.Count; i++)
             {
                 Face extrFace = Face.MakeFace(new PlaneSurface(loopPlanes[i]), loopShapes[i]);
@@ -174,7 +484,7 @@ namespace ShapeIt
                 GeoPoint zmax = loopPlanes[i].CoordSys.LocalToGlobal * new GeoPoint(0, 0, ext.Zmax);
                 GeoPoint zmin = loopPlanes[i].CoordSys.LocalToGlobal * new GeoPoint(0, 0, ext.Zmin);
                 Plane arrowPlane = new Plane(loopPlanes[i].Location, fc.Surface.GetNormal(fc.PositionOf(loopPlanes[i].Location)));
-                GeoObjectList feedbackArrow = vw.Projection.MakeArrow(zmin, zmax, arrowPlane, Projection.ArrowMode.circleArrow);
+                // GeoObjectList feedbackArrow = vw.Projection.MakeArrow(zmin, zmax, arrowPlane, Projection.ArrowMode.circleArrow);
                 // which part of the face is used for meassurement? Try to fingd an edge or a vertex with the appropriate distance
                 object maxObject = null, minObject = null;
                 foreach (Edge edg in fc.Edges)
@@ -192,6 +502,7 @@ namespace ShapeIt
                 {   // nothing found, maybe it is an edge like an arc, where we use the maximum or minimum distance
                     maxObject = fc.Edges.MinBy(e => -loopPlanes[i].Distance(e.Vertex1.Position)).Vertex1;
                 }
+                GeoObjectList feedbackArrow = ParametricsExtrudeAction.MakeLengthArrow(fc.Owner as Shell, minObject, maxObject, fc, loopPlanes[i].Normal, pointOnFace, vw.Projection);
                 PropertyEntryDirectMenu extrudeMenu = new PropertyEntryDirectMenu("MenuId.ExtrusionLength");
                 extrudeMenu.IsSelected = (selected, frame) =>
                 {
@@ -213,7 +524,7 @@ namespace ShapeIt
                     selectAction.Frame.SetAction(pea);
                     return true;
                 };
-                this.subEntries.Add(extrudeMenu);
+                subEntries.Add(extrudeMenu);
             }
         }
 
@@ -384,20 +695,21 @@ namespace ShapeIt
         /// <param name="loopPlanes"></param>
         /// <returns></returns>
         private void FindExtrusionLoops(Face fc, Projection.PickArea pa, out List<ICurve[]> loopCurves, out List<Face[]> loopFaces,
-            out List<Edge[]> loopEdges, out List<Plane> loopPlanes, out List<SimpleShape> loopShapes)
+            out List<Edge[]> loopEdges, out List<Plane> loopPlanes, out List<SimpleShape> loopShapes, out GeoPoint pointOnFace)
         {
             loopCurves = new List<ICurve[]>();
             loopFaces = new List<Face[]>();
             loopEdges = new List<Edge[]>();
             loopPlanes = new List<Plane>();
             loopShapes = new List<SimpleShape>();
+            pointOnFace = GeoPoint.Invalid;
             List<Plane> planeCandidates = new List<Plane>();
             List<Edge> edgeCandidates = new List<Edge>();
             // find the point, which was hit by the mouse
             GeoPoint[] ips = fc.GetLineIntersection(pa.FrontCenter, pa.Direction);
             if (ips.Length > 0)
             {
-                GeoPoint pointOnFace = ips.MinBy(p => (p | pa.FrontCenter)); // this is the point on the face, defined by the mouse position (and closest to the viewer)
+                pointOnFace = ips.MinBy(p => (p | pa.FrontCenter)); // this is the point on the face, defined by the mouse position (and closest to the viewer)
                 Shell shell = fc.Owner as Shell;
                 // now find edges on the outline of the face, which are candidates for extrusion, i.e. are lines and the direction is a extrusion direction of the face
                 List<GeoVector> directions = new List<GeoVector>();
@@ -484,5 +796,57 @@ namespace ShapeIt
                 }
             }
         }
+        /// <summary>
+        /// Will be called when the DrawingAspect.Select of the view has to be repainted (and modellingIsActive).
+        /// </summary>
+        /// <param name="IsInvalid"></param>
+        /// <param name="View"></param>
+        /// <param name="PaintToSelect"></param>
+        private bool CanMakePath(List<ICurve> curves)
+        {
+            List<GeoPoint> points = new List<GeoPoint>();
+            for (int i = 0; i < curves.Count; i++)
+            {
+                if (!curves[i].IsClosed)
+                {
+                    for (int j = 0; j < points.Count; j++)
+                    {
+                        if (Precision.IsEqual(curves[i].StartPoint, points[j])) return true;
+                        if (Precision.IsEqual(curves[i].EndPoint, points[j])) return true;
+                    }
+                    points.Add(curves[i].StartPoint);
+                    points.Add(curves[i].EndPoint);
+                }
+            }
+            return false;
+        }
+        private void OnRepaintSelect(Rectangle IsInvalid, IView View, IPaintTo3D PaintToSelect)
+        {
+            PaintToSelect.PushState();
+            bool oldSelect = PaintToSelect.SelectMode;
+            PaintToSelect.SelectMode = true;
+            PaintToSelect.SelectColor = Color.FromArgb(196, Color.Yellow);
+            PaintToSelect.SetColor(Color.Yellow);
+            //PaintToSelect.UseZBuffer(false);
+            bool pse = PaintToSelect.PaintSurfaceEdges;
+            PaintToSelect.PaintSurfaceEdges = false;
+            int wobbleWidth = -1; // i.e. also show faces which are behind other faces
+            if ((PaintToSelect.Capabilities & PaintCapabilities.ZoomIndependentDisplayList) != 0)
+            {
+                PaintToSelect.OpenList("select-context");
+                foreach (IGeoObject go in currentMenuSelection)
+                {
+                    go.PaintTo3D(PaintToSelect);
+                }
+                displayList = PaintToSelect.CloseList();
+                // PaintToSelect.SelectedList(displayList, wobbleWidth);
+                PaintToSelect.PaintFaces(PaintTo3D.PaintMode.CurvesOnly); // a little bit into the foreground
+                PaintToSelect.List(displayList);
+            }
+            PaintToSelect.SelectMode = oldSelect;
+            PaintToSelect.PaintSurfaceEdges = pse;
+            PaintToSelect.PopState();
+        }
+
     }
 }
