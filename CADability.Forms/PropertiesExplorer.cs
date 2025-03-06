@@ -490,6 +490,10 @@ namespace CADability.Forms
                         HideListBox();
                         e.Handled = true;
                     }
+                    else if (ActivePropertyPage is PropertyPage pp)
+                    {
+                        e.Handled = pp.OnEscape((e.KeyData & Substitutes.Keys.Control) != 0);
+                    }
                     break;
                 case Substitutes.Keys.Down:
                     e.Handled = SelectNextEntry(true);

@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace CADability.Actions
 {
-    internal class Constr3DFaceExtrude : ConstructAction
+    public class Constr3DFaceExtrude : ConstructAction
     {
         private GeoObjectInput geoObjectInput;
         private GeoPointInput innerPointInput;

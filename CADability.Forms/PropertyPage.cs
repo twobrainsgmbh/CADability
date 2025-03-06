@@ -815,6 +815,11 @@ namespace CADability.Forms
                 }
             }
         }
+        internal bool OnEscape(bool ctrl)
+        {
+            return false;
+        }
+
         public void OpenSubEntries(IPropertyEntry toOpenOrClose, bool open)
         {
             if (open != toOpenOrClose.IsOpen)

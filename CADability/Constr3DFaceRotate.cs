@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace CADability.Actions
 {
-    internal class Constr3DFaceRotate : ConstructAction
+    public class Constr3DFaceRotate : ConstructAction
     {
         private GeoObjectInput geoObjectInput;
         private GeoPointInput innerPointInput;

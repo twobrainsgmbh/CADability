@@ -530,7 +530,7 @@ namespace CADability.GeoObject
     /// <summary>
     /// Interface of an extrusion surface. All surfaces, that can be interpreted as an extrusion should implement this interface
     /// </summary>
-    internal interface ISurfaceOfExtrusion
+    public interface ISurfaceOfExtrusion
     {
         /// <summary>
         /// The axis of extrusion. The axis must start at the bottom of the domain and go up to the top of the domain (or left and right, depending on <see cref="ExtrusionDirectionIsV"/>).
@@ -556,7 +556,7 @@ namespace CADability.GeoObject
     /// <summary>
     /// This surface interface is mainly for fillets
     /// </summary>
-    internal interface ISurfaceOfArcExtrusion : ISurfaceOfExtrusion
+    public interface ISurfaceOfArcExtrusion : ISurfaceOfExtrusion
     {
         double Radius { get; set; }
     }

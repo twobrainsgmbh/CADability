@@ -1103,7 +1103,7 @@ namespace CADability
         {
         }
 
-        internal Line Clip(BoundingCube ext)
+        public Line Clip(BoundingCube ext)
         {
             Line res = Line.Construct();
             if (ext.ClipAxis(this, out GeoPoint startPoint, out GeoPoint endPoint))

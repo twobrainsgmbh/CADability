@@ -192,7 +192,7 @@ namespace CADability.GeoObject
         private Edge[][] holes; // die Kanten der Löcher in richtiger Reihenfolge, die jeweilige Richtung steht in Edge
         private bool orientedOutward; // wenn das Face Bestandteil eines solid ist, dann kann hier festgestellt werden
 
-        internal IEnumerable<Face> GetSameSurfaceConnected()
+        public IEnumerable<Face> GetSameSurfaceConnected()
         {
             HashSet<Face> res = new HashSet<Face>();
             for (int i = 0; i < outline.Length; i++)
@@ -3059,7 +3059,7 @@ namespace CADability.GeoObject
         /// </summary>
         /// <param name="sel"></param>
         /// <returns></returns>
-        internal static Face MakeFace(GeoObjectList list)
+        public static Face MakeFace(GeoObjectList list)
         {
             list.DecomposeAll();
             CompoundShape cs = CompoundShape.CreateFromList(list, Precision.eps, out Plane commonplane);
