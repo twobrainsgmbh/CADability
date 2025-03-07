@@ -14,6 +14,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms.VisualStyles;
+using System.Xml.Linq;
 using Wintellect.PowerCollections;
 
 namespace ShapeIt
@@ -133,13 +134,24 @@ namespace ShapeIt
                 }
             }
         }
+        private void StopAccumulating()
+        {
+            IGeoObject[] capturedOjbects = accumulatedObjects.ToArray(); // a list captured for the undo method
+            cadFrame.Project.Undo.AddUndoStep(new ReversibleChange(() =>
+            {
+                accumulatedObjects.Clear();
+                accumulatedObjects.AddRange(capturedOjbects);
+                isAccumulating = true;
+                return true;
+            }));
+            isAccumulating = false;
+            accumulatedObjects.Clear();
+        }
         internal bool OnEscape()
         {
-            if (accumulatedObjects.Count>1 && isAccumulating)
+            if (accumulatedObjects.Count > 1 && isAccumulating)
             {
-                cadFrame.Project.Undo.AddUndoStep(new ReversibleChange(this, "SetAccumulatedObjects", accumulatedObjects.ToArray()));
-                isAccumulating = false;
-                accumulatedObjects.Clear();
+                StopAccumulating();
                 IPropertyPage pp = propertyPage;
                 if (pp != null)
                 {
@@ -197,16 +209,6 @@ namespace ShapeIt
             if (vw is ModelView mv) visiblaLayers = mv.GetVisibleLayers();
             return vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(visiblaLayers), PickMode.singleFaceAndCurve, null); // returns all the faces or edges under the cursor
         }
-        /// <summary>
-        /// This is for Undo, when accumulated objects have been cleared:
-        /// </summary>
-        /// <param name="objects"></param>
-        public void SetAccumulatedObjects(IGeoObject[] objects)
-        {
-            accumulatedObjects.Clear();
-            accumulatedObjects.AddRange(objects);
-            isAccumulating = true;
-        }
         private void ComposeModellingEntries(GeoObjectList objectsUnderCursor, IView vw, Projection.PickArea pickArea)
         {   // a mouse left button up took place. Compose all the entries for objects, which can be handled by 
             // the object(s) under the mouse cursor
@@ -217,9 +219,7 @@ namespace ShapeIt
                 // we are in accumulation mode. 
                 if (objectsUnderCursor.Count == 0)
                 {   // clicked on empty space: clear accumulated objects, but you can undo this
-                    cadFrame.Project.Undo.AddUndoStep(new ReversibleChange(this, "SetAccumulatedObjects", accumulatedObjects.ToArray()));
-                    isAccumulating = false;
-                    accumulatedObjects.Clear();
+                    StopAccumulating();
                 }
                 for (int i = 0; i < objectsUnderCursor.Count; i++)
                 {
@@ -236,6 +236,46 @@ namespace ShapeIt
             if (accumulatedObjects.Count > 1)
             {   // there must be at least 2 objects of the same type be accumulated to show actions for this group
                 // the first accumulated object tells which type of object we are accumulation
+                SimplePropertyGroup title = null;
+                SimplePropertyGroup collection = null;
+                Type accumulatingType = accumulatedObjects[0].GetType(); // Face, Edge, ICurve
+                if (accumulatedObjects[0] is ICurve)
+                {
+                    if (accumulatedObjects[0].Owner is Edge) accumulatingType=  typeof(Edge);
+                    else accumulatingType = typeof(ICurve);
+                }
+                if (accumulatingType == typeof(Edge))
+                {
+                    title = new SimplePropertyGroup("Accumulating.Edges");
+                    collection = new SimplePropertyGroup("Accumulating.Edges.List");
+                }
+                else if (accumulatingType == typeof(ICurve))
+                {
+                    title = new SimplePropertyGroup("Accumulating.Curves");
+                    collection = new SimplePropertyGroup("Accumulating.Curves.List");
+                }
+                else if (accumulatingType == typeof(Face))
+                {
+                    title = new SimplePropertyGroup("Accumulating.Faces");
+                    collection = new SimplePropertyGroup("Accumulating.faces.List");
+                }
+                subEntries.Add(title);
+                title.Add(collection);
+                DirectMenuEntry stopAccumulating = new DirectMenuEntry("Accumulating.Stop");
+                stopAccumulating.ExecuteMenu = (frame) =>
+                {
+                    return true;
+                };
+                title.Add(stopAccumulating);
+                for (int i = 0; i < accumulatedObjects.Count; i++)
+                {
+                    collection.Add(accumulatedObjects[i].GetShowProperties(cadFrame));
+                }
+                if (accumulatingType == typeof(ICurve))
+                {
+                    List<ICurve> curves = accumulatedObjects.OfType<ICurve>().ToList();
+                    if (CanMakePath(curves)) AddMakePath(vw, curves);
+                }
             }
             else
             {   // show actions for all vertices, edges, faces and curves in 
