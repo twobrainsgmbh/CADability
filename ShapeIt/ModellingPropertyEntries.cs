@@ -71,7 +71,7 @@ namespace ShapeIt
             }
             cadFrame.ActionTerminatedEvent += ActionTerminated;
             cadFrame.ActionStartedEvent += ActionStarted;
-            
+
             isAccumulating = false;
             cadFrame.ViewsChangedEvent += ViewsChanged;
             modelligIsActive = true;
@@ -133,6 +133,25 @@ namespace ShapeIt
                 }
             }
         }
+        internal bool OnEscape()
+        {
+            if (accumulatedObjects.Count>1 && isAccumulating)
+            {
+                cadFrame.Project.Undo.AddUndoStep(new ReversibleChange(this, "SetAccumulatedObjects", accumulatedObjects.ToArray()));
+                isAccumulating = false;
+                accumulatedObjects.Clear();
+                IPropertyPage pp = propertyPage;
+                if (pp != null)
+                {
+                    pp.SelectEntry(this); // to unselect the currently selected entry and clear feedback objects
+                    subEntries.Clear();
+                    pp.Remove(this); // to reflect this newly composed entry
+                    pp.Add(this, true);
+                }
+                return true;
+            }
+            return false;
+        }
 
         #endregion
         #region PropertyEntry implementation
@@ -178,6 +197,16 @@ namespace ShapeIt
             if (vw is ModelView mv) visiblaLayers = mv.GetVisibleLayers();
             return vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(visiblaLayers), PickMode.singleFaceAndCurve, null); // returns all the faces or edges under the cursor
         }
+        /// <summary>
+        /// This is for Undo, when accumulated objects have been cleared:
+        /// </summary>
+        /// <param name="objects"></param>
+        public void SetAccumulatedObjects(IGeoObject[] objects)
+        {
+            accumulatedObjects.Clear();
+            accumulatedObjects.AddRange(objects);
+            isAccumulating = true;
+        }
         private void ComposeModellingEntries(GeoObjectList objectsUnderCursor, IView vw, Projection.PickArea pickArea)
         {   // a mouse left button up took place. Compose all the entries for objects, which can be handled by 
             // the object(s) under the mouse cursor
@@ -186,13 +215,11 @@ namespace ShapeIt
             if (isAccumulating && accumulatedObjects.Count > 0)
             {
                 // we are in accumulation mode. 
-                if (objectsUnderCursor.Count==0)
+                if (objectsUnderCursor.Count == 0)
                 {   // clicked on empty space: clear accumulated objects, but you can undo this
-                    using (cadFrame.Project.Undo.UndoFrame)
-                    {
-
-                    }
-
+                    cadFrame.Project.Undo.AddUndoStep(new ReversibleChange(this, "SetAccumulatedObjects", accumulatedObjects.ToArray()));
+                    isAccumulating = false;
+                    accumulatedObjects.Clear();
                 }
                 for (int i = 0; i < objectsUnderCursor.Count; i++)
                 {
@@ -1435,6 +1462,5 @@ namespace ShapeIt
                 }
             }
         }
-
     }
 }

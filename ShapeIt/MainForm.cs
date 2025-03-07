@@ -21,6 +21,7 @@ namespace ShapeIt
 {
     public partial class MainForm : CadForm
     {
+        private ModellingPropertyEntries modellingPropertyEntries;
         private DateTime lastSaved; // time, when the current file has been saved the last time, see OnIdle
         public MainForm(string[] args) : base(args)
         {   // interpret the command line arguments as a name of a file, which should be opened
@@ -70,10 +71,26 @@ namespace ShapeIt
             // the following installs the property page for modelling. This connects all modelling
             // tasks of ShapeIt with CADability
             IPropertyPage modellingPropPage = CadFrame.ControlCenter.AddPropertyPage("Modelling", 6);
-            modellingPropPage.Add(new ModellingPropertyEntries(CadFrame), false);
+            modellingPropertyEntries = new ModellingPropertyEntries(CadFrame);
+            modellingPropPage.Add(modellingPropertyEntries, false);
             CadFrame.ControlCenter.ShowPropertyPage("Modelling");
         }
-
+        /// <summary>
+        /// Filter the escape key for the modelling property page
+        /// </summary>
+        /// <param name="msg"></param>
+        /// <param name="keyData"></param>
+        /// <returns></returns>
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            Keys nmKeyData = (Keys)((int)keyData & 0x0FFFF);
+            CADability.Substitutes.KeyEventArgs e = new CADability.Substitutes.KeyEventArgs((CADability.Substitutes.Keys)keyData);
+            if (nmKeyData == Keys.Escape)
+            {
+                if (modellingPropertyEntries.OnEscape()) return true;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
         /// <summary>
         /// Called when CADability is idle. We use it to save the current project data to a temp file in case of a crash
         /// </summary>
