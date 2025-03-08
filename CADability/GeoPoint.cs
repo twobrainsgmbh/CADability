@@ -181,7 +181,7 @@ namespace CADability
                 return Math.Abs(x) + Math.Abs(y) + Math.Abs(z);
             }
         }
-        internal bool IsValid
+        public bool IsValid
         {
             get
             {

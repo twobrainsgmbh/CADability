@@ -302,6 +302,7 @@ namespace ShapeIt
                                     makeRuledSolid.ExecuteMenu = (frame) =>
                                     {
                                         frame.Project.GetActiveModel().Add(sld);
+                                        StopAccumulating();
                                         return true;
                                     };
                                     title.Add(makeRuledSolid);
@@ -310,35 +311,30 @@ namespace ShapeIt
                             catch (NotImplementedException) { }
                         }
                     }
-                    /*if (CanMakePath(curves)) AddMakePath(vw, curves);
-                    Face fc = Face.MakeFace(new GeoObjectList(curves));
-                    if (fc != null)
+                    if (paths.Count == 1 && paths[0].IsClosed && paths[0].GetPlanarState() == PlanarState.Planar)
                     {
-                        DirectMenuEntry extrude = new DirectMenuEntry("MenuId.Constr.Solid.FaceExtrude"); // too bad, no icon yet, would be 159
-                        extrude.ExecuteMenu = (frame) =>
+                        Plane pln = paths[0].GetPlane();
+                        Face fc = Face.MakeFace(new GeoObjectList(paths[0]));
+                        if (fc != null)
                         {
-                            frame.SetAction(new Constr3DFaceExtrude(fc));
-                            return true;
-                        };
-                        lmh.Add(extrude);
-                        DirectMenuEntry rotate = new DirectMenuEntry("MenuId.Constr.Solid.FaceRotate"); // too bad, no icon yet, would be 160
-                        rotate.ExecuteMenu = (frame) =>
-                        {
-                            frame.SetAction(new Constr3DFaceRotate(new GeoObjectList(fc)));
-                            return true;
-                        };
-                        lmh.Add(rotate);
+                            DirectMenuEntry extrude = new DirectMenuEntry("MenuId.Constr.Solid.FaceExtrude"); // too bad, no icon yet, would be 159
+                            extrude.ExecuteMenu = (frame) =>
+                            {
+                                frame.SetAction(new Constr3DFaceExtrude(fc));
+                                StopAccumulating();
+                                return true;
+                            };
+                            title.Add(extrude);
+                            DirectMenuEntry rotate = new DirectMenuEntry("MenuId.Constr.Solid.FaceRotate"); // too bad, no icon yet, would be 160
+                            rotate.ExecuteMenu = (frame) =>
+                            {
+                                frame.SetAction(new Constr3DFaceRotate(new GeoObjectList(fc)));
+                                StopAccumulating();
+                                return true;
+                            };
+                            title.Add(rotate);
+                        }
                     }
-                    if (!suppresRuledSolid)
-                    {
-                        DirectMenuEntry ruled = new DirectMenuEntry("MenuId.Constr.Solid.RuledSolid"); // too bad, no icon yet, would be 161
-                        ruled.ExecuteMenu = (frame) =>
-                        {
-                            frame.SetAction(new Constr3DRuledSolid(new GeoObjectList(curve as IGeoObject), frame));
-                            return true;
-                        };
-
-                    }*/
                 }
             }
             else
@@ -791,7 +787,37 @@ namespace ShapeIt
 
         private void AddFaceProperties(IView vw, Face fc, Axis clickBeam)
         {
-            HashSet<Face> faces = Shell.ConnectedSameGeometryFaces(new Face[] { fc });
+            if (!(fc.Owner is Shell)) return;
+            HashSet<Face> faces = Shell.ConnectedSameGeometryFaces(new Face[] { fc }); // in case of half cylinders etc. use the whole cylinder
+
+            // where did the user touch the face? We need this point for the display of the dimensioning arrow
+            GeoPoint2D[] ips2d = fc.Surface.GetLineIntersection(clickBeam.Location, clickBeam.Direction);
+            if (ips2d.Length > 1)
+            {
+                double minPos = double.MaxValue;
+                for (int i = 0; i < ips2d.Length; i++)
+                {
+                    bool isInside = false;
+                    foreach (Face face in faces)
+                    {
+                        if (face.Contains(ref ips2d[i], true)) isInside = true;
+                    }
+                    if (isInside)
+                    {
+                        GeoPoint p = fc.Surface.PointAt(ips2d[i]);
+                        double pos = Geometry.LinePar(clickBeam.Location,clickBeam.Direction,p);
+                        if (pos<minPos)
+                        {
+                            minPos = pos;
+                            ips2d[0] = ips2d[i];
+                        }
+                    }
+                }
+            }
+            GeoPoint touchinPoint; // the point where to attach the dimension feedback
+            if (ips2d.Length == 0) touchinPoint = fc.Surface.PointAt(fc.Area.GetSomeInnerPoint());
+            else touchinPoint = fc.Surface.PointAt(ips2d[0]);
+
             // faceEntry: a simple group entry, which contains all face modelling menus
             SelectEntry faceEntries = new SelectEntry("MenuId.Face", true); // only handles selection
             faceEntries.IsSelected = (selected, frame) =>
@@ -820,7 +846,7 @@ namespace ShapeIt
             faceEntries.Add(selectMoreFaces);
 
             // add more menus for faces with specific surfaces
-            faceEntries.Add(GetSurfaceSpecificSubmenus(fc, vw).ToArray());
+            faceEntries.Add(GetSurfaceSpecificSubmenus(fc, vw, touchinPoint).ToArray());
 
             if (fc.Owner is Shell owningShell)
             {
@@ -831,7 +857,7 @@ namespace ShapeIt
                     DirectMenuEntry gauge = new DirectMenuEntry("MenuId.Gauge");
                     gauge.ExecuteMenu = (frame) =>
                     {
-                        ParametricsOffsetAction po = new ParametricsOffsetAction(frontSide, backSide, selectAction.Frame, thickness);
+                        ParametricsOffsetAction po = new ParametricsOffsetAction(frontSide, backSide, cadFrame, thickness);
                         selectAction.Frame.SetAction(po);
                         return true;
                     };
@@ -842,6 +868,7 @@ namespace ShapeIt
                         {
                             currentMenuSelection.AddRange(frontSide.ToArray());
                             currentMenuSelection.AddRange(backSide.ToArray());
+                            currentMenuSelection.AddRange(FeedbackArrow.MakeLengthArrow(owningShell, fc, backSide.First(), fc, fc.Surface.GetNormal(fc.Surface.PositionOf(touchinPoint)), touchinPoint, vw.Projection));
                         }
                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                         return true;
@@ -957,6 +984,7 @@ namespace ShapeIt
 
         private void AddExtensionProperties(Face fc, Projection.PickArea pa, IView vw)
         {
+            if (!(fc.Owner is Shell)) return;
             FindExtrusionLoops(fc, pa, out List<ICurve[]> loopCurves, out List<Face[]> loopFaces, out List<Edge[]> loopEdges, out List<Plane> loopPlanes, out List<SimpleShape> loopShapes, out GeoPoint pointOnFace);
             for (int i = 0; i < loopCurves.Count; i++)
             {
@@ -986,7 +1014,7 @@ namespace ShapeIt
                 {   // nothing found, maybe it is an edge like an arc, where we use the maximum or minimum distance
                     maxObject = fc.Edges.MinBy(e => -loopPlanes[i].Distance(e.Vertex1.Position)).Vertex1;
                 }
-                GeoObjectList feedbackArrow = ParametricsExtrudeAction.MakeLengthArrow(fc.Owner as Shell, minObject, maxObject, fc, loopPlanes[i].Normal, pointOnFace, vw.Projection);
+                GeoObjectList feedbackArrow = FeedbackArrow.MakeLengthArrow(fc.Owner as Shell, minObject, maxObject, fc, loopPlanes[i].Normal, pointOnFace, vw.Projection);
                 DirectMenuEntry extrudeMenu = new DirectMenuEntry("MenuId.ExtrusionLength");
                 extrudeMenu.IsSelected = (selected, frame) =>
                 {
@@ -1331,7 +1359,7 @@ namespace ShapeIt
             PaintToSelect.PaintSurfaceEdges = pse;
             PaintToSelect.PopState();
         }
-        private List<IPropertyEntry> GetSurfaceSpecificSubmenus(Face face, IView vw)
+        private List<IPropertyEntry> GetSurfaceSpecificSubmenus(Face face, IView vw, GeoPoint touchingPoint)
         {
             List<IPropertyEntry> res = new List<IPropertyEntry>();
             if (face.IsFillet())
