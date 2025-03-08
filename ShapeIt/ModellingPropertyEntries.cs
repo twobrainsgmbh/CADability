@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms.VisualStyles;
@@ -241,7 +242,7 @@ namespace ShapeIt
                 Type accumulatingType = accumulatedObjects[0].GetType(); // Face, Edge, ICurve
                 if (accumulatedObjects[0] is ICurve)
                 {
-                    if (accumulatedObjects[0].Owner is Edge) accumulatingType=  typeof(Edge);
+                    if (accumulatedObjects[0].Owner is Edge) accumulatingType = typeof(Edge);
                     else accumulatingType = typeof(ICurve);
                 }
                 if (accumulatingType == typeof(Edge))
@@ -264,6 +265,7 @@ namespace ShapeIt
                 DirectMenuEntry stopAccumulating = new DirectMenuEntry("Accumulating.Stop");
                 stopAccumulating.ExecuteMenu = (frame) =>
                 {
+                    StopAccumulating();
                     return true;
                 };
                 title.Add(stopAccumulating);
@@ -274,7 +276,69 @@ namespace ShapeIt
                 if (accumulatingType == typeof(ICurve))
                 {
                     List<ICurve> curves = accumulatedObjects.OfType<ICurve>().ToList();
-                    if (CanMakePath(curves)) AddMakePath(vw, curves);
+                    // check the condition to make a ruled solid:
+                    // two closed curves not in the same plane
+                    List<Path> paths = Path.FromSegments(curves);
+                    // if we have two paths which are flat but not in the same plane, we could make a ruled solid directly
+                    // if we need more user control, e.g. specifying synchronous points on each path, we woould need a more
+                    // sophisticated action
+                    if (paths.Count == 2 && paths[0].GetPlanarState() == PlanarState.Planar && paths[1].GetPlanarState() == PlanarState.Planar)
+                    {
+                        if (!Precision.IsEqual(paths[0].GetPlane(), paths[1].GetPlane()) && paths[0].IsClosed && paths[1].IsClosed)
+                        {
+                            try
+                            {
+                                Solid sld = Make3D.MakeRuledSolid(paths[0], paths[1], cadFrame.Project);
+                                if (sld != null)
+                                {
+                                    DirectMenuEntry makeRuledSolid = new DirectMenuEntry("MenuId.Constr.Solid.RuledSolid");
+                                    makeRuledSolid.IsSelected = (selected, frame) =>
+                                    {
+                                        currentMenuSelection.Clear();
+                                        if (selected) currentMenuSelection.Add(sld);
+                                        vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                                        return true;
+                                    };
+                                    makeRuledSolid.ExecuteMenu = (frame) =>
+                                    {
+                                        frame.Project.GetActiveModel().Add(sld);
+                                        return true;
+                                    };
+                                    title.Add(makeRuledSolid);
+                                }
+                            }
+                            catch (NotImplementedException) { }
+                        }
+                    }
+                    /*if (CanMakePath(curves)) AddMakePath(vw, curves);
+                    Face fc = Face.MakeFace(new GeoObjectList(curves));
+                    if (fc != null)
+                    {
+                        DirectMenuEntry extrude = new DirectMenuEntry("MenuId.Constr.Solid.FaceExtrude"); // too bad, no icon yet, would be 159
+                        extrude.ExecuteMenu = (frame) =>
+                        {
+                            frame.SetAction(new Constr3DFaceExtrude(fc));
+                            return true;
+                        };
+                        lmh.Add(extrude);
+                        DirectMenuEntry rotate = new DirectMenuEntry("MenuId.Constr.Solid.FaceRotate"); // too bad, no icon yet, would be 160
+                        rotate.ExecuteMenu = (frame) =>
+                        {
+                            frame.SetAction(new Constr3DFaceRotate(new GeoObjectList(fc)));
+                            return true;
+                        };
+                        lmh.Add(rotate);
+                    }
+                    if (!suppresRuledSolid)
+                    {
+                        DirectMenuEntry ruled = new DirectMenuEntry("MenuId.Constr.Solid.RuledSolid"); // too bad, no icon yet, would be 161
+                        ruled.ExecuteMenu = (frame) =>
+                        {
+                            frame.SetAction(new Constr3DRuledSolid(new GeoObjectList(curve as IGeoObject), frame));
+                            return true;
+                        };
+
+                    }*/
                 }
             }
             else
