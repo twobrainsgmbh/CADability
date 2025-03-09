@@ -216,8 +216,8 @@ namespace ShapeIt
                 {
                     GeoVector n = ft.Surface.GetNormal(ft.Surface.PositionOf(d.startPoint));
                     Face triangle;
-                    if (n * dir < 0) triangle = FeedbackArrow.MakeSimpleTriangle(d.startPoint, -dir, projection);
-                    else triangle = FeedbackArrow.MakeSimpleTriangle(d.startPoint, dir, projection);
+                    if (n * dir < 0) triangle = FeedbackArrow.MakeSimpleTriangle(d.endPoint, -dir, projection);
+                    else triangle = FeedbackArrow.MakeSimpleTriangle(d.endPoint, dir, projection);
                     res.Add(triangle);
                 }
                 // res = projection.MakeArrow(d.startPoint, d.endPoint, pln, Projection.ArrowMode.twoArrows);
