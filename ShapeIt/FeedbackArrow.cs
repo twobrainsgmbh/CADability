@@ -228,8 +228,8 @@ namespace ShapeIt
                     // with an empty list of intersection we will get GeoPoint.Invalid
                     if (poutside.IsValid)
                     {
-                        Line l1 = Line.MakeLine(d.startPoint, poutside + 0.5 * dir);
-                        Line l2 = Line.MakeLine(d.endPoint, poutside - 0.5 * dir);
+                        Line l1 = Line.MakeLine(d.startPoint, poutside - 0.5 * dir);
+                        Line l2 = Line.MakeLine(d.endPoint, poutside + 0.5 * dir);
                         res.Add(l1);
                         res.Add(l2);
                     }
