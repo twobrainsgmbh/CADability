@@ -376,7 +376,6 @@ namespace CADability
         {
             canvas?.Invalidate();
         }
-        public event CADability.ScrollPositionChanged ScrollPositionChangedEvent;
         public void HScroll(double Position)
         {
             // TODO:  Add LayoutView.HScroll implementation
@@ -1056,7 +1055,8 @@ namespace CADability
             if (paintBuffer != null) paintBuffer.ForceInvalidateAll();
             canvas?.Invalidate();
         }
-        internal void Refresh()
+
+        internal new void Refresh()
         {
             subEntries = null;
             if (propertyTreeView != null)
@@ -1068,7 +1068,6 @@ namespace CADability
                 propertyTreeView.SelectEntry(this);
             }
         }
-
     }
 }
 #endif

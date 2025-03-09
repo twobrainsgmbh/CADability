@@ -41,7 +41,7 @@ namespace CADability.GeoObject
         private WeakReference fixedVCurves;
         private WeakReference cubeHull;
         private WeakReference uSingularities, vSingularities;
-        private BoxedSurface boxedSurface
+        private new BoxedSurface boxedSurface
         {
             get
             {
@@ -68,7 +68,7 @@ namespace CADability.GeoObject
                 return ch;
             }
         }
-        private void InvalidateSecondaryData()
+        private new void InvalidateSecondaryData()
         {
             fixedUCurves = null;
             fixedVCurves = null;

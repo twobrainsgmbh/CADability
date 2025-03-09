@@ -152,7 +152,7 @@ namespace CADability
 							lp.UserData.Add("Name", de.Key);
 							lp.OnGetValue = () => (double)namedValues[currentName];
 							lp.OnSetValue = l => namedValues[currentName] = l;
-							lp.LabelChangedEvent += OnLengthLabelChanged;
+							lp.LabelTextChanged = OnLengthLabelChanged;
 							lp.LabelText = de.Key as string;
 							lp.LabelIsEditable = true;
 							res.Add(lp);
@@ -163,7 +163,7 @@ namespace CADability
 							gpp.UserData.Add("Name", de.Key);
 							gpp.OnGetValue = () => (GeoPoint)namedValues[currentName];
 							gpp.OnSetValue = p => namedValues[currentName] = p;
-							gpp.LabelChangedEvent += OnGeoPointLabelChanged;
+							gpp.LabelTextChanged = OnGeoPointLabelChanged;
 							gpp.LabelText = de.Key as string;
 							gpp.LabelIsEditable = true;
 							res.Add(gpp);
@@ -176,7 +176,7 @@ namespace CADability
 							gvp.IsAngle = false;
 							gvp.OnGetValue = () => (GeoVector)namedValues[currentName];
 							gvp.OnSetValue = v => namedValues[currentName] = v;
-							gvp.LabelChangedEvent += OnGeoVectorLabelChanged;
+							gvp.LabelTextChanged = OnGeoVectorLabelChanged;
 							gvp.LabelText = de.Key as string;
 							gvp.LabelIsEditable = true;
 							res.Add(gvp);

@@ -44,7 +44,7 @@ namespace CADability.GeoObject
             get
             {
                 List<MenuWithHandler> menuWithHandlers = new List<MenuWithHandler>();
-
+                CreateContextMenueEvent?.Invoke(this, menuWithHandlers);
                 face.GetAdditionalContextMenue(this, Frame, menuWithHandlers);
                 return menuWithHandlers.ToArray();
             }

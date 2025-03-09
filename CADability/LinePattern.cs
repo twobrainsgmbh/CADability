@@ -244,7 +244,7 @@ namespace CADability.Attribute
             }
         }
 
-        public IAttributeList Parent
+        public new IAttributeList Parent
         {
             get
             {
