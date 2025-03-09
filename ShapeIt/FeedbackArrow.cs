@@ -224,7 +224,6 @@ namespace ShapeIt
             }
             return res;
         }
-
         private static Face MakeSimpleTriangle(GeoPoint point, GeoVector dir, Projection projection)
         {
             GeoVector hor = projection.Direction ^ dir;
