@@ -23,6 +23,7 @@ namespace ShapeIt
     {
         private ModellingPropertyEntries modellingPropertyEntries;
         private DateTime lastSaved; // time, when the current file has been saved the last time, see OnIdle
+        bool projectionChanged = false; // to handle projection changes in OnIdle
         public MainForm(string[] args) : base(args)
         {   // interpret the command line arguments as a name of a file, which should be opened
             string fileName = "";
@@ -58,6 +59,7 @@ namespace ShapeIt
             CadFrame.ProjectClosedEvent += OnProjectClosed;
             CadFrame.ProjectOpenedEvent += OnProjectOpened;
             CadFrame.UIService.ApplicationIdle += OnIdle;
+            CadFrame.ViewsChangedEvent += OnViewsChanged;
             CadFrame.ControlCenter.RemovePropertyPage("View");
             Assembly ThisAssembly = Assembly.GetExecutingAssembly();
             using (System.IO.Stream str = ThisAssembly.GetManifestResourceStream("ShapeIt.MenuResource.xml"))
@@ -75,6 +77,17 @@ namespace ShapeIt
             modellingPropPage.Add(modellingPropertyEntries, false);
             CadFrame.ControlCenter.ShowPropertyPage("Modelling");
         }
+
+        private void OnViewsChanged(IFrame theFrame)
+        {
+            theFrame.ActiveView.Projection.ProjectionChangedEvent += OnProjectionChanged;
+        }
+
+        private void OnProjectionChanged(Projection sender, EventArgs args)
+        {
+            projectionChanged = true;
+        }
+
         /// <summary>
         /// Filter the escape key for the modelling property page
         /// </summary>
@@ -98,6 +111,11 @@ namespace ShapeIt
         /// <param name="e"></param>
         void OnIdle(object sender, EventArgs e)
         {
+            if (projectionChanged)
+            {
+                projectionChanged = false;
+                modellingPropertyEntries.OnProjectionChanged(); // to update the feedback objects, which are projection dependant
+            }
             if (CadFrame.Project.IsModified && (DateTime.Now - lastSaved).TotalMinutes > 2)
             {
                 CadFrame.Project.IsModified = false;

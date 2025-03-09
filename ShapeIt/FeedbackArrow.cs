@@ -10,7 +10,7 @@ namespace ShapeIt
 {
     internal class FeedbackArrow
     {
-        private static int arrowSize = 8; // should be a píxel on screen value
+        private static int arrowSize = 12; // should be a píxel on screen value
 
         /// <summary>
         /// Calculate the distance between the two BRep objects (edge, face or vertex) <paramref name="fromHere"/> and <paramref name="toHere"/>. When both objects are vertices,
@@ -219,6 +219,20 @@ namespace ShapeIt
                     if (n * dir < 0) triangle = FeedbackArrow.MakeSimpleTriangle(d.endPoint, -dir, projection);
                     else triangle = FeedbackArrow.MakeSimpleTriangle(d.endPoint, dir, projection);
                     res.Add(triangle);
+                }
+                // now find a place where to display the dimension line
+                Plane testplane = new Plane(new GeoPoint(d.startPoint, d.endPoint), dir); // a plane perpendicular to the connection of the two points, which represent the distance
+                if (onThisShell!=null)
+                {
+                    GeoPoint poutside = onThisShell.GetLineIntersection(testplane.Location, testplane.ToGlobal(GeoVector2D.XAxis)).MinByWithDefault(GeoPoint.Invalid, p => -(p | testplane.Location));
+                    // with an empty list of intersection we will get GeoPoint.Invalid
+                    if (poutside.IsValid)
+                    {
+                        Line l1 = Line.MakeLine(d.startPoint, poutside + 0.5 * dir);
+                        Line l2 = Line.MakeLine(d.endPoint, poutside - 0.5 * dir);
+                        res.Add(l1);
+                        res.Add(l2);
+                    }
                 }
                 // res = projection.MakeArrow(d.startPoint, d.endPoint, pln, Projection.ArrowMode.twoArrows);
             }
