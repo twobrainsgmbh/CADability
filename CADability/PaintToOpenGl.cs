@@ -101,7 +101,7 @@ namespace CADability
         /// <summary>
         /// Will text objects be tesselated
         /// </summary>
-        bool TriangulateText { get; }
+        bool TriangulateText { get; set;  }
         /// <summary>
         /// Deprecated, currently not used
         /// </summary>

@@ -240,6 +240,15 @@ namespace ShapeIt
                         res.Add(l3);
                         res.Add(MakeSimpleTriangle(l3.EndPoint, -l3.EndDirection, l1.StartDirection, projection));
                         res.Add(MakeSimpleTriangle(l3.StartPoint, l3.StartDirection, l1.StartDirection, projection));
+                        Text txt = Text.Construct();
+                        txt.SetDirections(arrowLength * l3.StartDirection.Normalized, arrowLength * lineDir.Normalized);
+                        txt.Location = l3.PointAt(0.5) + arrowLength * lineDir;
+                        txt.Font = "Arial";
+                        txt.Alignment = Text.AlignMode.Center;
+                        txt.LineAlignment = Text.LineAlignMode.Center;
+                        txt.TextSize = 2*arrowLength;
+                        txt.TextString = "123" + i.ToString();
+                        res.Add(txt);
                     }
                 }
                 // res = projection.MakeArrow(d.startPoint, d.endPoint, pln, Projection.ArrowMode.twoArrows);

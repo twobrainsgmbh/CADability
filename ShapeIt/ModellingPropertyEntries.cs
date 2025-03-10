@@ -1396,6 +1396,8 @@ namespace ShapeIt
             }
             PaintToSelect.SetColor(Color.Yellow); // color to display the selected objects as plain normal faces or edges
             PaintToSelect.SetColor(Color.Black); // color to display the arrows an text. objects should have ColorDef==null, so they don't set the color
+            bool oldTriangulateText = PaintToSelect.TriangulateText;
+            PaintToSelect.TriangulateText = false;
             if (feedbackArrowsDisplayList == null)
             {
                 PaintToSelect.OpenList("arrow-objects");
@@ -1418,6 +1420,7 @@ namespace ShapeIt
             if (feedbackArrowsDisplayList != null) PaintToSelect.List(feedbackArrowsDisplayList);
 
             // restore the state of PaintToSelect
+            PaintToSelect.TriangulateText = oldTriangulateText;
             PaintToSelect.SelectMode = oldSelect;
             PaintToSelect.PaintSurfaceEdges = pse;
             PaintToSelect.PopState();

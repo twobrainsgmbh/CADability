@@ -36,6 +36,7 @@ namespace CADability.Forms
         bool paintSurfaces;
         bool paintEdges;
         bool paintSurfaceEdges;
+        bool triangulateText = true;
         bool selectMode;
         bool delayText;
         bool delayAll;
@@ -547,7 +548,8 @@ namespace CADability.Forms
         }
         bool IPaintTo3D.TriangulateText
         {
-            get { return true; }
+            get { return triangulateText; }
+            set { triangulateText = value;  }
         }
         bool IPaintTo3D.DontRecalcTriangulation
         {

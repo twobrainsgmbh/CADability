@@ -127,6 +127,7 @@ namespace CADability
         bool IPaintTo3D.TriangulateText
         {
             get { return false; }
+            set { }
         }
 
         bool IPaintTo3D.DontRecalcTriangulation

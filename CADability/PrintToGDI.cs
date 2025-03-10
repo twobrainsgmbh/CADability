@@ -2330,6 +2330,7 @@ namespace CADability
         bool IPaintTo3D.TriangulateText
         {
             get { return false; }
+            set { }
         }
         PaintCapabilities IPaintTo3D.Capabilities
         {
