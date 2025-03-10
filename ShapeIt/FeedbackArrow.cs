@@ -222,16 +222,24 @@ namespace ShapeIt
                 }
                 // now find a place where to display the dimension line
                 Plane testplane = new Plane(new GeoPoint(d.startPoint, d.endPoint), dir); // a plane perpendicular to the connection of the two points, which represent the distance
-                if (onThisShell!=null)
+                if (onThisShell != null)
                 {
-                    GeoPoint poutside = onThisShell.GetLineIntersection(testplane.Location, testplane.ToGlobal(GeoVector2D.XAxis)).MinByWithDefault(GeoPoint.Invalid, p => -(p | testplane.Location));
-                    // with an empty list of intersection we will get GeoPoint.Invalid
-                    if (poutside.IsValid)
+                    double arrowLength = projection.DeviceToWorldFactor * arrowSize;
+                    GeoVector2D[] directions = new GeoVector2D[8];
+                    for (int i = 0; i < 8; i++) directions[i] = Angle.Deg(i * 45).Direction;
+                    for (int i = 0; i < 8; i++)
                     {
-                        Line l1 = Line.MakeLine(d.startPoint, poutside - 0.5 * dir);
-                        Line l2 = Line.MakeLine(d.endPoint, poutside + 0.5 * dir);
+                        GeoVector lineDir = testplane.ToGlobal(Angle.Deg(i * 45).Direction);
+                        GeoPoint poutside = onThisShell.GetLineIntersection(testplane.Location, lineDir).MinByWithDefault(testplane.Location, p => -Geometry.LinePar(testplane.Location, lineDir, p));
+                        // with an empty list of intersection we will get testplane.Location
+                        Line l1 = Line.MakeLine(d.startPoint, poutside - 0.5 * dir + arrowLength * 5 * lineDir);
+                        Line l2 = Line.MakeLine(d.endPoint, poutside + 0.5 * dir + arrowLength * 5 * lineDir);
                         res.Add(l1);
                         res.Add(l2);
+                        Line l3 = Line.MakeLine(l1.EndPoint - arrowLength * lineDir, l2.EndPoint - arrowLength * lineDir);
+                        res.Add(l3);
+                        res.Add(MakeSimpleTriangle(l3.EndPoint, -l3.EndDirection, l1.StartDirection, projection));
+                        res.Add(MakeSimpleTriangle(l3.StartPoint, l3.StartDirection, l1.StartDirection, projection));
                     }
                 }
                 // res = projection.MakeArrow(d.startPoint, d.endPoint, pln, Projection.ArrowMode.twoArrows);
@@ -241,6 +249,17 @@ namespace ShapeIt
         private static Face MakeSimpleTriangle(GeoPoint point, GeoVector dir, Projection projection)
         {
             GeoVector hor = projection.Direction ^ dir;
+            if (hor.IsNullVector()) hor = GeoVector.XAxis ^ dir;
+            if (hor.IsNullVector()) hor = GeoVector.YAxis ^ dir;
+            hor.Norm();
+            double arrowLength = projection.DeviceToWorldFactor * arrowSize;
+            GeoPoint p1 = point + arrowLength * dir.Normalized + (arrowLength / 2) * hor;
+            GeoPoint p2 = point + arrowLength * dir.Normalized - (arrowLength / 2) * hor;
+            return Face.MakeFace(p1, p2, point);
+        }
+        private static Face MakeSimpleTriangle(GeoPoint point, GeoVector dir, GeoVector perpDir, Projection projection)
+        {
+            GeoVector hor = perpDir;
             if (hor.IsNullVector()) hor = GeoVector.XAxis ^ dir;
             if (hor.IsNullVector()) hor = GeoVector.YAxis ^ dir;
             hor.Norm();
