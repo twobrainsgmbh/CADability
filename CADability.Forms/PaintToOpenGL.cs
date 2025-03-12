@@ -1396,7 +1396,7 @@ namespace CADability.Forms
                     if (fdl.TryGetValue(textString[i], out cdl))
                     {
                         Gdi.GLYPHMETRICSFLOAT gm = cdl.glyphmetrics;
-                        dx += gm.gmfBlackBoxX;
+                        dx += gm.gmfCellIncX;
                         dy += gm.gmfBlackBoxY;
                         yoffset = gm.gmfptGlyphOrigin.Y;
                     }
