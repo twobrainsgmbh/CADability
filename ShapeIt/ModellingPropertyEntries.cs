@@ -60,15 +60,8 @@ namespace ShapeIt
         private SelectObjectsAction selectAction; // the select action, which runs parallel to the modelling property page
         private bool isAccumulating; // expect more clicks to add same objects of a certain type (edges, faces)
         private List<IGeoObject> accumulatedObjects = new List<IGeoObject>(); // objects beeing accumulated
-        private GeoObjectList feedbackFrontFaces = new GeoObjectList(); // List of front faces for distance for feedback
-        private GeoObjectList feedbackBackFaces = new GeoObjectList(); // List of back faces for distance for feedback
-        private GeoObjectList feedbackSelectedObjects = new GeoObjectList(); // List of selected objects to be displayed, when a entry is selected
-        private GeoObjectList feedbackArrows = new GeoObjectList(); // List of highlighted objects to be displayed, when a entry is selected
-        private IPaintTo3DList frontFacesDisplayList = null;
-        private IPaintTo3DList backFacesDisplayList = null;
-        private IPaintTo3DList feedbackObjectsDisplayList = null;
-        private IPaintTo3DList feedbackArrowsDisplayList = null;
         private bool modelligIsActive; // if true, there is no normal or "old" CADability selection, but every mouseclick of the SelectObjectsAction is handled here
+        private Feedback feedback;
         public ModellingPropertyEntries(IFrame cadFrame) : base("Modelling.Properties")
         {
             this.cadFrame = cadFrame;
@@ -83,6 +76,8 @@ namespace ShapeIt
             isAccumulating = false;
             cadFrame.ViewsChangedEvent += ViewsChanged;
             modelligIsActive = true;
+
+            feedback = new Feedback();
         }
         #region CADability events
         private void ViewsChanged(IFrame theFrame)
@@ -94,7 +89,7 @@ namespace ShapeIt
                 selectAction.FilterMouseMessagesEvent -= FilterSelectMouseMessages; // no problem, if it wasn't set
                 selectAction.FilterMouseMessagesEvent += FilterSelectMouseMessages;
             }
-            theFrame.ActiveView.SetPaintHandler(PaintBuffer.DrawingAspect.Select, OnRepaintSelect);
+            feedback.Attach(theFrame.ActiveView);
             if (modelligIsActive)
             {
                 propertyPage?.BringToFront();
@@ -108,7 +103,7 @@ namespace ShapeIt
             {
                 Select(); // selects this entry, which is the top entry for the page. By this, the current selected entry is beeing unselected and the display
                           // of feedback objects is removed
-                ClearFeedback(); // additionally, but probably not necessary, because unselect of the current entry did the same
+                feedback.Clear(); // additionally, but probably not necessary, because unselect of the current entry did the same
                 cadFrame.ActiveView.Invalidate(PaintBuffer.DrawingAspect.Select, cadFrame.ActiveView.DisplayRectangle);
                 subEntries.Clear();
                 IPropertyPage pp = propertyPage;
@@ -190,19 +185,11 @@ namespace ShapeIt
             {
                 modelligIsActive = !modelligIsActive;
                 propertyPage?.Refresh(this);
-                if (modelligIsActive)
-                {
-                    cadFrame.ActiveView.SetPaintHandler(PaintBuffer.DrawingAspect.Select, OnRepaintSelect);
-                }
-                else
-                {
-                    cadFrame.ActiveView.RemovePaintHandler(PaintBuffer.DrawingAspect.Select, OnRepaintSelect);
-                }
             }
         }
         public override void Selected(IPropertyEntry previousSelected)
         {
-            ClearFeedback();
+            feedback.Clear();
             cadFrame.ActiveView.Invalidate(PaintBuffer.DrawingAspect.Select, cadFrame.ActiveView.DisplayRectangle);
             base.Selected(previousSelected);
         }
@@ -300,8 +287,8 @@ namespace ShapeIt
                                     DirectMenuEntry makeRuledSolid = new DirectMenuEntry("MenuId.Constr.Solid.RuledSolid");
                                     makeRuledSolid.IsSelected = (selected, frame) =>
                                     {
-                                        ClearFeedback();
-                                        if (selected) feedbackFrontFaces.Add(sld);
+                                        feedback.Clear();
+                                        if (selected) feedback.FrontFaces.Add(sld);
                                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                                         return true;
                                     };
@@ -445,10 +432,10 @@ namespace ShapeIt
                         {
                             if (selected)
                             {
-                                ClearFeedback();
+                                feedback.Clear();
                                 for (int i = 0; i < curves.Count; i++)
                                 {
-                                    feedbackFrontFaces.Add(curves[i] as IGeoObject);
+                                    feedback.FrontFaces.Add(curves[i] as IGeoObject);
                                 }
                                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
 
@@ -485,8 +472,8 @@ namespace ShapeIt
             lmh.LabelText = (curve as IGeoObject).Description;
             lmh.IsSelected = (selected, frame) =>
             {
-                ClearFeedback();
-                if (selected) feedbackFrontFaces.Add(curve as IGeoObject);
+                feedback.Clear();
+                if (selected) feedback.FrontFaces.Add(curve as IGeoObject);
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                 return true;
             };
@@ -533,12 +520,12 @@ namespace ShapeIt
             DirectMenuEntry mp = new DirectMenuEntry("MenuId.Object.MakePath");
             mp.IsSelected = (selected, frame) =>
             {   // show the selected curves as feedback
-                ClearFeedback();
+                feedback.Clear();
                 if (selected)
                 {
                     for (int i = 0; i < curves.Count; i++)
                     {
-                        feedbackFrontFaces.Add(curves[i] as IGeoObject);
+                        feedback.FrontFaces.Add(curves[i] as IGeoObject);
                     }
                 }
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
@@ -562,8 +549,8 @@ namespace ShapeIt
             SelectEntry solidMenus = new SelectEntry("MenuId.Solid", true); // the container for all menus or properties of the solid
             solidMenus.IsSelected = (selected, frame) =>
             {
-                ClearFeedback();
-                if (selected) feedbackFrontFaces.Add(sld);
+                feedback.Clear();
+                if (selected) feedback.FrontFaces.Add(sld);
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                 return true;
             };
@@ -718,8 +705,8 @@ namespace ShapeIt
             HashSet<Edge> edges = Shell.ConnectedSameGeometryEdges(new Edge[] { edg });
             edgeMenus.IsSelected = (selected, frame) =>
             {   // show the provided edge and the "same geometry connected" edges as feedback
-                ClearFeedback();
-                if (selected) feedbackFrontFaces.AddRange(edges.Select((edge) => edge.Curve3D as IGeoObject));
+                feedback.Clear();
+                if (selected) feedback.FrontFaces.AddRange(edges.Select((edge) => edge.Curve3D as IGeoObject));
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                 return true;
             };
@@ -733,8 +720,8 @@ namespace ShapeIt
             };
             selectMoreEdges.IsSelected = (selected, frame) =>
             {   // show the provided face and the "same geometry connected" faces as feedback
-                ClearFeedback();
-                if (selected) feedbackFrontFaces.Add(edg.Curve3D as IGeoObject);
+                feedback.Clear();
+                if (selected) feedback.FrontFaces.Add(edg.Curve3D as IGeoObject);
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                 return true;
             };
@@ -760,8 +747,8 @@ namespace ShapeIt
                     };
                     rotateMenu.IsSelected = (selected, frame) =>
                     {
-                        ClearFeedback();
-                        if (selected) feedbackFrontFaces.AddRange(feedbackArrow);
+                        feedback.Clear();
+                        if (selected) feedback.FrontFaces.AddRange(feedbackArrow);
                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                         return true;
                     };
@@ -780,8 +767,8 @@ namespace ShapeIt
                     };
                     rotateMenu.IsSelected = (selected, frame) =>
                     {
-                        ClearFeedback();
-                        if (selected) feedbackFrontFaces.AddRange(feedbackArrow);
+                        feedback.Clear();
+                        if (selected) feedback.FrontFaces.AddRange(feedbackArrow);
                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                         return true;
                     };
@@ -828,8 +815,8 @@ namespace ShapeIt
             SelectEntry faceEntries = new SelectEntry("MenuId.Face", true); // only handles selection
             faceEntries.IsSelected = (selected, frame) =>
             {   // show the provided face and the "same geometry connected" faces as feedback
-                ClearFeedback();
-                if (selected) feedbackFrontFaces.AddRange(faces.ToArray());
+                feedback.Clear();
+                if (selected) feedback.FrontFaces.AddRange(faces.ToArray());
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                 return true;
             };
@@ -844,8 +831,8 @@ namespace ShapeIt
             };
             selectMoreFaces.IsSelected = (selected, frame) =>
             {   // show the provided face and the "same geometry connected" faces as feedback
-                ClearFeedback();
-                if (selected) feedbackFrontFaces.AddRange(faces.ToArray());
+                feedback.Clear();
+                if (selected) feedback.FrontFaces.AddRange(faces.ToArray());
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                 return true;
             };
@@ -869,12 +856,12 @@ namespace ShapeIt
                     };
                     gauge.IsSelected = (selected, frame) =>
                     {
-                        ClearFeedback();
+                        feedback.Clear();
                         if (selected)
                         {
-                            feedbackFrontFaces.AddRange(frontSide.ToArray());
-                            feedbackFrontFaces.AddRange(backSide.ToArray());
-                            feedbackArrows.AddRange(FeedbackArrow.MakeLengthArrow(owningShell, fc, backSide.First(), fc, fc.Surface.GetNormal(fc.Surface.PositionOf(touchinPoint)), touchinPoint, vw.Projection));
+                            feedback.FrontFaces.AddRange(frontSide.ToArray());
+                            feedback.FrontFaces.AddRange(backSide.ToArray());
+                            feedback.Arrows.AddRange(FeedbackArrow.MakeLengthArrow(owningShell, fc, backSide.First(), fc, fc.Surface.GetNormal(fc.Surface.PositionOf(touchinPoint)), touchinPoint, vw));
                         }
                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                         return true;
@@ -892,8 +879,8 @@ namespace ShapeIt
                     };
                     center.IsSelected = (selected, frame) =>
                     {
-                        ClearFeedback();
-                        if (selected) feedbackFrontFaces.AddRange(faces.ToArray());
+                        feedback.Clear();
+                        if (selected) feedback.FrontFaces.AddRange(faces.ToArray());
                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                         return true;
                     };
@@ -920,12 +907,12 @@ namespace ShapeIt
                         };
                         faceDist.IsSelected = (selected, frame) =>
                         {
-                            ClearFeedback();
+                            feedback.Clear();
                             if (selected)
                             {
-                                feedbackFrontFaces.AddRange(capturedFaceI.ToArray());
-                                feedbackFrontFaces.AddRange(capturedDistTo.ToArray());
-                                feedbackFrontFaces.AddRange(feedbackArrow);
+                                feedback.FrontFaces.AddRange(capturedFaceI.ToArray());
+                                feedback.FrontFaces.AddRange(capturedDistTo.ToArray());
+                                feedback.FrontFaces.AddRange(feedbackArrow);
                             }
                             vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                             return true;
@@ -958,11 +945,11 @@ namespace ShapeIt
                                     };
                                     rotateMenu.IsSelected = (selected, frame) =>
                                     {
-                                        ClearFeedback();
+                                        feedback.Clear();
                                         //currentMenuSelection.Add(capturedFace);
                                         if (selected)
                                         {
-                                            feedbackFrontFaces.AddRange(feedbackArrow);
+                                            feedback.FrontFaces.AddRange(feedbackArrow);
                                         }
                                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                                         return true;
@@ -987,20 +974,6 @@ namespace ShapeIt
             }
             subEntries.Add(faceEntries);
         }
-
-        private void ClearFeedback()
-        {
-            feedbackFrontFaces.Clear();
-            feedbackBackFaces.Clear();
-            feedbackSelectedObjects.Clear();
-            feedbackArrows.Clear();
-            // reset the display lists, so they will be recreated when the next OnRepaintSelect is called
-            frontFacesDisplayList = null;
-            backFacesDisplayList = null;
-            feedbackObjectsDisplayList = null;
-            feedbackArrowsDisplayList = null;
-        }
-
         private void AddExtensionProperties(Face fc, Projection.PickArea pa, IView vw)
         {
             if (!(fc.Owner is Shell)) return;
@@ -1033,15 +1006,15 @@ namespace ShapeIt
                 {   // nothing found, maybe it is an edge like an arc, where we use the maximum or minimum distance
                     maxObject = fc.Edges.MinBy(e => -loopPlanes[i].Distance(e.Vertex1.Position)).Vertex1;
                 }
-                GeoObjectList feedbackArrow = FeedbackArrow.MakeLengthArrow(fc.Owner as Shell, minObject, maxObject, fc, loopPlanes[i].Normal, pointOnFace, vw.Projection);
+                GeoObjectList feedbackArrow = FeedbackArrow.MakeLengthArrow(fc.Owner as Shell, minObject, maxObject, fc, loopPlanes[i].Normal, pointOnFace, vw);
                 DirectMenuEntry extrudeMenu = new DirectMenuEntry("MenuId.ExtrusionLength");
                 extrudeMenu.IsSelected = (selected, frame) =>
                 {
                     if (selected)
                     {
-                        ClearFeedback();
-                        feedbackFrontFaces.Add(extrFace);
-                        feedbackFrontFaces.AddRange(feedbackArrow);
+                        feedback.Clear();
+                        feedback.FrontFaces.Add(extrFace);
+                        feedback.Arrows.AddRange(feedbackArrow);
                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                     }
                     return true;
@@ -1096,8 +1069,8 @@ namespace ShapeIt
             {
                 if (e.EventState == StateChangedArgs.State.Selected)
                 {
-                    ClearFeedback();
-                    feedbackFrontFaces.Add(feature);
+                    feedback.Clear();
+                    feedback.FrontFaces.Add(feature);
                     vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                 }
             };
@@ -1131,8 +1104,8 @@ namespace ShapeIt
             };
             copyFeature.IsSelected = (selected, frame) =>
             {
-                ClearFeedback();
-                feedbackFrontFaces.Add(feature);
+                feedback.Clear();
+                feedback.FrontFaces.Add(feature);
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                 return true;
             };
@@ -1144,8 +1117,8 @@ namespace ShapeIt
             };
             positionFeature.IsSelected = (selected, frame) =>
             {
-                ClearFeedback();
-                feedbackFrontFaces.Add(feature);
+                feedback.Clear();
+                feedback.FrontFaces.Add(feature);
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                 return true;
             };
@@ -1184,15 +1157,15 @@ namespace ShapeIt
             };
             nameFeature.IsSelected = (selected, frame) =>
             {
-                ClearFeedback();
-                feedbackFrontFaces.Add(feature);
+                feedback.Clear();
+                feedback.FrontFaces.Add(feature);
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                 return true;
             };
             removeFeature.ExecuteMenu = (frame) =>
             {
                 bool addRemoveOk = shell.AddAndRemoveFaces(connection, featureFaces);
-                ClearFeedback();
+                feedback.Clear();
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                 return true;
             };
@@ -1351,80 +1324,6 @@ namespace ShapeIt
             }
             return false;
         }
-        private void OnRepaintSelect(Rectangle IsInvalid, IView View, IPaintTo3D PaintToSelect)
-        {
-            // save the state of PaintToSelect
-            PaintToSelect.PushState();
-            bool oldSelect = PaintToSelect.SelectMode;
-            bool pse = PaintToSelect.PaintSurfaceEdges;
-
-            // if the display lists are null, regenerate them
-            PaintToSelect.SelectMode = true;
-            PaintToSelect.SelectColor = Color.Yellow; //Color.FromArgb(196, Color.Yellow);
-            PaintToSelect.SetColor(Color.Yellow);
-            PaintToSelect.PaintSurfaceEdges = false;
-            if (feedbackObjectsDisplayList == null)
-            {
-                PaintToSelect.OpenList("selected-objects");
-                foreach (IGeoObject go in feedbackSelectedObjects)
-                {
-                    go.PaintTo3D(PaintToSelect);
-                }
-                feedbackObjectsDisplayList = PaintToSelect.CloseList();
-            }
-            PaintToSelect.SelectMode = false;
-            // front and back faces list in plain mode
-            PaintToSelect.SetColor(Color.Yellow);
-            if (frontFacesDisplayList == null)
-            {
-                PaintToSelect.OpenList("front-faces");
-                foreach (IGeoObject go in feedbackFrontFaces)
-                {
-                    go.PaintTo3D(PaintToSelect);
-                }
-                frontFacesDisplayList = PaintToSelect.CloseList();
-            }
-            PaintToSelect.SetColor(Color.LightBlue);
-            if (backFacesDisplayList == null)
-            {
-                PaintToSelect.OpenList("back-faces");
-                foreach (IGeoObject go in feedbackBackFaces)
-                {
-                    go.PaintTo3D(PaintToSelect);
-                }
-                backFacesDisplayList = PaintToSelect.CloseList();
-            }
-            PaintToSelect.SetColor(Color.Yellow); // color to display the selected objects as plain normal faces or edges
-            PaintToSelect.SetColor(Color.Black); // color to display the arrows an text. objects should have ColorDef==null, so they don't set the color
-            bool oldTriangulateText = PaintToSelect.TriangulateText;
-            PaintToSelect.TriangulateText = false;
-            if (feedbackArrowsDisplayList == null)
-            {
-                PaintToSelect.OpenList("arrow-objects");
-                foreach (IGeoObject go in feedbackArrows)
-                {
-                    go.PaintTo3D(PaintToSelect);
-                }
-                feedbackArrowsDisplayList = PaintToSelect.CloseList();
-            }
-
-            // show the display lists            
-            PaintToSelect.SelectMode = true;
-            if (feedbackObjectsDisplayList != null) PaintToSelect.SelectedList(feedbackObjectsDisplayList, 6);// width of the brim
-            PaintToSelect.SelectMode = false;
-            PaintToSelect.SetColor(Color.Yellow);
-            if (frontFacesDisplayList != null) PaintToSelect.List(frontFacesDisplayList);
-            PaintToSelect.SetColor(Color.LightBlue);
-            if (backFacesDisplayList != null) PaintToSelect.List(backFacesDisplayList);
-            PaintToSelect.SetColor(Color.Black);
-            if (feedbackArrowsDisplayList != null) PaintToSelect.List(feedbackArrowsDisplayList);
-
-            // restore the state of PaintToSelect
-            PaintToSelect.TriangulateText = oldTriangulateText;
-            PaintToSelect.SelectMode = oldSelect;
-            PaintToSelect.PaintSurfaceEdges = pse;
-            PaintToSelect.PopState();
-        }
         internal void OnProjectionChanged()
         {
             IPropertyEntry selection = propertyPage?.GetCurrentSelection();
@@ -1446,8 +1345,8 @@ namespace ShapeIt
                 SelectEntry fch = new SelectEntry("MenuId.Fillet", true);
                 fch.IsSelected = (selected, frame) =>
                 {
-                    ClearFeedback();
-                    if (selected) feedbackFrontFaces.AddRange(connectedFillets.ToArray());
+                    feedback.Clear();
+                    if (selected) feedback.FrontFaces.AddRange(connectedFillets.ToArray());
                     vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                     return true;
                 };
@@ -1460,8 +1359,8 @@ namespace ShapeIt
                 };
                 fr.IsSelected = (selected, frame) =>
                 {
-                    ClearFeedback();
-                    if (selected) feedbackFrontFaces.AddRange(connectedFillets.ToArray());
+                    feedback.Clear();
+                    if (selected) feedback.FrontFaces.AddRange(connectedFillets.ToArray());
                     vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                     return true;
                 };
@@ -1489,8 +1388,8 @@ namespace ShapeIt
                 };
                 fd.IsSelected = (selected, frame) =>
                 {
-                    ClearFeedback();
-                    if (selected) feedbackFrontFaces.AddRange(connectedFillets.ToArray());
+                    feedback.Clear();
+                    if (selected) feedback.FrontFaces.AddRange(connectedFillets.ToArray());
                     vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                     return true;
                 };
@@ -1523,8 +1422,8 @@ namespace ShapeIt
                     };
                     mh.IsSelected = (selected, frame) =>
                     {
-                        ClearFeedback();
-                        if (selected) feedbackFrontFaces.AddRange(lconnected.ToArray());
+                        feedback.Clear();
+                        if (selected) feedback.FrontFaces.AddRange(lconnected.ToArray());
                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                         return true;
                     };
@@ -1545,8 +1444,8 @@ namespace ShapeIt
                     };
                     mh.IsSelected = (selected, frame) =>
                     {
-                        ClearFeedback();
-                        if (selected) feedbackFrontFaces.AddRange(lconnected.ToArray());
+                        feedback.Clear();
+                        if (selected) feedback.FrontFaces.AddRange(lconnected.ToArray());
                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                         return true;
                     };
@@ -1560,8 +1459,8 @@ namespace ShapeIt
                 dp.ExecuteMenu = (frame) => { vw.Projection.DrawingPlane = pls.Plane; return true; };
                 dp.IsSelected = (selected, frame) =>
                     {
-                        ClearFeedback();
-                        if (selected) feedbackFrontFaces.Add(face);
+                        feedback.Clear();
+                        if (selected) feedback.FrontFaces.Add(face);
                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                         return true;
                     };
@@ -1592,22 +1491,22 @@ namespace ShapeIt
                                 if ((p1 | p2) > Precision.eps)
                                 {
                                     DirectMenuEntry mh = new DirectMenuEntry("MenuId.EdgeDistance");
-                                    Line feedback = Line.TwoPoints(p1, p2);
+                                    Line feedbackLine = Line.TwoPoints(p1, p2);
                                     GeoObjectList feedbackArrow = vw.Projection.MakeArrow(p1, p2, pls.Plane, Projection.ArrowMode.circleArrow);
                                     mh.ExecuteMenu = (frame) =>
                                     {
-                                        ParametricsDistanceActionOld pd = new ParametricsDistanceActionOld(o1, o2, feedback, pls.Plane, selectAction.Frame);
+                                        ParametricsDistanceActionOld pd = new ParametricsDistanceActionOld(o1, o2, feedbackLine, pls.Plane, selectAction.Frame);
                                         selectAction.Frame.SetAction(pd);
                                         return true;
                                     };
                                     mh.IsSelected = (selected, frame) =>
                                     {
-                                        ClearFeedback();
+                                        feedback.Clear();
                                         if (selected)
                                         {
-                                            feedbackFrontFaces.AddRange(feedbackArrow);
-                                            feedbackFrontFaces.Add(o1.OtherFace(face));
-                                            feedbackFrontFaces.Add(o2.OtherFace(face));
+                                            feedback.FrontFaces.AddRange(feedbackArrow);
+                                            feedback.FrontFaces.Add(o1.OtherFace(face));
+                                            feedback.FrontFaces.Add(o2.OtherFace(face));
                                         }
                                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                                         return true;

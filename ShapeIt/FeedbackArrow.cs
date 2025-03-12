@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static CADability.Projection;
 
 namespace ShapeIt
 {
@@ -190,8 +191,9 @@ namespace ShapeIt
         /// <param name="pickPoint"></param>
         /// <param name="projection"></param>
         /// <returns></returns>
-        public static GeoObjectList MakeLengthArrow(Shell onThisShell, object fromHere, object toHere, Face onThisFace, GeoVector forceDirection, GeoPoint pickPoint, Projection projection)
+        public static GeoObjectList MakeLengthArrow(Shell onThisShell, object fromHere, object toHere, Face onThisFace, GeoVector forceDirection, GeoPoint pickPoint, IView vw)
         {
+            Projection projection = vw.Projection;
             GeoObjectList res = new GeoObjectList();
             (GeoPoint startPoint, GeoPoint endPoint) d = DistanceBetweenObjects(fromHere, toHere, forceDirection, pickPoint, out GeoVector freedom, out GeoPoint dimStartPoint, out GeoPoint dimEndPoint);
             if (d.startPoint.IsValid)
@@ -225,11 +227,50 @@ namespace ShapeIt
                 if (onThisShell != null)
                 {
                     double arrowLength = projection.DeviceToWorldFactor * arrowSize;
-                    GeoVector2D[] directions = new GeoVector2D[8];
-                    for (int i = 0; i < 8; i++) directions[i] = Angle.Deg(i * 45).Direction;
+                    int[] evaluation = new int[8]; // haw good is the dimension in this direction visible
+                    GeoPoint[] dimStartPoints = new GeoPoint[8];
+                    GeoPoint[] dimEndPoints = new GeoPoint[8];
+                    double minLength = double.MaxValue;
+                    int closest = -1;
                     for (int i = 0; i < 8; i++)
                     {
-                        GeoVector lineDir = testplane.ToGlobal(Angle.Deg(i * 45).Direction);
+                        GeoVector lineDir = testplane.ToGlobal(Angle.Deg(i * 45).Direction); // the beam from the center to the outside, to find a point for the dimension line
+                        GeoPoint poutside = onThisShell.GetLineIntersection(testplane.Location, lineDir).MinByWithDefault(testplane.Location, p => -Geometry.LinePar(testplane.Location, lineDir, p));
+                        // if no intersection, we get testPlane.Location
+                        double l = poutside | testplane.Location;
+                        if (l < minLength)
+                        {
+                            closest = i;
+                            minLength = l;
+                        }
+                        dimStartPoints[i] = poutside - 0.5 * dir + arrowLength * 5 * lineDir; // the endpoint of the dimension help line
+                        dimEndPoints[i] = poutside + 0.5 * dir + arrowLength * 5 * lineDir; // the endpoint of the other dimension help line
+                        GeoPoint2D tstpnt1 = projection.ProjectionPlane.Project(dimStartPoints[i]);
+                        PickArea pa = projection.GetPickSpace(new BoundingRect(tstpnt1, 1, 1));
+                        double z0 = Geometry.LinePar(pa.FrontCenter, pa.Direction, dimStartPoints[i]);
+                        double pd1 = vw.Model.GetPickDistance(projection.GetPickSpace(new BoundingRect(tstpnt1, projection.DeviceToWorldFactor * 1, projection.DeviceToWorldFactor * 1)), null);
+                        if (pd1 == double.MaxValue) evaluation[i] += 2; // is on free area
+                        else if (pd1 > z0) evaluation[i] += 1; // is in front of something
+                        tstpnt1 = projection.ProjectionPlane.Project(dimEndPoints[i]);
+                        pa = projection.GetPickSpace(new BoundingRect(tstpnt1, 1, 1));
+                        z0 = Geometry.LinePar(pa.FrontCenter, pa.Direction, dimEndPoints[i]);
+                        pd1 = vw.Model.GetPickDistance(projection.GetPickSpace(new BoundingRect(tstpnt1, projection.DeviceToWorldFactor * 1, projection.DeviceToWorldFactor * 1)), null);
+                        if (pd1 == double.MaxValue) evaluation[i] += 2; // is on free area
+                        else if (pd1 > z0) evaluation[i] += 1; // is in front of something
+                        GeoPoint2D onScreen = projection.Project(dimStartPoints[i]);
+                        if (onScreen.x < 0 || onScreen.x > projection.Width || onScreen.y < 0 || onScreen.y > projection.Height) evaluation[i] -= 2; // not visible on screen
+                        onScreen = projection.Project(dimEndPoints[i]);
+                        if (onScreen.x < 0 || onScreen.x > projection.Width || onScreen.y < 0 || onScreen.y > projection.Height) evaluation[i] -= 2; // not visible on screen
+                        double perp = projection.Direction.Normalized * lineDir;
+                        if (Math.Abs(perp)<0.3) evaluation[i] += 2; // the view direction should be close to perpendicular to the dimension
+                        else if (Math.Abs(perp)<0.6) evaluation[i] += 1;
+                    }
+                    evaluation[closest] += 1; // very close to clickpoint
+                    closest = 0;
+                    for (int i = 1; i < 8; i++) if (evaluation[i] > evaluation[closest]) closest = i;
+                    //for (int i = 0; i < 8; i++)
+                    {
+                        GeoVector lineDir = testplane.ToGlobal(Angle.Deg(closest * 45).Direction); // the beam from the center to the outside, to find a point for the dimension line
                         GeoPoint poutside = onThisShell.GetLineIntersection(testplane.Location, lineDir).MinByWithDefault(testplane.Location, p => -Geometry.LinePar(testplane.Location, lineDir, p));
                         // with an empty list of intersection we will get testplane.Location
                         Line l1 = Line.MakeLine(d.startPoint, poutside - 0.5 * dir + arrowLength * 5 * lineDir);
@@ -238,16 +279,76 @@ namespace ShapeIt
                         res.Add(l2);
                         Line l3 = Line.MakeLine(l1.EndPoint - arrowLength * lineDir, l2.EndPoint - arrowLength * lineDir);
                         res.Add(l3);
+                        GeoPoint2D tstpnt1 = projection.ProjectionPlane.Project(l3.StartPoint);
+                        PickArea pa = projection.GetPickSpace(new BoundingRect(tstpnt1, 1, 1));
+                        double z0 = Geometry.LinePar(pa.FrontCenter, pa.Direction, l3.StartPoint);
+                        double pd1 = vw.Model.GetPickDistance(projection.GetPickSpace(new BoundingRect(tstpnt1, 1, 1)), null);
                         res.Add(MakeSimpleTriangle(l3.EndPoint, -l3.EndDirection, l1.StartDirection, projection));
                         res.Add(MakeSimpleTriangle(l3.StartPoint, l3.StartDirection, l1.StartDirection, projection));
+                        GeoPoint2D txtloc = projection.WorldToWindow(l3.PointAt(0.5));
+                        GeoPoint2D txtp1 = projection.WorldToWindow(l3.PointAt(0.5) + arrowLength * l3.StartDirection.Normalized);
+                        GeoPoint2D txtp2 = projection.WorldToWindow(l3.PointAt(0.5) + arrowLength * lineDir.Normalized);
+                        GeoVector2D txtd1 = txtp1 - txtloc;
+                        GeoVector2D txtd2 = txtp2 - txtloc;
+                        // 4 modes to position the text, which is in the plane defined by beam and the dimension line
+                        GeoVector txtDir;
+                        GeoVector glyphDir;
+                        Text.AlignMode verAlignMode = Text.AlignMode.Center;
+                        Text.LineAlignMode lineAlignMode = Text.LineAlignMode.Center;
+                        bool perpToDimLine;
+                        if (Math.Abs(txtd1.y) < Math.Abs(txtd2.y))
+                        {
+                            txtDir = arrowLength * l3.StartDirection.Normalized;
+                            glyphDir = arrowLength * lineDir.Normalized;
+                            perpToDimLine = false;
+                        }
+                        else
+                        {
+                            glyphDir = arrowLength * l3.StartDirection.Normalized;
+                            txtDir = arrowLength * lineDir.Normalized;
+                            perpToDimLine = true;
+                        }
+                        if ((glyphDir ^ txtDir) * projection.Direction < 0) glyphDir = -glyphDir; // needs to point to the viewer, otherwise it is mirror writing
+                        if (projection.ProjectionPlane.ToLocal(glyphDir).y < 0)
+                        {   // text would be upside down otherwise
+                            txtDir = -txtDir;
+                            glyphDir = -glyphDir;
+                        }
+                        if (projection.ProjectionPlane.ToLocal(lineDir).x < 0)
+                        {   // text on the left side of dimenasion line
+                            if (perpToDimLine)
+                            {
+                                verAlignMode = Text.AlignMode.Center;
+                                lineAlignMode = Text.LineAlignMode.Right;
+                            }
+                            else
+                            {
+                                verAlignMode = Text.AlignMode.Bottom;
+                                lineAlignMode = Text.LineAlignMode.Center;
+                            }
+                        }
+                        else
+                        {
+                            if (perpToDimLine)
+                            {
+                                verAlignMode = Text.AlignMode.Center;
+                                lineAlignMode = Text.LineAlignMode.Left;
+                            }
+                            else
+                            {
+                                verAlignMode = Text.AlignMode.Top;
+                                lineAlignMode = Text.LineAlignMode.Center;
+                            }
+                        }
+
                         Text txt = Text.Construct();
-                        txt.SetDirections(arrowLength * l3.StartDirection.Normalized, arrowLength * lineDir.Normalized);
+                        txt.SetDirections(txtDir, glyphDir);
                         txt.Location = l3.PointAt(0.5) + arrowLength * lineDir;
                         txt.Font = "Arial";
-                        txt.Alignment = Text.AlignMode.Center;
-                        txt.LineAlignment = Text.LineAlignMode.Center;
-                        txt.TextSize = 2*arrowLength;
-                        txt.TextString = "123" + i.ToString();
+                        txt.Alignment = verAlignMode;
+                        txt.LineAlignment = lineAlignMode;
+                        txt.TextSize = 2 * arrowLength;
+                        txt.TextString = "123" + closest.ToString();
                         res.Add(txt);
                     }
                 }

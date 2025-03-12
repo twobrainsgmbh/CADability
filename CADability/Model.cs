@@ -2284,8 +2284,8 @@ namespace CADability
                             {
                                 res.Add(singleFace); // the curve is too far behind the face
                             }
-                        } 
-                        else if(singleFace!= null)
+                        }
+                        else if (singleFace != null)
                         {
                             res.Add(singleFace);
                         }
@@ -2334,6 +2334,48 @@ namespace CADability
                     return res;
             }
             return res;
+        }
+        /// <summary>
+        /// Returns the minimal distance in <paramref name="viewDirection"/> of any visibla objects in the model. Returns double.MaxValue when there is nothing in the viewDirection
+        /// </summary>
+        /// <param name="viewDirection"></param>
+        /// <param name="visibleLayers"></param>
+        /// <returns></returns>
+        public double GetPickDistance(Projection.PickArea viewDirection, Set<Layer> visibleLayers)
+        {
+            GeoObjectList res = new GeoObjectList();
+            if (visibleLayers == null) visibleLayers = new Set<Layer>(); // um nicht immer nach null fragen zu müssen
+            if (octTree == null) InitOctTree();
+
+            List<IGeoObject> octl = new List<IGeoObject>(octTree.GetObjectsFromRect(viewDirection, false));
+            for (int i = octl.Count - 1; i >= 0; --i)
+            {   // Unsichtbare ausblenden
+                if (!octl[i].IsVisible) octl.Remove(octl[i]);
+            }
+            double zcurve = double.MaxValue;
+            double zface = double.MaxValue;
+            foreach (IGeoObject go in octl)
+            {
+                if (go.HitTest(viewDirection, false))
+                {
+                    double z = go.Position(viewDirection.FrontCenter, viewDirection.Direction, displayListPrecision);
+                    if (z <= zface && go is Face fc)
+                    {
+                        if (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer))
+                        {
+                            zface = z;
+                        }
+                    }
+                    if (z <= zcurve && go is ICurve crv)
+                    {
+                        if (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer))
+                        {
+                            zcurve = z;
+                        }
+                    }
+                }
+            }
+            return Math.Min(zcurve, zface);
         }
         /// <summary>
         /// Returns all objects of the model that are inside ore close to the provided box.
