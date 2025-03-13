@@ -324,7 +324,7 @@ namespace CADability.GeoObject
 
         internal List<ParametricProperty> ParametricProperties { get { return parametricProperties; } }
 
-        internal void AddParametricProperty(ParametricProperty parametricProperty)
+        public void AddParametricProperty(ParametricProperty parametricProperty)
         {
             if (parametricProperties == null) parametricProperties = new List<ParametricProperty>();
             parametricProperties.Add(parametricProperty);
@@ -1299,7 +1299,7 @@ namespace CADability.GeoObject
         /// <param name="clonedVertices"></param>
         /// <param name="clonedFaces"></param>
         /// <returns></returns>
-        internal Shell Clone(Dictionary<Edge, Edge> clonedEdges, Dictionary<Vertex, Vertex> clonedVertices = null, Dictionary<Face, Face> clonedFaces = null)
+        public Shell Clone(Dictionary<Edge, Edge> clonedEdges, Dictionary<Vertex, Vertex> clonedVertices = null, Dictionary<Face, Face> clonedFaces = null)
         {   // hier kann es sich um ein unabhängiges oder um ein von einem Solid abhängiges Shell handeln.
             // im letzteren Fall bleiben die edges undefiniert
             if (clonedVertices == null) clonedVertices = new Dictionary<Vertex, Vertex>();
@@ -7290,7 +7290,7 @@ namespace CADability.GeoObject
             return res.ToArray();
         }
 
-        internal static void CombineFaces(HashSet<Face> faces, HashSet<Edge> barrier)
+        public static void CombineFaces(HashSet<Face> faces, HashSet<Edge> barrier)
         {
             HashSet<Face> toAdd = new HashSet<Face>(faces);
             bool first = true;

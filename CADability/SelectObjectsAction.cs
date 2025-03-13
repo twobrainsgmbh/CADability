@@ -312,11 +312,12 @@ namespace CADability.Actions
             dragDrop = true;
             base.ViewType = typeof(IActionInputView); // arbeitet nur auf ModelView Basis
             oldPickMode = pickMode = PickMode.normal;
-            if (Settings.GlobalSettings.GetBoolValue("Experimental.TestNewContextMenu", false))
-            {
-                SelectActionContextMenu sacm = new SelectActionContextMenu(this);
-                FilterMouseMessagesEvent += sacm.FilterMouseMessages;
-            }
+            // now implemented as ShapeIt.ModellingPropertyEntries
+            //if (Settings.GlobalSettings.GetBoolValue("Experimental.TestNewContextMenu", false))
+            //{
+            //    SelectActionContextMenu sacm = new SelectActionContextMenu(this);
+            //    FilterMouseMessagesEvent += sacm.FilterMouseMessages;
+            //}
         }
 
         void OnFocusedObjectChanged(SelectedObjectsProperty sender, IGeoObject focused)

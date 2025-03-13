@@ -1006,25 +1006,25 @@ namespace ShapeIt
                 {   // nothing found, maybe it is an edge like an arc, where we use the maximum or minimum distance
                     maxObject = fc.Edges.MinBy(e => -loopPlanes[i].Distance(e.Vertex1.Position)).Vertex1;
                 }
-                GeoObjectList feedbackArrow = FeedbackArrow.MakeLengthArrow(fc.Owner as Shell, minObject, maxObject, fc, loopPlanes[i].Normal, pointOnFace, vw);
                 DirectMenuEntry extrudeMenu = new DirectMenuEntry("MenuId.ExtrusionLength");
+                Face[] lfaces = loopFaces[i]; // captured values
+                Edge[] ledges = loopEdges[i];
+                Plane lplane = loopPlanes[i];
                 extrudeMenu.IsSelected = (selected, frame) =>
                 {
                     if (selected)
                     {
+                        GeoObjectList feedbackArrow = FeedbackArrow.MakeLengthArrow(fc.Owner as Shell, minObject, maxObject, fc, lplane.Normal, pointOnFace, vw);
                         feedback.Clear();
-                        feedback.FrontFaces.Add(extrFace);
+                        feedback.SelectedObjects.Add(extrFace);
                         feedback.Arrows.AddRange(feedbackArrow);
                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                     }
                     return true;
                 };
-                Face[] lfaces = loopFaces[i];
-                Edge[] ledges = loopEdges[i];
-                Plane lplane = loopPlanes[i];
                 extrudeMenu.ExecuteMenu = (menuId) =>
                 {
-                    ParametricsExtrudeAction pea = new ParametricsExtrudeAction(minObject, maxObject, lfaces, ledges, lplane, selectAction.Frame);
+                    ParametricsExtrudeAction pea = new ParametricsExtrudeAction(minObject, maxObject, lfaces, ledges, lplane, cadFrame);
                     selectAction.Frame.SetAction(pea);
                     return true;
                 };

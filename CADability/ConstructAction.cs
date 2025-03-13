@@ -864,7 +864,7 @@ namespace CADability.Actions
                     return GeoPoint.Origin;
                 }
             }
-            internal protected virtual void SetError(string errorMessage)
+            public virtual void SetError(string errorMessage)
             {
                 
             }
@@ -945,7 +945,7 @@ namespace CADability.Actions
             {
             }
 
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
                 // no error on this input possible
             }
@@ -1073,7 +1073,7 @@ namespace CADability.Actions
             void IInputObject.SetFixed(bool isFixed)
             {
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
 
             }
@@ -1440,7 +1440,7 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
                 angleProperty.ErrorMessage = errorMessage;
             }
@@ -1869,7 +1869,7 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
                 lengthProperty.ErrorMessage = errorMessage;
             }
@@ -2204,7 +2204,7 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
                 doubleProperty.ErrorMessage = errorMessage;
             }
@@ -2662,7 +2662,7 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
                 geoPointProperty.ErrorMessage = errorMessage;
             }
@@ -3138,7 +3138,7 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
                 geoVectorProperty.ErrorMessage = errorMessage;
             }
@@ -3457,7 +3457,7 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
             }
             #endregion
@@ -3766,7 +3766,7 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
             }
             #endregion
@@ -4020,7 +4020,7 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
             }
             private void PropertyOnValueChanged(object sender, object NewValue)
@@ -4243,7 +4243,7 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
             }
             #endregion
@@ -4751,7 +4751,7 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
             }
             private void OnSelectedCurveChanged(CurvesProperty cp, ICurve selectedCurve)
@@ -5064,7 +5064,7 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
             }
             #endregion
@@ -5349,7 +5349,7 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
             }
             #endregion
@@ -5600,7 +5600,7 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
                 stringProperty.ErrorMessage = errorMessage;
             }
@@ -5879,7 +5879,7 @@ namespace CADability.Actions
                 isfixed = isFixed;
                 editBox.Highlight = !isFixed;
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
                 editBox.ErrorMessage = errorMessage;
             }
@@ -6169,7 +6169,7 @@ namespace CADability.Actions
             {
                 Fixed = isFixed;
             }
-            protected internal override void SetError(string errorMessage)
+            public override void SetError(string errorMessage)
             {
                 intProperty.ErrorMessage = errorMessage;
             }

@@ -62,6 +62,8 @@ namespace CADability.Forms
         Color backgroundColor; // Die Hintergrundfarbe um sicherzustellen, dass nicht mit dieser farbe
                                // gezeichnet wird
         Color selectColor;
+        Color lastColor; // if twice the same color was selected with alpha==0, then this is color override state
+        bool colorOverride = false;
 
         // Glu.GLUnurbs nurbsRenderer;
         OpenGlList currentList;
@@ -549,7 +551,7 @@ namespace CADability.Forms
         bool IPaintTo3D.TriangulateText
         {
             get { return triangulateText; }
-            set { triangulateText = value;  }
+            set { triangulateText = value; }
         }
         bool IPaintTo3D.DontRecalcTriangulation
         {
@@ -859,17 +861,35 @@ namespace CADability.Forms
         }
         void IPaintTo3D.SetColor(Color color)
         {
-            if (color.R == backgroundColor.R && color.G == backgroundColor.G && color.B == backgroundColor.B)
-            {
-                if (color.R + color.G + color.B < 3 * 128)
-                    Gl.glColor4ub(255, 255, 255, color.A);
+            if (color.A == 0 && color == lastColor)
+            {   // calling this twice with the same color with alpha==0 sets the color override mode
+                if (colorOverride) colorOverride = false;
                 else
-                    Gl.glColor4ub(0, 0, 0, color.A);
+                {
+                    colorOverride = true; // now we are in color override mode, we set this color, but with alpha==255 and keep it, until color override is switched off
+                    Gl.glColor4ub(color.R, color.G, color.B, 255);
+                }
             }
-            else
+            if (color.A == 1 && color == lastColor)
             {
-                Gl.glColor4ub(color.R, color.G, color.B, color.A);
+                colorOverride = false; // reset color override mode
+                return;
             }
+            if (!colorOverride)
+            {
+                if (color.R == backgroundColor.R && color.G == backgroundColor.G && color.B == backgroundColor.B)
+                {
+                    if (color.R + color.G + color.B < 3 * 128)
+                        Gl.glColor4ub(255, 255, 255, color.A);
+                    else
+                        Gl.glColor4ub(0, 0, 0, color.A);
+                }
+                else
+                {
+                    Gl.glColor4ub(color.R, color.G, color.B, color.A);
+                }
+            }
+            lastColor = color;
             CheckError();
         }
         void IPaintTo3D.SetLineWidth(LineWidth lineWidth)
@@ -1678,7 +1698,11 @@ namespace CADability.Forms
                 Gl.glTranslated(-2 * precision * projectionDirection.x, -2 * precision * projectionDirection.y, -2 * precision * projectionDirection.z);
 
                 //Gl.glEnable(Gl.GL_TEXTURE_2D); 
-                if (wobbleRadius == -1) Gl.glClear(Gl.GL_DEPTH_BUFFER_BIT); // Select findet über den Objekten statt, alte ZBuffer Inhalte werden gelöscht
+                if (wobbleRadius == -1)
+                {   // we must find a different solution, clearing the depth buffer makes all subsequent calls to normal 
+                    // depth drawing overwrite existing drawing
+                    // Gl.glClear(Gl.GL_DEPTH_BUFFER_BIT); // Select findet über den Objekten statt, alte ZBuffer Inhalte werden gelöscht
+                }
                 Gl.glEnable(Gl.GL_DEPTH_TEST);
 
                 Gl.glEnable(Gl.GL_BLEND); // damit der Alpha Kanal berücksichtigt wird

@@ -53,6 +53,10 @@ namespace ShapeIt
             arrowsDisplayList = null;
         }
 
+        public void Refresh()
+        {
+            view.Invalidate(PaintBuffer.DrawingAspect.Select, view.DisplayRectangle);
+        }
 
         private void OnRepaint(Rectangle IsInvalid, IView view, IPaintTo3D PaintToSelect)
         {
@@ -61,62 +65,61 @@ namespace ShapeIt
             bool oldSelect = PaintToSelect.SelectMode;
             bool pse = PaintToSelect.PaintSurfaceEdges;
 
+            PaintToSelect.UseZBuffer(true);
+            PaintToSelect.Blending(true);
             // if the display lists are null, regenerate them
-            PaintToSelect.SelectMode = true;
-            PaintToSelect.SelectColor = Color.Yellow; //Color.FromArgb(196, Color.Yellow);
-            PaintToSelect.SetColor(Color.Yellow);
-            PaintToSelect.PaintSurfaceEdges = false;
-
-            ModOp toViewer = ModOp.Translate(-2*PaintToSelect.Precision * view.Projection.Direction.x, -2 * PaintToSelect.Precision * view.Projection.Direction.y, -2 * PaintToSelect.Precision * view.Projection.Direction.z);
-            PaintToSelect.PushMultModOp(toViewer);
+            // PaintToSelect.PaintSurfaceEdges = false;
 
             if (selectedObjectsDisplayList == null)
             {
                 PaintToSelect.OpenList("selected-objects");
+                PaintToSelect.SetColor(Color.FromArgb(0, selectColor.Color)); // switch on color override with this color
+                PaintToSelect.SetColor(Color.FromArgb(0, selectColor.Color));
                 foreach (IGeoObject go in SelectedObjects)
                 {
-                    ColorDef oldcd = (go as IColorDef).ColorDef;
-                    (go as IColorDef).ColorDef = selectColor;
                     go.PaintTo3D(PaintToSelect);
-                    (go as IColorDef).ColorDef = oldcd;
                 }
                 selectedObjectsDisplayList = PaintToSelect.CloseList();
+                PaintToSelect.SetColor(Color.FromArgb(1, selectColor.Color)); // switch off color override
+                PaintToSelect.SetColor(Color.FromArgb(1, selectColor.Color));
             }
-            PaintToSelect.SelectMode = false;
+            // PaintToSelect.SelectMode = false;
             // front and back faces list in plain mode
             PaintToSelect.SetColor(Color.Yellow);
             if (frontFacesDisplayList == null)
             {
                 PaintToSelect.OpenList("front-faces");
+                PaintToSelect.SetColor(Color.FromArgb(0, frontColor.Color));
+                PaintToSelect.SetColor(Color.FromArgb(0, frontColor.Color));
                 foreach (IGeoObject go in FrontFaces)
                 {
-                    ColorDef oldcd = (go as IColorDef).ColorDef;
-                    (go as IColorDef).ColorDef = frontColor;
                     go.PaintTo3D(PaintToSelect);
-                    (go as IColorDef).ColorDef = oldcd;
                 }
                 frontFacesDisplayList = PaintToSelect.CloseList();
+                PaintToSelect.SetColor(Color.FromArgb(1, frontColor.Color));
+                PaintToSelect.SetColor(Color.FromArgb(1, frontColor.Color));
             }
             PaintToSelect.SetColor(Color.LightBlue);
             if (backFacesDisplayList == null)
             {
                 PaintToSelect.OpenList("back-faces");
+                PaintToSelect.SetColor(Color.FromArgb(0,backColor.Color));
+                PaintToSelect.SetColor(Color.FromArgb(0,backColor.Color));
                 foreach (IGeoObject go in BackFaces)
                 {
-                    ColorDef oldcd = (go as IColorDef).ColorDef;
-                    (go as IColorDef).ColorDef = backColor;
                     go.PaintTo3D(PaintToSelect);
-                    (go as IColorDef).ColorDef = oldcd;
                 }
                 backFacesDisplayList = PaintToSelect.CloseList();
+                PaintToSelect.SetColor(Color.FromArgb(1, backColor.Color));
+                PaintToSelect.SetColor(Color.FromArgb(1, backColor.Color));
             }
-            PaintToSelect.SetColor(Color.Yellow); // color to display the selected objects as plain normal faces or edges
             PaintToSelect.SetColor(Color.Black); // color to display the arrows an text. objects should have ColorDef==null, so they don't set the color
             bool oldTriangulateText = PaintToSelect.TriangulateText;
             PaintToSelect.TriangulateText = false;
             if (arrowsDisplayList == null)
-            {
+            {   // no color override, we use actual colors of the objects
                 PaintToSelect.OpenList("arrow-objects");
+                PaintToSelect.SetColor(Color.Black); // in case of no color specified
                 foreach (IGeoObject go in Arrows)
                 {
                     go.PaintTo3D(PaintToSelect);
@@ -125,14 +128,18 @@ namespace ShapeIt
             }
 
             // show the display lists            
+            // a small amount to the front
+            ModOp toViewer = ModOp.Translate(-2 * PaintToSelect.Precision * view.Projection.Direction.x, -2 * PaintToSelect.Precision * view.Projection.Direction.y, -2 * PaintToSelect.Precision * view.Projection.Direction.z);
+            PaintToSelect.PushMultModOp(toViewer);
+            if (frontFacesDisplayList != null) PaintToSelect.List(frontFacesDisplayList);
+            if (backFacesDisplayList != null) PaintToSelect.List(backFacesDisplayList);
             PaintToSelect.SelectMode = true;
             if (selectedObjectsDisplayList != null) PaintToSelect.SelectedList(selectedObjectsDisplayList, 6);// width of the brim
             PaintToSelect.SelectMode = false;
-            PaintToSelect.SetColor(Color.Yellow);
-            if (frontFacesDisplayList != null) PaintToSelect.List(frontFacesDisplayList);
-            PaintToSelect.SetColor(Color.LightBlue);
-            if (backFacesDisplayList != null) PaintToSelect.List(backFacesDisplayList);
-            PaintToSelect.SetColor(Color.Black);
+            PaintToSelect.PopModOp();
+            // even more to the front to clearly show the domension lines
+            toViewer = ModOp.Translate(-4 * PaintToSelect.Precision * view.Projection.Direction.x, -4 * PaintToSelect.Precision * view.Projection.Direction.y, -4 * PaintToSelect.Precision * view.Projection.Direction.z);
+            PaintToSelect.PushMultModOp(toViewer);
             if (arrowsDisplayList != null) PaintToSelect.List(arrowsDisplayList);
 
             // restore the state of PaintToSelect

@@ -51,13 +51,14 @@
     <RemoveFiles Include="log.txt" />
     <RemoveFiles Include="_ToDo.txt" />
 
-    <RemoveFiles Include="WebDrawing.cs" Condition="'$(Configuration)'!='WebDebug'"/>
+    <RemoveFiles Include="WebDrawing.cs" Condition="'$(Configuration)'!='WebDebug'" />
 
     <!-- ..and exclude it from all potential compile types -->
     <EmbeddedResource Remove="@(RemoveFiles)" />
     <EmbeddedFiles Remove="@(RemoveFiles)" />
     <Resource Remove="@(RemoveFiles)" />
     <Compile Remove="@(RemoveFiles)" />
+    <Compile Remove="SelectActionContextMenu.cs" />
     <Content Remove="@(RemoveFiles)" />
     <None Remove="@(RemoveFiles)" />
   </ItemGroup>

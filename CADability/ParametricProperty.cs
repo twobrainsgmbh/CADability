@@ -19,7 +19,7 @@ namespace CADability
     /// The derived classes (ParametricXxxProperty) are typically created by an Action (ParametricXxxAction), which allows to specify faces, Edges and 
     /// Vertices of the shell and other data.
     /// </summary>
-    internal abstract class ParametricProperty : IJsonSerialize
+    public abstract class ParametricProperty : IJsonSerialize
     {
         public string Name { get; set; }
         public bool Preserve { get; set; }
@@ -130,7 +130,7 @@ namespace CADability
             }
         }
     }
-    internal class ParametricDistanceProperty : ParametricProperty, IJsonSerialize, IJsonSerializeDone
+    public class ParametricDistanceProperty : ParametricProperty, IJsonSerialize, IJsonSerializeDone
     {
         private List<Face> facesToKeep, facesToMove; // if mode is symmetric, both faces will be moved
         private List<object> affectedObjects; // faces which are affected by this parametric
