@@ -20,8 +20,11 @@ namespace ShapeIt
 
         private HashSet<Face> forwardMovingFaces = new HashSet<Face>(); // faces to be pushed forward (or staying fixed depending on mode)
         private HashSet<Face> backwardMovingFaces = new HashSet<Face>(); // faces to be pushed backward (or staying fixed depending on mode)
-        private object forwardMeasureBound; // an edge, face or vertex for the distance in forward direction
-        private object backwardMeasureBound; // an edge, face or vertex for the distance in backward direction
+        private Face crossSection; // for display only: where the shell is seperated for the extrusion
+        private GeoPoint pickPoint; // for display of arrows, the point, where the shell had been selected
+        private IEnumerable<Face> arrows; // the two arrows at the cross section, which remain constant
+        private object measureFromHere; // an edge, face or vertex for the distance in forward direction
+        private object measureToHere; // an edge, face or vertex for the distance in backward direction
         private GeoPoint startPoint, endPoint; // of the feedback arrow 
         private Plane feedbackPlane; // Plane to display the feedback arrow
         private GeoObjectList feedbackDimension; // an arrow to indicate the distance
@@ -51,11 +54,15 @@ namespace ShapeIt
         /// <param name="edges"></param>
         /// <param name="plane"></param>
         /// <param name="frame"></param>
-        internal ParametricsExtrudeAction(object meassureFrom, object meassureTo, IEnumerable<Face> faces, IEnumerable<Edge> edges, Plane plane, IFrame frame)
+        internal ParametricsExtrudeAction(object meassureFrom, object meassureTo, IEnumerable<Face> faces, IEnumerable<Edge> edges, Plane plane,
+            Face crossSection, GeoPoint pickPoint, IEnumerable<Face> arrows, IFrame frame)
         {
             Faces = new HashSet<Face>(faces);
             Edges = new HashSet<Edge>(edges);
             Plane = plane;
+            this.crossSection = crossSection;
+            this.pickPoint = pickPoint;
+            this.arrows = arrows;
             shell = faces.First().Owner as Shell;
             HashSet<Edge> forwardBarrier = new HashSet<Edge>(); // edges which are moved forward and connect a face to be streched with a face to mof
             HashSet<Edge> backwardBarrier = new HashSet<Edge>();
@@ -82,8 +89,8 @@ namespace ShapeIt
                     }
                 }
             }
-            forwardMeasureBound = meassureTo;
-            backwardMeasureBound = meassureFrom;
+            measureFromHere = meassureTo;
+            measureToHere = meassureFrom;
             // now forwardMovingFaces contain all the faces connectd to the faces to be streched in the forward direction
             Shell.CombineFaces(forwardMovingFaces, forwardBarrier);
             Shell.CombineFaces(backwardMovingFaces, backwardBarrier);
@@ -102,44 +109,33 @@ namespace ShapeIt
         {
             base.TitleId = "Constr.Parametrics.Extrude";
             feedbackResult = shell.Clone() as Shell;
-            //if (shell.Layer == null)
-            //{
-            //    if (shell.Owner is Solid sld && sld.Layer != null) { shell.Layer = sld.Layer; }
-            //    else
-            //    {
-            //        Style st3d = Frame.Project.StyleList.GetDefault(Style.EDefaultFor.Solids);
-            //        if (st3d != null && st3d.Layer != null) shell.Layer = st3d.Layer;
-            //        else
-            //        {
-            //            shell.Layer = Frame.Project.LayerList.CreateOrFind("3D");
-            //        }
-            //    }
-            //}
-            if (feedbackDimension != null) feedback.Arrows.AddRange(feedbackDimension);
-            if (forwardMovingFaces != null) feedback.FrontFaces.AddRange(forwardMovingFaces);
-            if (backwardMovingFaces != null) feedback.BackFaces.AddRange(backwardMovingFaces);
+            //if (feedbackDimension != null) feedback.Arrows.AddRange(feedbackDimension);
+            //feedback.Arrows.AddRange(arrows);
+            //feedback.FrontFaces.Add(ToGeoObject(measureFromHere));
+            //feedback.BackFaces.Add(ToGeoObject(measureToHere));
+            if (crossSection != null) feedback.SelectedObjects.Add(crossSection);
 
             List<InputObject> actionInputs = new List<InputObject>();
 
             CalcDistance();
 
             distanceInput = new LengthInput("Extrude.Distance");
-            distanceInput.GetLengthEvent += DistanceInput_GetLengthEvent;
-            distanceInput.SetLengthEvent += DistanceInput_SetLengthEvent;
+            distanceInput.GetLengthEvent += OnGetDistance;
+            distanceInput.SetLengthEvent += OnSetDistance;
             actionInputs.Add(distanceInput);
-
-            forwardMeassureInput = new BRepObjectInput("Extrude.MeassureForwardObject");
-            forwardMeassureInput.Optional = true;
-            forwardMeassureInput.MouseOverBRepObjectsEvent += new BRepObjectInput.MouseOverBRepObjectsDelegate(OnMouseOverForwardObject);
-            actionInputs.Add(forwardMeassureInput);
 
             backwardMeassureInput = new BRepObjectInput("Extrude.MeassureBackwardObject");
             backwardMeassureInput.Optional = true;
             backwardMeassureInput.MouseOverBRepObjectsEvent += new BRepObjectInput.MouseOverBRepObjectsDelegate(OnMouseOverBackwardObject);
             actionInputs.Add(backwardMeassureInput);
 
+            forwardMeassureInput = new BRepObjectInput("Extrude.MeassureForwardObject");
+            forwardMeassureInput.Optional = true;
+            forwardMeassureInput.MouseOverBRepObjectsEvent += new BRepObjectInput.MouseOverBRepObjectsDelegate(OnMouseOverForwardObject);
+            actionInputs.Add(forwardMeassureInput);
+
             modeInput = new MultipleChoiceInput("DistanceTo.Mode", "DistanceTo.Mode.Values", 0);
-            modeInput.SetChoiceEvent += ModeInput_SetChoiceEvent;
+            modeInput.SetChoiceEvent += OnSetDistanceMode;
             actionInputs.Add(modeInput);
             //modeInput.GetChoiceEvent += ModeInput_GetChoiceEvent;
 
@@ -158,11 +154,27 @@ namespace ShapeIt
             base.OnSetAction();
 
             validResult = false;
-            forwardMeassureInput.SetBRepObject(new object[] { forwardMeasureBound }, forwardMeasureBound);
-            backwardMeassureInput.SetBRepObject(new object[] { backwardMeasureBound }, backwardMeasureBound);
+            forwardMeassureInput.SetBRepObject(new object[] { measureFromHere }, measureFromHere);
+            backwardMeassureInput.SetBRepObject(new object[] { measureToHere }, measureToHere);
 
             feedback.Attach(CurrentMouseView);
+            Refresh();
         }
+
+        private IGeoObject ToGeoObject(object o)
+        {
+            if (o is IGeoObject go) { return go; }
+            if (o is Edge edg) { return edg.Curve3D as IGeoObject; }
+            if (o is Vertex vtx)
+            {
+                CADability.GeoObject.Point pnt = CADability.GeoObject.Point.Construct();
+                pnt.Location = vtx.Position;
+                pnt.Symbol = PointSymbol.Cross;
+                return pnt;
+            }
+            return null;
+        }
+
         public override void OnViewsChanged()
         {
             feedback.Detach();
@@ -171,15 +183,9 @@ namespace ShapeIt
         }
         private void CalcDistance()
         {
-            if (forwardMeasureBound is Vertex fvtx && backwardMeasureBound is Vertex bvtx)
-            {
-                double d2 = Plane.Distance(fvtx.Position); // should be >0
-                double d1 = Plane.Distance(bvtx.Position); // should be <0
-                distance = d2 - d1;
-                startPoint = Plane.Location + d1 * Plane.Normal;
-                endPoint = Plane.Location + d2 * Plane.Normal;
-            }
-            // need to implement distance Plane->Curve and Plane->Face
+            (startPoint, endPoint) = DistanceCalculator.DistanceBetweenObjects(measureFromHere, measureToHere, Plane.Normal, pickPoint, 
+                out GeoVector degreeOfFreedom, out GeoPoint dimStartPoint, out GeoPoint dimEndPoint);
+            distance = startPoint | endPoint;
         }
 
         private string NameInput_GetStringEvent()
@@ -197,26 +203,102 @@ namespace ShapeIt
             return (int)mode;
         }
 
-        private void ModeInput_SetChoiceEvent(int val)
+        private void OnSetDistanceMode(int val)
         {
             mode = (Mode)val;
             Refresh();
         }
 
         private bool OnMouseOverBackwardObject(BRepObjectInput sender, object[] bRepObjects, bool up)
-        {
-            return false;
+        {   // we accept vertex, edge or face, but in the original object, not in the modified object (maybe implement later)
+            // the object must be on the correct side of the plane
+            object bestObject = null;
+            for (int i = 0; i < bRepObjects.Length; i++)
+            {
+                if (bRepObjects[i] is Vertex vtx && Plane.Distance(vtx.Position) < 0.0) bestObject = vtx;
+                else if (bRepObjects[i] is Edge edg && !(bestObject is Vertex))
+                {
+                    double[] ex = edg.Curve3D.GetExtrema(Plane.Normal);
+                    for (int j = 0; j < ex.Length; j++)
+                    {
+                        if (ex[j] >= 0.0 && ex[j] <= 1.0 && Plane.Distance(edg.Curve3D.PointAt(ex[j])) < 0.0)
+                        {
+                            bestObject = edg;
+                            break;
+                        }
+                    }
+                }
+                else if (bRepObjects[i] is Face fce && !(bestObject is Vertex) && !(bestObject is Edge))
+                {
+                    if (fce.Surface is PlaneSurface ps)
+                    {
+                        if (Precision.SameDirection(ps.Normal, Plane.Normal, false) && Plane.Distance(fce.AllEdges[0].Vertex1.Position) < 0.0) bestObject = fce;
+                    }
+                    else
+                    {
+                        GeoPoint2D[] ex = SurfaceHelper.GetExtrema(fce.Surface, fce.Domain, Plane.Normal);
+                        // sender.currentMousePoint
+                        // Frame.ActiveView.Projection.Direction
+                        // there should be something like Face.GetPickPoint(mousePoint, projection)
+                        // with periodic surfaces it is hard to tell on which side
+                    }
+                }
+            }
+            if (bestObject != null && up)
+            {
+                sender.SetBRepObject(new object[] { bestObject }, bestObject);
+                measureToHere = bestObject;
+                CalcDistance();
+                Refresh();
+            }
+            return bestObject != null;
         }
 
         private bool OnMouseOverForwardObject(BRepObjectInput sender, object[] bRepObjects, bool up)
         {
-            return false;
+            object bestObject = null;
+            for (int i = 0; i < bRepObjects.Length; i++)
+            {
+                if (bRepObjects[i] is Vertex vtx && Plane.Distance(vtx.Position) > 0.0) bestObject = vtx;
+                else if (bRepObjects[i] is Edge edg && !(bestObject is Vertex))
+                {
+                    double[] ex = edg.Curve3D.GetExtrema(Plane.Normal);
+                    for (int j = 0; j < ex.Length; j++)
+                    {
+                        if (ex[j] >= 0.0 && ex[j] <= 1.0 && Plane.Distance(edg.Curve3D.PointAt(ex[j])) > 0.0)
+                        {
+                            bestObject = edg;
+                            break;
+                        }
+                    }
+                }
+                else if (bRepObjects[i] is Face fce && !(bestObject is Vertex) && !(bestObject is Edge))
+                {
+                    if (fce.Surface is PlaneSurface ps)
+                    {
+                        if (Precision.SameDirection(ps.Normal, Plane.Normal, false) && Plane.Distance(fce.AllEdges[0].Vertex1.Position) > 0.0) bestObject = fce;
+                    }
+                    else
+                    {
+                        GeoPoint2D[] ex = SurfaceHelper.GetExtrema(fce.Surface, fce.Domain, Plane.Normal);
+                        // with periodic surfaces it is hard to tell on which side
+                    }
+                }
+            }
+            if (bestObject != null && up)
+            {
+                sender.SetBRepObject(new object[] { bestObject }, bestObject);
+                measureFromHere = bestObject;
+                CalcDistance();
+                Refresh();
+            }
+            return bestObject != null;
         }
 
-        private bool DistanceInput_SetLengthEvent(double length)
+        private bool OnSetDistance(double length)
         {
             validResult = false;
-            if (forwardMeasureBound != null && backwardMeasureBound != null)
+            if (measureFromHere != null && measureToHere != null)
             {
                 distance = length;
                 bool ok = Refresh();
@@ -244,18 +326,18 @@ namespace ShapeIt
             {
                 case Mode.forward:
                     ep = endPoint + (distance - originalDistance) * dir;
-                    feedbackDimension = Frame.ActiveView.Projection.MakeArrow(sp, ep, feedbackPlane, Projection.ArrowMode.circleArrow);
+                    feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, CloneAndMove(measureFromHere, (distance - originalDistance) * dir), CloneAndMove(measureToHere, GeoVector.NullVector), null, dir, GeoPoint.Invalid, CurrentMouseView);
                     break;
                 case Mode.backward:
                     sp = startPoint - (distance - originalDistance) * dir;
-                    feedbackDimension = Frame.ActiveView.Projection.MakeArrow(ep, sp, feedbackPlane, Projection.ArrowMode.circleArrow);
+                    feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, CloneAndMove(measureFromHere, GeoVector.NullVector), CloneAndMove(measureToHere, -(distance - originalDistance) * dir), null, dir, GeoPoint.Invalid, CurrentMouseView);
                     break;
                 case Mode.symmetric:
                     sp = startPoint - 0.5 * (distance - originalDistance) * dir;
                     ep = endPoint + 0.5 * (distance - originalDistance) * dir;
                     GeoPoint mp = new GeoPoint(sp, ep);
-                    feedbackDimension = Frame.ActiveView.Projection.MakeArrow(mp, sp, feedbackPlane, Projection.ArrowMode.circleArrow);
-                    feedbackDimension.AddRange(Frame.ActiveView.Projection.MakeArrow(mp, ep, feedbackPlane, Projection.ArrowMode.circleArrow));
+                    feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, CloneAndMove(measureFromHere, 0.5 * (distance - originalDistance) * dir),
+                        CloneAndMove(measureToHere, -0.5 * (distance - originalDistance) * dir), null, dir, GeoPoint.Invalid, CurrentMouseView);
                     break;
             }
             Shell sh = null;
@@ -312,13 +394,13 @@ namespace ShapeIt
                         // facesToKeep etc. contains original objects of the shell, affectedObjects contains objects of the sh = pm.Result()
                         // the parametricProperty will be applied to sh, so we need the objects from sh
                         object fwd = null; // we need the forward and backward objects of the parametrics clone
-                        if (forwardMeasureBound is Vertex fvtx) fwd = vertexDict[fvtx];
-                        else if (forwardMeasureBound is Face ffce) fwd = faceDict[ffce];
-                        else if (forwardMeasureBound is Edge fedg) fwd = edgeDict[fedg];
+                        if (measureFromHere is Vertex fvtx) fwd = vertexDict[fvtx];
+                        else if (measureFromHere is Face ffce) fwd = faceDict[ffce];
+                        else if (measureFromHere is Edge fedg) fwd = edgeDict[fedg];
                         object bwd = null;
-                        if (backwardMeasureBound is Vertex bvtx) bwd = vertexDict[bvtx];
-                        else if (backwardMeasureBound is Face bfce) bwd = faceDict[bfce];
-                        else if (backwardMeasureBound is Edge bedg) bwd = edgeDict[bedg];
+                        if (measureToHere is Vertex bvtx) bwd = vertexDict[bvtx];
+                        else if (measureToHere is Face bfce) bwd = faceDict[bfce];
+                        else if (measureToHere is Edge bedg) bwd = edgeDict[bedg];
                         if (mode == Mode.backward)
                         {
                             parametricProperty = new ParametricDistanceProperty("", Extensions.LookUp(forwardMovingFaces, faceDict),
@@ -347,14 +429,40 @@ namespace ShapeIt
                 faceDict = new Dictionary<Face, Face>();
                 feedbackResult = shell.Clone(new Dictionary<Edge, Edge>(), new Dictionary<Vertex, Vertex>(), faceDict);
             }
-            feedback.FrontFaces.AddRange(forwardMovingFaces);
-            feedback.BackFaces.AddRange(backwardMovingFaces);
+            //feedback.FrontFaces.AddRange(forwardMovingFaces);
+            //feedback.BackFaces.AddRange(backwardMovingFaces);
+            feedback.ShadowFaces.Add(feedbackResult);
+            feedback.FrontFaces.Add(ToGeoObject(measureFromHere));
+            feedback.BackFaces.Add(ToGeoObject(measureToHere));
             feedback.Arrows.AddRange(feedbackDimension);
+            feedback.Arrows.AddRange(arrows);
+            if (crossSection != null) feedback.SelectedObjects.Add(crossSection);
             feedback.Refresh();
             return sh != null;
         }
 
-        private double DistanceInput_GetLengthEvent()
+        private object CloneAndMove(object toMove, GeoVector moveBy)
+        {
+            if (toMove is IGeoObject go)
+            {
+                IGeoObject res = go.Clone();
+                res.Modify(ModOp.Translate(moveBy));
+                return res;
+            }
+            if (toMove is Edge edge)
+            {
+                IGeoObject res = edge.Curve3D.Clone() as IGeoObject;
+                res.Modify(ModOp.Translate(moveBy));
+                return res;
+            }
+            if (toMove is Vertex vtx)
+            {
+                return new Vertex(ModOp.Translate(moveBy) * vtx.Position);
+            }
+            return null;
+        }
+
+        private double OnGetDistance()
         {
             return distance;
         }

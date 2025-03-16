@@ -78,6 +78,7 @@ namespace ShapeIt
             modelligIsActive = true;
 
             feedback = new Feedback();
+            FeedbackArrow.SetNumberFormat(cadFrame);
         }
         #region CADability events
         private void ViewsChanged(IFrame theFrame)
@@ -1024,7 +1025,11 @@ namespace ShapeIt
                 };
                 extrudeMenu.ExecuteMenu = (menuId) =>
                 {
-                    ParametricsExtrudeAction pea = new ParametricsExtrudeAction(minObject, maxObject, lfaces, ledges, lplane, cadFrame);
+                    GeoVector crossDir = lplane.Normal^ fc.Surface.GetNormal(fc.PositionOf(pointOnFace));
+                    Face arrow1 = FeedbackArrow.MakeSimpleTriangle(pointOnFace, lplane.Normal, crossDir, vw.Projection);
+                    Face arrow2 = FeedbackArrow.MakeSimpleTriangle(pointOnFace, -lplane.Normal, -crossDir, vw.Projection);
+                    ParametricsExtrudeAction pea = new ParametricsExtrudeAction(minObject, maxObject, lfaces, ledges, lplane, extrFace, 
+                        pointOnFace, new Face[] { arrow1, arrow2 }, cadFrame);
                     selectAction.Frame.SetAction(pea);
                     return true;
                 };

@@ -2217,7 +2217,7 @@ namespace CADability
             // if (!local && !pr.IsPerspective)
             {
                 double d = size;
-                PaintToBackground.PrepareText("Arial", "xyz0123456789+-°.", FontStyle.Regular); // wg. einem komischen Fehler in PFOCAD:
+                PaintToBackground.PrepareText("Arial", "xyz0123456789+-°.,", FontStyle.Regular); // wg. einem komischen Fehler in PFOCAD:
                 // dort kommen manchmal die Sortiernummern nicht, da wglUseFontOutlines nicht funktioniert. Wenn hier gleich alle Ziffern
                 // erzeugt werden, dann passiert das nicht, denn hier geht es immer
                 PaintToBackground.SetColor(infocolor);

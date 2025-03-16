@@ -64,6 +64,7 @@ namespace CADability.Forms
         Color selectColor;
         Color lastColor; // if twice the same color was selected with alpha==0, then this is color override state
         bool colorOverride = false;
+        Color overrideColor;
 
         // Glu.GLUnurbs nurbsRenderer;
         OpenGlList currentList;
@@ -859,22 +860,8 @@ namespace CADability.Forms
             //    list.Add(p3d.CloseList());
             //}
         }
-        void IPaintTo3D.SetColor(Color color)
+        void IPaintTo3D.SetColor(Color color, int lockColor)
         {
-            if (color.A == 0 && color == lastColor)
-            {   // calling this twice with the same color with alpha==0 sets the color override mode
-                if (colorOverride) colorOverride = false;
-                else
-                {
-                    colorOverride = true; // now we are in color override mode, we set this color, but with alpha==255 and keep it, until color override is switched off
-                    Gl.glColor4ub(color.R, color.G, color.B, 255);
-                }
-            }
-            if (color.A == 1 && color == lastColor)
-            {
-                colorOverride = false; // reset color override mode
-                return;
-            }
             if (!colorOverride)
             {
                 if (color.R == backgroundColor.R && color.G == backgroundColor.G && color.B == backgroundColor.B)
@@ -889,7 +876,8 @@ namespace CADability.Forms
                     Gl.glColor4ub(color.R, color.G, color.B, color.A);
                 }
             }
-            lastColor = color;
+            if (lockColor == 1) colorOverride = true;
+            else if (lockColor == -1) colorOverride = false;
             CheckError();
         }
         void IPaintTo3D.SetLineWidth(LineWidth lineWidth)

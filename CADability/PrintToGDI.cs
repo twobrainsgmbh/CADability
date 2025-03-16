@@ -2363,7 +2363,7 @@ namespace CADability
             throw new NotImplementedException("The method or operation is not implemented.");
         }
 
-        void IPaintTo3D.SetColor(System.Drawing.Color color)
+        void IPaintTo3D.SetColor(System.Drawing.Color color, int lockColor)
         {
             currentColor = color;
         }

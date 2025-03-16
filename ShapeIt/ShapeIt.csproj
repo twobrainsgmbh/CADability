@@ -75,6 +75,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DistanceCalculator.cs" />
     <Compile Include="Feedback.cs" />
     <Compile Include="FeedbackArrow.cs" />
     <Compile Include="MainForm.cs">

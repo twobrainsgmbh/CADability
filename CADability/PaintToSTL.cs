@@ -159,7 +159,7 @@ namespace CADability
 
         }
 
-        void IPaintTo3D.SetColor(Color color)
+        void IPaintTo3D.SetColor(Color color, int lockColor)
         {
             // hier könnte für binärausgabe die Farbe gesetzt werden
         }

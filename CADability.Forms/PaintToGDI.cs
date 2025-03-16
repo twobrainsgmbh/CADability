@@ -368,7 +368,7 @@ namespace CADability.Forms
         }
 
         Color color;
-        void IPaintTo3D.SetColor(Color color)
+        void IPaintTo3D.SetColor(System.Drawing.Color color, int lockColor)
         {
             if (color.ToArgb() == avoidColor.ToArgb())
                 color = Color.FromArgb(255 - avoidColor.R, 255 - avoidColor.G, 255 - avoidColor.B);

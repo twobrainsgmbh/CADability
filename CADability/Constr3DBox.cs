@@ -146,11 +146,15 @@ namespace CADability.Actions
 
 
         private double HeightCalculate(GeoPoint MousePosition)
-        {  // falls die Höhe über einen Punkt im Raum über der jetzigen Box bestimmt wird:
-            // der Lotfußpunkt von MousePosition auf die Ebene X-Y
+        {  // if the length and the width of the box have already been defined, the height is determined along an axis
+            // perpendicular to the base plane of the box in the center of the bas face
             Plane pl = new Plane(boxStartPoint, boxDirX, boxDirY);
-            double l = pl.ToLocal(MousePosition).z;
-            //            if (Math.Abs(l) > Precision.eps) geht nicht in MakeBox
+            GeoPoint cnt = boxStartPoint + 0.5 * boxDirX + 0.5 * boxDirY;
+            GeoVector perp = pl.Normal.Normalized;
+            Axis beamFromMouse = base.CurrentMouseView.Projection.PointBeam(base.CurrentMousePoint);
+            Geometry.DistLL(cnt, perp, beamFromMouse.Location, beamFromMouse.Direction, out double par1, out double par2);
+            double l = par1; ;
+            // double l = pl.ToLocal(MousePosition).z;
             if (l > Precision.eps)
             {	// Neue Box 
                 boxLengthZ = l;
@@ -292,7 +296,7 @@ namespace CADability.Actions
             height.DefaultLength = ConstrDefaults.DefaultBoxHeight;
             height.SetLengthEvent += new ConstructAction.LengthInput.SetLengthDelegate(Height);
             height.GetLengthEvent += new LengthInput.GetLengthDelegate(GetHeight);
-            height.CalculateLengthEvent += new CADability.Actions.ConstructAction.LengthInput.CalculateLengthDelegate(HeightCalculate);
+            height.CalculateLengthEvent += new LengthInput.CalculateLengthDelegate(HeightCalculate);
             height.ForwardMouseInputTo = startPointInput;
 
 

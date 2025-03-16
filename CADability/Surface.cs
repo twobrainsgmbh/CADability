@@ -14988,5 +14988,21 @@ namespace CADability.GeoObject
                 }
             }
         }
+
+        public static GeoPoint2D[] GetExtrema(ISurface surface, BoundingRect domain, GeoVector dir)
+        {
+            ISurface srf = surface.Clone();
+            if (!Precision.SameDirection(dir,GeoVector.ZAxis,false))
+            {   // modify the surface, so that dir is the z-axis
+                srf.Modify(ModOp.Rotate(GeoPoint.Origin, dir, GeoVector.ZAxis));
+            }
+            GeoPoint2D[] uv = srf.GetExtrema();
+            List<GeoPoint2D> res = new List<GeoPoint2D>();
+            for (int i = 0; i < uv.Length; i++)
+            {
+                if (Precision.SameDirection(srf.GetNormal(uv[i]), GeoVector.ZAxis, false)) res.Add(uv[i]);
+            }
+            return res.ToArray();
+        }
     }
 }

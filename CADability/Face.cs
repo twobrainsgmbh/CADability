@@ -2594,7 +2594,7 @@ namespace CADability.GeoObject
                                         }
                                     }
                                 }
-                                looplist.Add(loop);
+                                if (loop.Count>0) looplist.Add(loop);
                             }
                             // Now the looplist contains one or more outer loops (counterclock) and maybe some inner loops (clockwise)
                             // for this (nonperiodic) patch of the surface. In very rare cases there are multiple outer loops. then we have to find which inner loop

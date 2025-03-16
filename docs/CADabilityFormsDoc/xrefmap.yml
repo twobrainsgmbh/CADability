@@ -852,6 +852,19 @@ references:
   isSpec: "True"
   fullName: CADability.Forms.CadForm.PropertiesExplorer
   nameWithType: CadForm.PropertiesExplorer
+- uid: CADability.Forms.CadForm.ResetMainMenu(System.String)
+  name: ResetMainMenu(String)
+  href: api/CADability.Forms.CadForm.html#CADability_Forms_CadForm_ResetMainMenu_System_String_
+  commentId: M:CADability.Forms.CadForm.ResetMainMenu(System.String)
+  fullName: CADability.Forms.CadForm.ResetMainMenu(System.String)
+  nameWithType: CadForm.ResetMainMenu(String)
+- uid: CADability.Forms.CadForm.ResetMainMenu*
+  name: ResetMainMenu
+  href: api/CADability.Forms.CadForm.html#CADability_Forms_CadForm_ResetMainMenu_
+  commentId: Overload:CADability.Forms.CadForm.ResetMainMenu
+  isSpec: "True"
+  fullName: CADability.Forms.CadForm.ResetMainMenu
+  nameWithType: CadForm.ResetMainMenu
 - uid: CADability.Forms.CadFrame
   name: CadFrame
   href: api/CADability.Forms.CadFrame.html
@@ -3934,6 +3947,19 @@ references:
   isSpec: "True"
   fullName: CADability.Forms.PropertiesExplorer.Refresh
   nameWithType: PropertiesExplorer.Refresh
+- uid: CADability.Forms.PropertiesExplorer.RemovePropertyPage(System.String)
+  name: RemovePropertyPage(String)
+  href: api/CADability.Forms.PropertiesExplorer.html#CADability_Forms_PropertiesExplorer_RemovePropertyPage_System_String_
+  commentId: M:CADability.Forms.PropertiesExplorer.RemovePropertyPage(System.String)
+  fullName: CADability.Forms.PropertiesExplorer.RemovePropertyPage(System.String)
+  nameWithType: PropertiesExplorer.RemovePropertyPage(String)
+- uid: CADability.Forms.PropertiesExplorer.RemovePropertyPage*
+  name: RemovePropertyPage
+  href: api/CADability.Forms.PropertiesExplorer.html#CADability_Forms_PropertiesExplorer_RemovePropertyPage_
+  commentId: Overload:CADability.Forms.PropertiesExplorer.RemovePropertyPage
+  isSpec: "True"
+  fullName: CADability.Forms.PropertiesExplorer.RemovePropertyPage
+  nameWithType: PropertiesExplorer.RemovePropertyPage
 - uid: CADability.Forms.PropertiesExplorer.Selected(CADability.UserInterface.IPropertyEntry)
   name: Selected(IPropertyEntry)
   href: api/CADability.Forms.PropertiesExplorer.html#CADability_Forms_PropertiesExplorer_Selected_CADability_UserInterface_IPropertyEntry_

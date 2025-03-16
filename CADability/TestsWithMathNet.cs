@@ -825,7 +825,7 @@ namespace CADability
             double a = Math.Atan2(axis.y, axis.x);
             double b = Math.Atan2(axis.z, Math.Sqrt(axis.x * axis.x + axis.y * axis.y));
             NonlinearMinimizationResult mres = lm.FindMinimum(iom, new DenseVector(new double[] { apex.x, apex.y, apex.z, a, b, theta }));
-            if (mres.ReasonForExit == ExitCondition.Converged || mres.ReasonForExit == ExitCondition.RelativeGradient)
+            if ((mres.ReasonForExit == ExitCondition.Converged || mres.ReasonForExit == ExitCondition.RelativeGradient) && mres.StandardErrors != null)
             {
                 GeoVector dir = new GeoVector(Math.Cos(mres.MinimizingPoint[4]) * Math.Cos(mres.MinimizingPoint[3]), Math.Cos(mres.MinimizingPoint[4]) * Math.Sin(mres.MinimizingPoint[3]), Math.Sin(mres.MinimizingPoint[4]));
                 dir.ArbitraryNormals(out GeoVector dirx, out GeoVector diry);

@@ -15,19 +15,22 @@ namespace ShapeIt
         private IView view;
         public GeoObjectList FrontFaces = new GeoObjectList(); // List of front faces for distance for feedback
         public GeoObjectList BackFaces = new GeoObjectList(); // List of back faces for distance for feedback
-        public GeoObjectList SelectedObjects = new GeoObjectList(); // List of selected objects to be displayed, when a entry is selected
+        public GeoObjectList ShadowFaces = new GeoObjectList(); // List of faces, usually the result of an operation, displayed as a transparent overlay
+        public GeoObjectList SelectedObjects = new GeoObjectList(); // List of selected objects to be displayed, when a entry is selected, displayed as brim
         public GeoObjectList Arrows = new GeoObjectList(); // List of highlighted objects to be displayed, when a entry is selected
         private IPaintTo3DList frontFacesDisplayList = null;
         private IPaintTo3DList backFacesDisplayList = null;
+        private IPaintTo3DList shadowFacesDisplayList = null;
         private IPaintTo3DList selectedObjectsDisplayList = null;
         private IPaintTo3DList arrowsDisplayList = null;
 
-        ColorDef frontColor, backColor, selectColor;
+        Color frontColor, backColor, selectColor, shadowColor;
         public Feedback()
         {
-            frontColor = new ColorDef("frontColor", Color.Yellow);
-            backColor = new ColorDef("backColor", Color.LightBlue);
-            selectColor = new ColorDef("frontColor", Color.LightPink);
+            frontColor = Color.LightGreen;
+            backColor = Color.PaleVioletRed;
+            selectColor = Color.LightPink;
+            shadowColor = Color.Yellow;
         }
         public void Attach(IView vw)
         {
@@ -44,11 +47,13 @@ namespace ShapeIt
         {
             FrontFaces.Clear();
             BackFaces.Clear();
+            ShadowFaces.Clear();
             SelectedObjects.Clear();
             Arrows.Clear();
             // reset the display lists, so they will be recreated when the next OnRepaintSelect is called
             frontFacesDisplayList = null;
             backFacesDisplayList = null;
+            shadowFacesDisplayList = null;
             selectedObjectsDisplayList = null;
             arrowsDisplayList = null;
         }
@@ -73,45 +78,47 @@ namespace ShapeIt
             if (selectedObjectsDisplayList == null)
             {
                 PaintToSelect.OpenList("selected-objects");
-                PaintToSelect.SetColor(Color.FromArgb(0, selectColor.Color)); // switch on color override with this color
-                PaintToSelect.SetColor(Color.FromArgb(0, selectColor.Color));
+                PaintToSelect.SetColor(selectColor, 1); // switch on color override with this color
                 foreach (IGeoObject go in SelectedObjects)
                 {
                     go.PaintTo3D(PaintToSelect);
                 }
                 selectedObjectsDisplayList = PaintToSelect.CloseList();
-                PaintToSelect.SetColor(Color.FromArgb(1, selectColor.Color)); // switch off color override
-                PaintToSelect.SetColor(Color.FromArgb(1, selectColor.Color));
+                PaintToSelect.SetColor(selectColor, -1);
             }
-            // PaintToSelect.SelectMode = false;
-            // front and back faces list in plain mode
-            PaintToSelect.SetColor(Color.Yellow);
+            if (shadowFacesDisplayList == null)
+            {
+                PaintToSelect.OpenList("shadow-faces");
+                PaintToSelect.SetColor(Color.FromArgb(128, shadowColor), 1);
+                foreach (IGeoObject go in ShadowFaces)
+                {
+                    go.PaintTo3D(PaintToSelect);
+                }
+                shadowFacesDisplayList = PaintToSelect.CloseList();
+                PaintToSelect.SetColor(shadowColor, -1);
+            }
             if (frontFacesDisplayList == null)
             {
                 PaintToSelect.OpenList("front-faces");
-                PaintToSelect.SetColor(Color.FromArgb(0, frontColor.Color));
-                PaintToSelect.SetColor(Color.FromArgb(0, frontColor.Color));
+                PaintToSelect.SetColor(frontColor, 1);
                 foreach (IGeoObject go in FrontFaces)
                 {
                     go.PaintTo3D(PaintToSelect);
                 }
                 frontFacesDisplayList = PaintToSelect.CloseList();
-                PaintToSelect.SetColor(Color.FromArgb(1, frontColor.Color));
-                PaintToSelect.SetColor(Color.FromArgb(1, frontColor.Color));
+                PaintToSelect.SetColor(frontColor, -1);
             }
-            PaintToSelect.SetColor(Color.LightBlue);
+
             if (backFacesDisplayList == null)
             {
                 PaintToSelect.OpenList("back-faces");
-                PaintToSelect.SetColor(Color.FromArgb(0,backColor.Color));
-                PaintToSelect.SetColor(Color.FromArgb(0,backColor.Color));
+                PaintToSelect.SetColor(backColor, 1);
                 foreach (IGeoObject go in BackFaces)
                 {
                     go.PaintTo3D(PaintToSelect);
                 }
                 backFacesDisplayList = PaintToSelect.CloseList();
-                PaintToSelect.SetColor(Color.FromArgb(1, backColor.Color));
-                PaintToSelect.SetColor(Color.FromArgb(1, backColor.Color));
+                PaintToSelect.SetColor(backColor, -1);
             }
             PaintToSelect.SetColor(Color.Black); // color to display the arrows an text. objects should have ColorDef==null, so they don't set the color
             bool oldTriangulateText = PaintToSelect.TriangulateText;
@@ -129,7 +136,11 @@ namespace ShapeIt
 
             // show the display lists            
             // a small amount to the front
-            ModOp toViewer = ModOp.Translate(-2 * PaintToSelect.Precision * view.Projection.Direction.x, -2 * PaintToSelect.Precision * view.Projection.Direction.y, -2 * PaintToSelect.Precision * view.Projection.Direction.z);
+            ModOp toViewer = ModOp.Translate(-2 * PaintToSelect.Precision * view.Projection.Direction);
+            PaintToSelect.PushMultModOp(toViewer);
+            if (shadowFacesDisplayList != null) PaintToSelect.List(shadowFacesDisplayList);
+            toViewer = ModOp.Translate(-4 * PaintToSelect.Precision * view.Projection.Direction);
+            PaintToSelect.PopModOp();
             PaintToSelect.PushMultModOp(toViewer);
             if (frontFacesDisplayList != null) PaintToSelect.List(frontFacesDisplayList);
             if (backFacesDisplayList != null) PaintToSelect.List(backFacesDisplayList);
@@ -138,7 +149,7 @@ namespace ShapeIt
             PaintToSelect.SelectMode = false;
             PaintToSelect.PopModOp();
             // even more to the front to clearly show the domension lines
-            toViewer = ModOp.Translate(-4 * PaintToSelect.Precision * view.Projection.Direction.x, -4 * PaintToSelect.Precision * view.Projection.Direction.y, -4 * PaintToSelect.Precision * view.Projection.Direction.z);
+            toViewer = ModOp.Translate(-6 * PaintToSelect.Precision * view.Projection.Direction);
             PaintToSelect.PushMultModOp(toViewer);
             if (arrowsDisplayList != null) PaintToSelect.List(arrowsDisplayList);
 
