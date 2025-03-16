@@ -51,7 +51,6 @@ namespace CADability
         public event RepaintActionDelegate RepaintActionEvent;
 
         private Layout layout;
-        private PaintBuffer paintBuffer; // die Zeichenmaschine --veraltet
         private IPaintTo3D paintTo3D; // die OpenGL Zeichenmaschine
         internal ModOp2D layoutToScreen; // Abbildung layout auf Bildschirm, also Zoom und Scroll
         internal ModOp2D screenToLayout; // inverse Abbildung
@@ -632,56 +631,12 @@ namespace CADability
         }
         void IView.Invalidate(CADability.PaintBuffer.DrawingAspect aspect, System.Drawing.Rectangle ToInvalidate)
         {
-            if (paintBuffer != null)
-            {
-                switch (aspect)
-                {
-                    case PaintBuffer.DrawingAspect.Background: throw new NotImplementedException();
-                    case PaintBuffer.DrawingAspect.Drawing: paintBuffer.InvalidateDrawing(ToInvalidate); break;
-                    case PaintBuffer.DrawingAspect.Select: paintBuffer.InvalidateSelect(ToInvalidate); break;
-                    case PaintBuffer.DrawingAspect.Active: paintBuffer.InvalidateActive(ToInvalidate); break;
-                    case PaintBuffer.DrawingAspect.All:
-                        {
-                            paintBuffer.InvalidateDrawing(ToInvalidate);
-                            paintBuffer.InvalidateSelect(ToInvalidate);
-                            paintBuffer.InvalidateActive(ToInvalidate);
-                            // fehlt noch Background
-                            break;
-                        }
-                }
-            }
             canvas?.Invalidate();
         }
         void IView.InvalidateAll()
         {
             canvas?.Invalidate();
         }
-        //void IView.SetPaintHandler(CADability.PaintBuffer.DrawingAspect aspect, CADability.RepaintView PaintHandler)
-        //{
-        //    if (paintBuffer != null)
-        //    {
-        //        switch (aspect)
-        //        {
-        //            case PaintBuffer.DrawingAspect.Background: throw new NotImplementedException();
-        //            case PaintBuffer.DrawingAspect.Drawing: RepaintDrawingEvent += PaintHandler; break;
-        //            case PaintBuffer.DrawingAspect.Select: RepaintSelectEvent += PaintHandler; break;
-        //            case PaintBuffer.DrawingAspect.Active: RepaintActiveEvent += PaintHandler; break;
-        //        }
-        //    }
-        //}
-        //void IView.RemovePaintHandler(CADability.PaintBuffer.DrawingAspect aspect, CADability.RepaintView PaintHandler)
-        //{
-        //    if (paintBuffer != null)
-        //    {
-        //        switch (aspect)
-        //        {
-        //            case PaintBuffer.DrawingAspect.Background: throw new NotImplementedException();
-        //            case PaintBuffer.DrawingAspect.Drawing: RepaintDrawingEvent -= PaintHandler; break;
-        //            case PaintBuffer.DrawingAspect.Select: RepaintSelectEvent -= PaintHandler; break;
-        //            case PaintBuffer.DrawingAspect.Active: RepaintActiveEvent -= PaintHandler; break;
-        //        }
-        //    }
-        //}
         void IView.SetPaintHandler(PaintBuffer.DrawingAspect aspect, PaintView PaintHandler)
         {
             // nicht sicher, ob das gebraucht wird ...
@@ -771,14 +726,12 @@ namespace CADability
                 case "MenuId.Zoom.Total":
                     {
                         ZoomTotal(1.1);
-                        if (paintBuffer != null) paintBuffer.ForceInvalidateAll();
                         canvas.Invalidate();
                         return true;
                     }
                 case "MenuId.Repaint":
                     {
                         if (!IsInitialized) ZoomTotal(1.1);
-                        if (paintBuffer != null) paintBuffer.ForceInvalidateAll();
                         canvas.Invalidate();
                         return true;
                     }
@@ -1026,7 +979,6 @@ namespace CADability
                 // layout.pageSettings = psd.PageSettings;
                 paperWidth.DoubleChanged();
                 paperHeight.DoubleChanged();
-                if (paintBuffer != null) paintBuffer.ForceInvalidateAll();
                 canvas?.Invalidate();
             }
         }
@@ -1052,7 +1004,6 @@ namespace CADability
         internal void Repaint()
         {
             if (!IsInitialized) ZoomTotal(1.1);
-            if (paintBuffer != null) paintBuffer.ForceInvalidateAll();
             canvas?.Invalidate();
         }
 
