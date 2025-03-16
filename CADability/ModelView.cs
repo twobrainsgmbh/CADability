@@ -316,7 +316,7 @@ namespace CADability
 		//public event RepaintView RepaintActiveEvent;
 		//public event RepaintView RepaintBackgroundEvent;
 
-		internal event PaintView PaintDrawingEvent;
+		//internal event PaintView PaintDrawingEvent;
 		internal event PaintView PaintSelectEvent;
 		internal event PaintView PaintActiveEvent;
 		public event PaintView PaintBackgroundEvent;
@@ -766,7 +766,7 @@ namespace CADability
 		}
 		private void Paint(PaintEventArgs e)
 		{
-			if (projectedModel == null || Projection == null) return; // should never haappen
+			if (projectedModel == null || Projection == null) return; // should never happen
 			IPaintTo3D paintTo3D = canvas.PaintTo3D;
 			if (paintTo3D != null)
 			{
@@ -1365,24 +1365,24 @@ namespace CADability
 			// neuzeichnen der Feedback Objekte
 			canvas?.Invalidate();
 		}
-		void IView.SetPaintHandler(PaintBuffer.DrawingAspect aspect, PaintView PaintHandler)
+		void IView.SetPaintHandler(PaintBuffer.DrawingAspect aspect, PaintView paintHandler)
 		{
 			switch (aspect)
 			{
-				case PaintBuffer.DrawingAspect.Background: PaintBackgroundEvent += PaintHandler; break;
-				case PaintBuffer.DrawingAspect.Drawing: PaintDrawingEvent += PaintHandler; break;
-				case PaintBuffer.DrawingAspect.Select: PaintSelectEvent += PaintHandler; break;
-				case PaintBuffer.DrawingAspect.Active: PaintActiveEvent += PaintHandler; break;
+				case PaintBuffer.DrawingAspect.Background: PaintBackgroundEvent += paintHandler; break;
+				//case PaintBuffer.DrawingAspect.Drawing: PaintDrawingEvent += paintHandler; break;
+				case PaintBuffer.DrawingAspect.Select: PaintSelectEvent += paintHandler; break;
+				case PaintBuffer.DrawingAspect.Active: PaintActiveEvent += paintHandler; break;
 			}
 		}
-		void IView.RemovePaintHandler(PaintBuffer.DrawingAspect aspect, PaintView PaintHandler)
+		void IView.RemovePaintHandler(PaintBuffer.DrawingAspect aspect, PaintView paintHandler)
 		{
 			switch (aspect)
 			{
-				case PaintBuffer.DrawingAspect.Background: PaintBackgroundEvent -= PaintHandler; break;
-				case PaintBuffer.DrawingAspect.Drawing: PaintDrawingEvent -= PaintHandler; break;
-				case PaintBuffer.DrawingAspect.Select: PaintSelectEvent -= PaintHandler; break;
-				case PaintBuffer.DrawingAspect.Active: PaintActiveEvent -= PaintHandler; break;
+				case PaintBuffer.DrawingAspect.Background: PaintBackgroundEvent -= paintHandler; break;
+				//case PaintBuffer.DrawingAspect.Drawing: PaintDrawingEvent -= paintHandler; break;
+				case PaintBuffer.DrawingAspect.Select: PaintSelectEvent -= paintHandler; break;
+				case PaintBuffer.DrawingAspect.Active: PaintActiveEvent -= paintHandler; break;
 			}
 		}
 		public Rectangle DisplayRectangle
