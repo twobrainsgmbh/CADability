@@ -16,7 +16,7 @@ namespace CADability.UserInterface
         private PropertyInfo TheProperty;
         private string text;
         private bool IsSetting;
-        private bool highlight;
+        //private bool highlight;
         private int minValue; // Grenzen für die Eingabe
         private int maxValue;
         private bool showUpDown; // Pfeil auf und ab Control anzeigen
@@ -213,7 +213,7 @@ namespace CADability.UserInterface
             get
             {
                 PropertyEntryType res = PropertyEntryType.Selectable | PropertyEntryType.ValueEditable;
-                if (highlight) res |= PropertyEntryType.Highlight;
+                //if (highlight) res |= PropertyEntryType.Highlight;
                 if (showUpDown) res |= PropertyEntryType.HasSpinButton;
                 if (specialValues != null && specialValues.Count > 0)
                     res |= PropertyEntryType.ContextMenu;

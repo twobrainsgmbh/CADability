@@ -51,8 +51,7 @@ namespace CADability
         public event RepaintActionDelegate RepaintActionEvent;
 
         private Layout layout;
-        private PaintBuffer paintBuffer; // die Zeichenmaschine --veraltet
-        private IPaintTo3D paintTo3D; // die OpenGL Zeichenmaschine
+        //private IPaintTo3D paintTo3D; // die OpenGL Zeichenmaschine
         internal ModOp2D layoutToScreen; // Abbildung layout auf Bildschirm, also Zoom und Scroll
         internal ModOp2D screenToLayout; // inverse Abbildung
         private PrintDocument printDocument; // lokale Printeinstellungen
@@ -294,83 +293,84 @@ namespace CADability
             //PaintToOpenGl paintTo3D = new PaintToOpenGl(1e-3); // woher nehmen?
             // IntPtr dc = e.Graphics.GetHdc();
             //paintTo3D.Init(dc, condorCtrl.ClientRectangle.Width, condorCtrl.ClientRectangle.Height, false);
-            IPaintTo3D ipaintTo3D = paintTo3D;
+            //IPaintTo3D ipaintTo3D = paintTo3D;
             // ipaintTo3D.Init(condorCtrl); // das erzeugt jedesmal einen neuen renderContext, das kann doch nicht richtig sein
-            ipaintTo3D.MakeCurrent();
-            ipaintTo3D.Clear(Color.Black); // damit ist black die Backgroundcolor
+            //ipaintTo3D.MakeCurrent();
+            //ipaintTo3D.Clear(Color.Black); // damit ist black die Backgroundcolor
 
             //e.Graphics.FillRectangle(Brushes.Black, e.Graphics.ClipBounds);
             GeoPoint2D ll = layoutToScreen * new GeoPoint2D(0.0, 0.0);
-            GeoPoint2D ur = layoutToScreen * new GeoPoint2D(layout.PaperWidth, layout.PaperHeight);
-            RectangleF paperrect = RectangleF.FromLTRB((float)ll.x, (float)ur.y, (float)ur.x, (float)ll.y);
+            //GeoPoint2D ur = layoutToScreen * new GeoPoint2D(layout.PaperWidth, layout.PaperHeight);
+            //RectangleF paperrect = RectangleF.FromLTRB((float)ll.x, (float)ur.y, (float)ur.x, (float)ll.y);
             //e.Graphics.FillRectangle(Brushes.White, paperrect);
 
             //BoundingCube bc = new BoundingCube(ll.x, ur.x, ll.y, ur.y, -1.0, 1.0);
             //ipaintTo3D.SetProjection(new Projection(Projection.StandardProjection.FromTop), bc);
-            ipaintTo3D.UseZBuffer(false);
-            ipaintTo3D.SetColor(Color.White);
-            ipaintTo3D.FillRect2D(ll.PointF, ur.PointF);
+            //ipaintTo3D.UseZBuffer(false);
+            //ipaintTo3D.SetColor(Color.White);
+            //ipaintTo3D.FillRect2D(ll.PointF, ur.PointF);
 
             //ipaintTo3D.FinishPaint();// DEBUG
             //return; // DEBUG
 
-            ipaintTo3D.AvoidColor(Color.White);
+            //ipaintTo3D.AvoidColor(Color.White);
 
-            if (RepaintActionEvent != null) RepaintActionEvent(this, ipaintTo3D);
+            //if (RepaintActionEvent != null) RepaintActionEvent(this, ipaintTo3D);
 
             for (int i = 0; i < layout.Patches.Length; ++i)
             {
                 LayoutPatch lp = layout.Patches[i];
-                BoundingRect paperRect = new BoundingRect(0.0, 0.0, layout.PaperWidth, layout.PaperHeight);
+                //BoundingRect paperRect = new BoundingRect(0.0, 0.0, layout.PaperWidth, layout.PaperHeight);
 
-                BoundingRect ext;
-                if (lp.Area != null)
-                {
-                    ext = lp.Area.Extent;
-                }
-                else
-                {
-                    ext = paperRect;
-                }
+                //BoundingRect ext;
+                //if (lp.Area != null)
+                //{
+                //    ext = lp.Area.Extent;
+                //}
+                //else
+                //{
+                //    ext = paperRect;
+                //}
 
-                GeoPoint2D clipll = layoutToScreen * ext.GetLowerLeft();
-                GeoPoint2D clipur = layoutToScreen * ext.GetUpperRight();
-                Rectangle clipRectangle = Rectangle.FromLTRB((int)clipll.x, (int)clipur.y, (int)clipur.x, (int)clipll.y);
+                //GeoPoint2D clipll = layoutToScreen * ext.GetLowerLeft();
+                //GeoPoint2D clipur = layoutToScreen * ext.GetUpperRight();
+                
+                //Rectangle clipRectangle = Rectangle.FromLTRB((int)clipll.x, (int)clipur.y, (int)clipur.x, (int)clipll.y);
+                
                 Projection pr = lp.Projection.Clone();
-                double factor, dx, dy;
-                pr.GetPlacement(out factor, out dx, out dy);
+                pr.GetPlacement(out double factor, out double dx, out double dy);
                 pr.SetPlacement(layoutToScreen.Factor * factor, ll.x + layoutToScreen.Factor * dx, ll.y - layoutToScreen.Factor * dy);
                 pr.Precision = lp.Model.Extent.Size / 1000;
 
-                ipaintTo3D.Precision = pr.Precision;
-                ipaintTo3D.SetProjection(pr, lp.Model.Extent);
-                ipaintTo3D.UseZBuffer(true);
-                ipaintTo3D.SetClip(clipRectangle);
-                ipaintTo3D.PaintFaces(PaintTo3D.PaintMode.All);
+                //ipaintTo3D.Precision = pr.Precision;
+                //ipaintTo3D.SetProjection(pr, lp.Model.Extent);
+                //ipaintTo3D.UseZBuffer(true);
+                //ipaintTo3D.SetClip(clipRectangle);
+                //ipaintTo3D.PaintFaces(PaintTo3D.PaintMode.All);
                 // lp.Model.ClearDisplayLists();
-                lp.Model.RecalcDisplayLists(ipaintTo3D);
-                if (lp.Projection.ShowFaces)
-                {
-                    ipaintTo3D.PaintFaces(PaintTo3D.PaintMode.FacesOnly);
-                    foreach (KeyValuePair<Layer, IPaintTo3DList> kv in lp.Model.layerFaceDisplayList)
-                    {
-                        if (lp.IsLayerVisible(kv.Key) || lp.Model.nullLayer == kv.Key)
-                        {
-                            ipaintTo3D.List(kv.Value);
-                        }
-                    }
-                }
-                ipaintTo3D.PaintFaces(PaintTo3D.PaintMode.CurvesOnly);
-                foreach (KeyValuePair<Layer, IPaintTo3DList> kv in lp.Model.layerCurveDisplayList)
-                {
-                    if (lp.IsLayerVisible(kv.Key) || lp.Model.nullLayer == kv.Key)
-                    {
-                        ipaintTo3D.List(kv.Value);
-                    }
-                }
-                ipaintTo3D.SetClip(Rectangle.Empty);
+                //lp.Model.RecalcDisplayLists(ipaintTo3D);
+                //if (lp.Projection.ShowFaces)
+                //{
+                //    ipaintTo3D.PaintFaces(PaintTo3D.PaintMode.FacesOnly);
+                //    foreach (KeyValuePair<Layer, IPaintTo3DList> kv in lp.Model.layerFaceDisplayList)
+                //    {
+                //        if (lp.IsLayerVisible(kv.Key) || lp.Model.nullLayer == kv.Key)
+                //        {
+                //            ipaintTo3D.List(kv.Value);
+                //        }
+                //    }
+                //}
+                //ipaintTo3D.PaintFaces(PaintTo3D.PaintMode.CurvesOnly);
+                //foreach (KeyValuePair<Layer, IPaintTo3DList> kv in lp.Model.layerCurveDisplayList)
+                //{
+                //    if (lp.IsLayerVisible(kv.Key) || lp.Model.nullLayer == kv.Key)
+                //    {
+                //        ipaintTo3D.List(kv.Value);
+                //    }
+                //}
+                //ipaintTo3D.SetClip(Rectangle.Empty);
             }
-            ipaintTo3D.FinishPaint();
+            //ipaintTo3D.FinishPaint();
         }
         public void OnSizeChanged(System.Drawing.Rectangle oldRectangle)
         {
@@ -632,56 +632,12 @@ namespace CADability
         }
         void IView.Invalidate(CADability.PaintBuffer.DrawingAspect aspect, System.Drawing.Rectangle ToInvalidate)
         {
-            if (paintBuffer != null)
-            {
-                switch (aspect)
-                {
-                    case PaintBuffer.DrawingAspect.Background: throw new NotImplementedException();
-                    case PaintBuffer.DrawingAspect.Drawing: paintBuffer.InvalidateDrawing(ToInvalidate); break;
-                    case PaintBuffer.DrawingAspect.Select: paintBuffer.InvalidateSelect(ToInvalidate); break;
-                    case PaintBuffer.DrawingAspect.Active: paintBuffer.InvalidateActive(ToInvalidate); break;
-                    case PaintBuffer.DrawingAspect.All:
-                        {
-                            paintBuffer.InvalidateDrawing(ToInvalidate);
-                            paintBuffer.InvalidateSelect(ToInvalidate);
-                            paintBuffer.InvalidateActive(ToInvalidate);
-                            // fehlt noch Background
-                            break;
-                        }
-                }
-            }
             canvas?.Invalidate();
         }
         void IView.InvalidateAll()
         {
             canvas?.Invalidate();
         }
-        //void IView.SetPaintHandler(CADability.PaintBuffer.DrawingAspect aspect, CADability.RepaintView PaintHandler)
-        //{
-        //    if (paintBuffer != null)
-        //    {
-        //        switch (aspect)
-        //        {
-        //            case PaintBuffer.DrawingAspect.Background: throw new NotImplementedException();
-        //            case PaintBuffer.DrawingAspect.Drawing: RepaintDrawingEvent += PaintHandler; break;
-        //            case PaintBuffer.DrawingAspect.Select: RepaintSelectEvent += PaintHandler; break;
-        //            case PaintBuffer.DrawingAspect.Active: RepaintActiveEvent += PaintHandler; break;
-        //        }
-        //    }
-        //}
-        //void IView.RemovePaintHandler(CADability.PaintBuffer.DrawingAspect aspect, CADability.RepaintView PaintHandler)
-        //{
-        //    if (paintBuffer != null)
-        //    {
-        //        switch (aspect)
-        //        {
-        //            case PaintBuffer.DrawingAspect.Background: throw new NotImplementedException();
-        //            case PaintBuffer.DrawingAspect.Drawing: RepaintDrawingEvent -= PaintHandler; break;
-        //            case PaintBuffer.DrawingAspect.Select: RepaintSelectEvent -= PaintHandler; break;
-        //            case PaintBuffer.DrawingAspect.Active: RepaintActiveEvent -= PaintHandler; break;
-        //        }
-        //    }
-        //}
         void IView.SetPaintHandler(PaintBuffer.DrawingAspect aspect, PaintView PaintHandler)
         {
             // nicht sicher, ob das gebraucht wird ...
@@ -771,14 +727,12 @@ namespace CADability
                 case "MenuId.Zoom.Total":
                     {
                         ZoomTotal(1.1);
-                        if (paintBuffer != null) paintBuffer.ForceInvalidateAll();
                         canvas.Invalidate();
                         return true;
                     }
                 case "MenuId.Repaint":
                     {
                         if (!IsInitialized) ZoomTotal(1.1);
-                        if (paintBuffer != null) paintBuffer.ForceInvalidateAll();
                         canvas.Invalidate();
                         return true;
                     }
@@ -1026,7 +980,6 @@ namespace CADability
                 // layout.pageSettings = psd.PageSettings;
                 paperWidth.DoubleChanged();
                 paperHeight.DoubleChanged();
-                if (paintBuffer != null) paintBuffer.ForceInvalidateAll();
                 canvas?.Invalidate();
             }
         }
@@ -1052,7 +1005,6 @@ namespace CADability
         internal void Repaint()
         {
             if (!IsInitialized) ZoomTotal(1.1);
-            if (paintBuffer != null) paintBuffer.ForceInvalidateAll();
             canvas?.Invalidate();
         }
 
