@@ -596,7 +596,7 @@ namespace CADability.GeoObject
                     if ((OrderedCurves[i] as ICurve).IsClosed) OrderedCurves.RemoveAt(i);
                 }
             }
-            if (OrderedCurves.Count == 1 && moreThanOne) return false;
+            if (OrderedCurves.Count == 0 || (OrderedCurves.Count == 1 && moreThanOne)) return false;
             for (int i = 0; i < OrderedCurves.Count; ++i)
             {
                 ICurve c = OrderedCurves[i] as ICurve;
