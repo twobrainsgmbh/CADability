@@ -129,7 +129,7 @@
       "output": {
         ".html": {
           "relative_path": "api/CADability.Forms.PaintToBitmap.html",
-          "hash": "R0Ogjr/Wvdoo7JAtpvRnr/Cnx/obUiKG1BWONPDB/hg="
+          "hash": "hkn4qcBGy9N2YYVXM0S19KcFJn7GqHfWsAjl3eooAFY="
         }
       },
       "is_incremental": true,
@@ -141,7 +141,7 @@
       "output": {
         ".html": {
           "relative_path": "api/CADability.Forms.PaintToGDI.html",
-          "hash": "wtgNQZlJUctCabw7s7PidaIi49lWZmUIcDVvfaIH/J4="
+          "hash": "ndwrgcAmoQjuIeq07EeyjvFggME7jVuIuAFmD98eMxU="
         }
       },
       "is_incremental": true,
@@ -153,7 +153,7 @@
       "output": {
         ".html": {
           "relative_path": "api/CADability.Forms.PaintToOpenGL.html",
-          "hash": "ZxRf8bXTCOVpPYW25dZaf8KbALqkV6nAqbNN6JRUg70="
+          "hash": "Fw6erFJLdHKFnC/mxXQNuj1rFtDgMII2M+FV0gi4q4U="
         }
       },
       "is_incremental": true,

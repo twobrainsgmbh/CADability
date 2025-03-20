@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using static CADability.Projection;
 using System.Globalization;
 using CADability.Forms;
+using CADability.Attribute;
+using System.Drawing;
 
 namespace ShapeIt
 {
@@ -15,6 +17,8 @@ namespace ShapeIt
     {
         private static int arrowSize = 12; // should be a píxel on screen value
         private static NumberFormatInfo numberFormatInfo;
+        public static ColorDef blackParts = new ColorDef("blackArrows", Color.Black);
+        public static ColorDef redParts = new ColorDef("blackArrows", Color.Red);
 
         public static void SetNumberFormat(IFrame frame)
         {
@@ -55,6 +59,7 @@ namespace ShapeIt
                     Face triangle;
                     if (n * dir < 0) triangle = FeedbackArrow.MakeSimpleTriangle(d.startPoint, -dir, projection);
                     else triangle = FeedbackArrow.MakeSimpleTriangle(d.startPoint, dir, projection);
+                    triangle.ColorDef = blackParts;
                     res.Add(triangle);
                 }
                 if (toHere is Face ft)
@@ -63,6 +68,7 @@ namespace ShapeIt
                     Face triangle;
                     if (n * dir < 0) triangle = FeedbackArrow.MakeSimpleTriangle(d.endPoint, -dir, projection);
                     else triangle = FeedbackArrow.MakeSimpleTriangle(d.endPoint, dir, projection);
+                    triangle.ColorDef = redParts;
                     res.Add(triangle);
                 }
                 // now find a place where to display the dimension line
@@ -126,8 +132,12 @@ namespace ShapeIt
                         PickArea pa = projection.GetPickSpace(new BoundingRect(tstpnt1, 1, 1));
                         double z0 = Geometry.LinePar(pa.FrontCenter, pa.Direction, l3.StartPoint);
                         double pd1 = vw.Model.GetPickDistance(projection.GetPickSpace(new BoundingRect(tstpnt1, 1, 1)), null);
-                        res.Add(MakeSimpleTriangle(l3.EndPoint, -l3.EndDirection, l1.StartDirection, projection));
-                        res.Add(MakeSimpleTriangle(l3.StartPoint, l3.StartDirection, l1.StartDirection, projection));
+                        Face fromArrow = MakeSimpleTriangle(l3.StartPoint, l3.StartDirection, l1.StartDirection, projection);
+                        Face toArrow = MakeSimpleTriangle(l3.EndPoint, -l3.EndDirection, l1.StartDirection, projection);
+                        fromArrow.ColorDef = blackParts;
+                        toArrow.ColorDef = redParts;
+                        res.Add(fromArrow);
+                        res.Add(toArrow);
                         GeoPoint2D txtloc = projection.WorldToWindow(l3.PointAt(0.5));
                         GeoPoint2D txtp1 = projection.WorldToWindow(l3.PointAt(0.5) + arrowLength * l3.StartDirection.Normalized);
                         GeoPoint2D txtp2 = projection.WorldToWindow(l3.PointAt(0.5) + arrowLength * lineDir.Normalized);
@@ -196,7 +206,10 @@ namespace ShapeIt
                         res.Add(txt);
                     }
                 }
-                // res = projection.MakeArrow(d.startPoint, d.endPoint, pln, Projection.ArrowMode.twoArrows);
+                for (int i = 0; i < res.Count; i++)
+                {
+                    if (res[i] is IColorDef cd && cd.ColorDef == null) cd.ColorDef = blackParts;
+                }
             }
             return res;
         }

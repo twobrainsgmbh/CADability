@@ -2199,14 +2199,14 @@ references:
   fullName: CADability.Forms.PaintToGDI.CADability.IPaintTo3D.SetClip
   nameWithType: PaintToGDI.IPaintTo3D.SetClip
   nameWithType.vb: PaintToGDI.CADability.IPaintTo3D.SetClip
-- uid: CADability.Forms.PaintToGDI.CADability#IPaintTo3D#SetColor(System.Drawing.Color)
-  name: IPaintTo3D.SetColor(Color)
-  href: api/CADability.Forms.PaintToGDI.html#CADability_Forms_PaintToGDI_CADability_IPaintTo3D_SetColor_System_Drawing_Color_
-  commentId: M:CADability.Forms.PaintToGDI.CADability#IPaintTo3D#SetColor(System.Drawing.Color)
-  name.vb: CADability.IPaintTo3D.SetColor(Color)
-  fullName: CADability.Forms.PaintToGDI.CADability.IPaintTo3D.SetColor(System.Drawing.Color)
-  nameWithType: PaintToGDI.IPaintTo3D.SetColor(Color)
-  nameWithType.vb: PaintToGDI.CADability.IPaintTo3D.SetColor(Color)
+- uid: CADability.Forms.PaintToGDI.CADability#IPaintTo3D#SetColor(System.Drawing.Color,System.Int32)
+  name: IPaintTo3D.SetColor(Color, Int32)
+  href: api/CADability.Forms.PaintToGDI.html#CADability_Forms_PaintToGDI_CADability_IPaintTo3D_SetColor_System_Drawing_Color_System_Int32_
+  commentId: M:CADability.Forms.PaintToGDI.CADability#IPaintTo3D#SetColor(System.Drawing.Color,System.Int32)
+  name.vb: CADability.IPaintTo3D.SetColor(Color, Int32)
+  fullName: CADability.Forms.PaintToGDI.CADability.IPaintTo3D.SetColor(System.Drawing.Color, System.Int32)
+  nameWithType: PaintToGDI.IPaintTo3D.SetColor(Color, Int32)
+  nameWithType.vb: PaintToGDI.CADability.IPaintTo3D.SetColor(Color, Int32)
 - uid: CADability.Forms.PaintToGDI.CADability#IPaintTo3D#SetColor*
   name: IPaintTo3D.SetColor
   href: api/CADability.Forms.PaintToGDI.html#CADability_Forms_PaintToGDI_CADability_IPaintTo3D_SetColor_
@@ -3345,14 +3345,14 @@ references:
   fullName: CADability.Forms.PaintToOpenGL.CADability.IPaintTo3D.SetClip
   nameWithType: PaintToOpenGL.IPaintTo3D.SetClip
   nameWithType.vb: PaintToOpenGL.CADability.IPaintTo3D.SetClip
-- uid: CADability.Forms.PaintToOpenGL.CADability#IPaintTo3D#SetColor(System.Drawing.Color)
-  name: IPaintTo3D.SetColor(Color)
-  href: api/CADability.Forms.PaintToOpenGL.html#CADability_Forms_PaintToOpenGL_CADability_IPaintTo3D_SetColor_System_Drawing_Color_
-  commentId: M:CADability.Forms.PaintToOpenGL.CADability#IPaintTo3D#SetColor(System.Drawing.Color)
-  name.vb: CADability.IPaintTo3D.SetColor(Color)
-  fullName: CADability.Forms.PaintToOpenGL.CADability.IPaintTo3D.SetColor(System.Drawing.Color)
-  nameWithType: PaintToOpenGL.IPaintTo3D.SetColor(Color)
-  nameWithType.vb: PaintToOpenGL.CADability.IPaintTo3D.SetColor(Color)
+- uid: CADability.Forms.PaintToOpenGL.CADability#IPaintTo3D#SetColor(System.Drawing.Color,System.Int32)
+  name: IPaintTo3D.SetColor(Color, Int32)
+  href: api/CADability.Forms.PaintToOpenGL.html#CADability_Forms_PaintToOpenGL_CADability_IPaintTo3D_SetColor_System_Drawing_Color_System_Int32_
+  commentId: M:CADability.Forms.PaintToOpenGL.CADability#IPaintTo3D#SetColor(System.Drawing.Color,System.Int32)
+  name.vb: CADability.IPaintTo3D.SetColor(Color, Int32)
+  fullName: CADability.Forms.PaintToOpenGL.CADability.IPaintTo3D.SetColor(System.Drawing.Color, System.Int32)
+  nameWithType: PaintToOpenGL.IPaintTo3D.SetColor(Color, Int32)
+  nameWithType.vb: PaintToOpenGL.CADability.IPaintTo3D.SetColor(Color, Int32)
 - uid: CADability.Forms.PaintToOpenGL.CADability#IPaintTo3D#SetColor*
   name: IPaintTo3D.SetColor
   href: api/CADability.Forms.PaintToOpenGL.html#CADability_Forms_PaintToOpenGL_CADability_IPaintTo3D_SetColor_

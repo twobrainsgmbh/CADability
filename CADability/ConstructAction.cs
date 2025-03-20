@@ -7157,8 +7157,23 @@ namespace CADability.Actions
                 {
                     // vw.SetPaintHandler(PaintBuffer.DrawingAspect.Active, new RepaintView(OnRepaintActive));
                     vw.SetPaintHandler(PaintBuffer.DrawingAspect.Active, new PaintView(OnRepaintActive));
+                    if (vw is ModelView mv) mv.DisplayChangedEvent += ProjectionChanged;
                 }
             }
+        }
+
+        private void ProjectionChanged(object sender, DisplayChangeArg displayChangeArg)
+        {
+            OnDisplayChanged(displayChangeArg);
+        }
+
+        /// <summary>
+        /// Can be overridden to react on zooming and scrolling
+        /// </summary>
+        /// <param name="d"></param>
+        public override void OnDisplayChanged(DisplayChangeArg d)
+        {
+            base.OnDisplayChanged(d);
         }
 
         /// <summary>
@@ -7278,6 +7293,7 @@ namespace CADability.Actions
                 {
                     //vw.RemovePaintHandler(PaintBuffer.DrawingAspect.Active, new RepaintView(OnRepaintActive));
                     vw.RemovePaintHandler(PaintBuffer.DrawingAspect.Active, new PaintView(OnRepaintActive));
+                    if (vw is ModelView mv) mv.DisplayChangedEvent -= ProjectionChanged;
                 }
             }
             base.OnRemoveAction();

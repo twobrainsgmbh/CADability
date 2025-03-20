@@ -39,8 +39,32 @@ namespace ShapeIt
             GeoPoint startPoint = GeoPoint.Invalid;
             GeoPoint endPoint = GeoPoint.Invalid;
 
-            // order according to Edge->Face->Vertex to simplify the following cases (C# 8 or greater not available)
-            if (string.Compare(fromHere.GetType().Name, toHere.GetType().Name) > 0)
+            // order according to Face->GeoPoint->ICurve to simplify the following cases (C# 8 or greater not available)
+            string fname = fromHere.GetType().Name;
+            if (fromHere is Edge e3)
+            {
+                fromHere = e3.Curve3D;
+                fname = "ICurve";
+            }
+            else if (fromHere is ICurve) fname = "ICurve";
+            else if (fromHere is Vertex vtx1)
+            {
+                fromHere = vtx1.Position;
+                fname = "GeoPoint";
+            }
+            string tname = toHere.GetType().Name;
+            if (toHere is Edge e4)
+            {
+                toHere = e4.Curve3D;
+                tname = "ICurve";
+            }
+            else if (toHere is ICurve) tname = "ICurve";
+            else if (toHere is Vertex vtx2)
+            {
+                toHere = vtx2.Position;
+                tname = "GeoPoint";
+            }
+            if (string.Compare(fname, tname) > 0)
             {
                 var temp = fromHere;
                 fromHere = toHere;
@@ -48,13 +72,13 @@ namespace ShapeIt
                 swapped = true;
             }
 
-            if (fromHere is Vertex v1 && toHere is Vertex v2)
+            if (fromHere is GeoPoint p1 && toHere is GeoPoint p2)
             {
                 if (preferredDirection.IsValid() && !preferredDirection.IsNullVector())
                 {   // we need to use this direction, but I don't think we should consider preferredPoint
-                    Plane pln = new Plane(v1.Position, preferredDirection); // the plane, perpendicular to the preferred direction
-                    GeoPoint v2p = pln.ToLocal(v2.Position);
-                    double dist = pln.Distance(v2.Position);
+                    Plane pln = new Plane(p1, preferredDirection); // the plane, perpendicular to the preferred direction
+                    GeoPoint v2p = pln.ToLocal(p2);
+                    double dist = pln.Distance(p2);
                     startPoint = pln.ToGlobal(new GeoPoint(v2p.x / 2.0, v2p.y / 2.0, 0.0));
                     endPoint = startPoint + dist * preferredDirection.Normalized;
                     degreeOfFreedom = pln.ToGlobal(new GeoVector(v2p.x, v2p.y, 0.0)); // this is the connection of the two points in the plane
@@ -62,27 +86,27 @@ namespace ShapeIt
                 }
                 else
                 {   // simply the connection of both vertices
-                    startPoint = v1.Position;
-                    endPoint = v2.Position;
+                    startPoint = p1;
+                    endPoint = p2;
                 }
             }
-            else if (fromHere is Edge e1 && toHere is Edge e2)
+            else if (fromHere is ICurve c1 && toHere is ICurve c2)
             {
                 if (preferredDirection.IsValid() && !preferredDirection.IsNullVector())
                 {   // we need to use this direction
                     // check for extreme positions of the curve in this direction. E.g. an arc typically has a maximum or minimum, which would be useful here
                     // if multiple points ar available, no criterium is know to prefer one of them
-                    double[] ep1 = e1.Curve3D.GetExtrema(preferredDirection);
-                    double[] ep2 = e2.Curve3D.GetExtrema(preferredDirection);
-                    if (ep1 == null || ep1.Length == 0) dimStartPoint = e1.Curve3D.StartPoint; // maybe there is a better solution
-                    else dimStartPoint = e1.Curve3D.PointAt(ep1[0]);
-                    if (ep2 == null || ep2.Length == 0) dimEndPoint = e2.Curve3D.EndPoint; // maybe there is a better solution
-                    else dimStartPoint = e2.Curve3D.PointAt(ep2[0]);
+                    double[] ep1 = c1.GetExtrema(preferredDirection);
+                    double[] ep2 = c2.GetExtrema(preferredDirection);
+                    if (ep1 == null || ep1.Length == 0) dimStartPoint = c1.StartPoint; // maybe there is a better solution
+                    else dimStartPoint = c1.PointAt(ep1[0]);
+                    if (ep2 == null || ep2.Length == 0) dimEndPoint = c2.EndPoint; // maybe there is a better solution
+                    else dimStartPoint = c2.PointAt(ep2[0]);
                     GeoPoint m = new GeoPoint(dimStartPoint, dimEndPoint);
                     if (preferredPoint.IsValid) m = preferredPoint;
                     startPoint = Geometry.DropPL(dimStartPoint, m, preferredDirection);
                     endPoint = Geometry.DropPL(dimEndPoint, m, preferredDirection);
-                    if (Curves.GetCommonPlane(e1.Curve3D, e2.Curve3D, out Plane commonPlane))
+                    if (Curves.GetCommonPlane(c1, c2, out Plane commonPlane))
                     {
                         commonPlane.Intersect(new Plane(m, preferredDirection), out GeoPoint _, out degreeOfFreedom);
                     }
@@ -90,7 +114,7 @@ namespace ShapeIt
                 }
                 else
                 {
-                    if (e1.Curve3D is Line l1 && e2.Curve3D is Line l2)
+                    if (c1 is Line l1 && c2 is Line l2)
                     {   // two lines
                         if (Precision.SameDirection(l1.StartDirection, l2.StartDirection, false))
                         {   // two parallel lines define a plane
@@ -115,27 +139,27 @@ namespace ShapeIt
                             }
                         }
                     }
-                    else if (Curves.GetCommonPlane(e1.Curve3D, e2.Curve3D, out Plane commonPlane))
+                    else if (Curves.GetCommonPlane(c1, c2, out Plane commonPlane))
                     {   // the edges are in a common plane
                         double pos1 = 0.5, pos2 = 0.5;
-                        if (Curves.NewtonMinDist(e1.Curve3D, ref pos1, e2.Curve3D, ref pos2))
+                        if (Curves.NewtonMinDist(c1, ref pos1, c2, ref pos2))
                         {
-                            startPoint = e1.Curve3D.PointAt(pos1);
-                            endPoint = e2.Curve3D.PointAt(pos2);
+                            startPoint = c1.PointAt(pos1);
+                            endPoint = c2.PointAt(pos2);
                         }
                     }
                     else
                     {
-                        Line line = e1.Curve3D as Line;
+                        Line line = c1 as Line;
                         ICurve curve = null;
                         if (line == null)
                         {
-                            line = e2.Curve3D as Line;
-                            curve = e1.Curve3D;
+                            line = c2 as Line;
+                            curve = c1;
                         }
                         else
                         {
-                            curve = e2.Curve3D;
+                            curve = c2;
                         }
                         if (line != null)
                         {   // one of the curves is a line, the other doesnt share a plane with the line
@@ -161,17 +185,17 @@ namespace ShapeIt
                 }
                 // other combinations with ISurface.GetExtremePositions, but there is some work to do....
             }
-            else if (fromHere is Edge e && toHere is Vertex v)
+            else if (toHere is ICurve c && fromHere is GeoPoint p)
             {
                 if (preferredDirection.IsValid() && !preferredDirection.IsNullVector())
                 {
-                    if (e.Curve3D is Line line)
+                    if (c is Line line)
                     {
                         if (Precision.IsPerpendicular(line.StartDirection, preferredDirection, false))
                         {
                             if (preferredPoint.IsValid) startPoint = Geometry.DropPL(preferredPoint, line.StartPoint, line.EndPoint);
-                            else startPoint = Geometry.DropPL(v.Position, line.StartPoint, line.EndPoint);
-                            Plane pln = new Plane(v.Position, preferredDirection);
+                            else startPoint = Geometry.DropPL(p, line.StartPoint, line.EndPoint);
+                            Plane pln = new Plane(p, preferredDirection);
                             endPoint = pln.FootPoint(startPoint);
                             degreeOfFreedom = line.StartDirection;
                         }
@@ -179,7 +203,7 @@ namespace ShapeIt
                     // other cases to implement
                 }
             }
-            else if (fromHere is Face f && toHere is Vertex vv)
+            else if (fromHere is Face f && toHere is GeoPoint pp)
             {
                 if (preferredDirection.IsValid() && !preferredDirection.IsNullVector())
                 {
@@ -188,18 +212,18 @@ namespace ShapeIt
                         if (preferredPoint.IsValid)
                         {
                             startPoint = ps.Plane.FootPoint(preferredPoint);
-                            Plane pln = new Plane(vv.Position, preferredDirection);
+                            Plane pln = new Plane(pp, preferredDirection);
                             endPoint = pln.FootPoint(startPoint);
                         }
                         else
                         {
-                            startPoint = ps.Plane.FootPoint(vv.Position);
-                            endPoint = vv.Position;
+                            startPoint = ps.Plane.FootPoint(pp);
+                            endPoint = pp;
                         }
                     }
                 }
             }
-            else if (fromHere is Edge ee && toHere is Face ff)
+            else if (fromHere is Face ff && toHere is ICurve cc)
             {
 
             }

@@ -2336,7 +2336,7 @@ namespace CADability
             return res;
         }
         /// <summary>
-        /// Returns the minimal distance in <paramref name="viewDirection"/> of any visibla objects in the model. Returns double.MaxValue when there is nothing in the viewDirection
+        /// Returns the minimal distance in <paramref name="viewDirection"/> of any visible objects in the model. Returns double.MaxValue when there is nothing in the viewDirection
         /// </summary>
         /// <param name="viewDirection"></param>
         /// <param name="visibleLayers"></param>

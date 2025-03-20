@@ -109,10 +109,6 @@ namespace ShapeIt
         {
             base.TitleId = "Constr.Parametrics.Extrude";
             feedbackResult = shell.Clone() as Shell;
-            //if (feedbackDimension != null) feedback.Arrows.AddRange(feedbackDimension);
-            //feedback.Arrows.AddRange(arrows);
-            //feedback.FrontFaces.Add(ToGeoObject(measureFromHere));
-            //feedback.BackFaces.Add(ToGeoObject(measureToHere));
             if (crossSection != null) feedback.SelectedObjects.Add(crossSection);
 
             List<InputObject> actionInputs = new List<InputObject>();

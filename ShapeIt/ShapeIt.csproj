@@ -85,6 +85,7 @@
       <DependentUpon>MainForm.cs</DependentUpon>
     </Compile>
     <Compile Include="ModellingPropertyEntries.cs" />
+    <Compile Include="ParametricsDistanceAction.cs" />
     <Compile Include="ParametricsExtrudeAction.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

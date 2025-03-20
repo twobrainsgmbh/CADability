@@ -291,6 +291,8 @@ namespace CADability.Actions
         private PickMode oldPickMode; // fallback value when overwritten by context menu
         private bool accumulateObjects; // if set, no need to hold ctrl key to accumulate objects
         internal bool dragDrop;
+        private Projection.PickArea pickArea; // the last pickArea, which caused a change in the list of selected objects
+        private bool showSelectedObjects = true;
         /// <summary>
         /// Constructs a new SelectObjectsAction. This is automatically done when a <see cref="IFrame"/> derived object
         /// is created and the instance of this class can be retrieved from <see cref="IFrame.ActiveAction"/>.
@@ -491,7 +493,7 @@ namespace CADability.Actions
                 PaintToSelect.Line2D(SecondPoint.X, SecondPoint.Y, FirstPoint.X, SecondPoint.Y);
                 PaintToSelect.Line2D(FirstPoint.X, SecondPoint.Y, FirstPoint.X, FirstPoint.Y);
             }
-            if ((selectedObjects.Count > 0 || (directFeedback && objectsUnderCursorFeedback.Count > 0)) && (mode == Mode.NoAction || mode == Mode.TestDragRect))
+            if ((selectedObjects.Count > 0 || (directFeedback && objectsUnderCursorFeedback.Count > 0)) && (mode == Mode.NoAction || mode == Mode.TestDragRect) && showSelectedObjects)
             {
                 PaintToSelect.SelectMode = true;
                 PaintToSelect.SelectColor = Color.FromArgb(selectTransparency, selectColor);
@@ -692,6 +694,18 @@ namespace CADability.Actions
             get { return accumulateObjects; }
         }
         /// <summary>
+        /// Returns the pick area of the last mouse button up event, which caused the list of selected objects to change
+        /// </summary>
+        /// <returns></returns>
+        public Projection.PickArea GetPickArea()
+        {
+            return pickArea;
+        }
+        /// <summary>
+        /// Shows the selection. This is normally true, but can be used (e.g. by the modeller of ShapeIt) to turn off the display and implement is in a differnt way
+        /// </summary>
+        public bool ShowSelectedObjects { get { return showSelectedObjects; } set { showSelectedObjects = value; } }
+        /// <summary>
         /// Adds the provided GeoObject to the list of selected objects.
         /// The <see cref="SelectedObjectListChangedEvent"/> will be raised.
         /// </summary>
@@ -717,7 +731,7 @@ namespace CADability.Actions
                 {
                     foreach (Edge edge in (selObj[0] as Solid).Shells[0].Edges)
                     {
-                        if (edge.Curve3D!=null && edge.Curve3D.GetExtent().Zmin<-0.1)
+                        if (edge.Curve3D != null && edge.Curve3D.GetExtent().Zmin < -0.1)
                         { }
                     }
                     ok = (selObj[0] as Solid).Shells[0].CheckConsistency();
@@ -1030,8 +1044,7 @@ namespace CADability.Actions
 
         private GeoObjectList ObjectsUnderCursor(MouseEventArgs e, IView vw, bool single)
         {
-            // DEBUG:
-            Projection.PickArea pa = vw.Projection.GetPickSpace(new Rectangle(e.X - pickRadius, e.Y - pickRadius, pickRadius * 2, pickRadius * 2));
+            pickArea = vw.Projection.GetPickSpace(new Rectangle(e.X - pickRadius, e.Y - pickRadius, pickRadius * 2, pickRadius * 2));
 
             GeoObjectList result = new GeoObjectList();
             IActionInputView pm = vw as IActionInputView;
@@ -1047,36 +1060,36 @@ namespace CADability.Actions
                 case PickMode.children:
                     if (single)
                     {
-                        fromquadtree = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), PickMode.singleChild, filterList, selectedObjects);
+                        fromquadtree = vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(pm.GetVisibleLayers()), PickMode.singleChild, filterList, selectedObjects);
                     }
                     else
                     {
-                        fromquadtree = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), PickMode.children, filterList);
+                        fromquadtree = vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(pm.GetVisibleLayers()), PickMode.children, filterList);
                     }
                     break;
                 case PickMode.normal:
                     if (single)
                     {
-                        fromquadtree = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), PickMode.single, filterList, selectedObjects);
+                        fromquadtree = vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(pm.GetVisibleLayers()), PickMode.single, filterList, selectedObjects);
                     }
                     else
                     {
-                        fromquadtree = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), PickMode.normal, filterList);
+                        fromquadtree = vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(pm.GetVisibleLayers()), PickMode.normal, filterList);
                     }
                     // fromquadtree = pm.GetObjectsFromRect(pickrect, PickMode.single, filterList);
                     break;
                 case PickMode.onlyFaces:
                     if (single)
-                        fromquadtree = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), PickMode.singleFace, filterList, selectedObjects);
+                        fromquadtree = vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(pm.GetVisibleLayers()), PickMode.singleFace, filterList, selectedObjects);
                     else
-                        fromquadtree = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), PickMode.onlyFaces, filterList);
+                        fromquadtree = vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(pm.GetVisibleLayers()), PickMode.onlyFaces, filterList);
                     // fromquadtree = pm.GetObjectsFromRect(pickrect, PickMode.singleFace, filterList);
                     break;
                 case PickMode.onlyEdges:
                     if (single)
-                        fromquadtree = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), PickMode.singleEdge, filterList, selectedObjects);
+                        fromquadtree = vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(pm.GetVisibleLayers()), PickMode.singleEdge, filterList, selectedObjects);
                     else
-                        fromquadtree = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), PickMode.onlyEdges, filterList);
+                        fromquadtree = vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(pm.GetVisibleLayers()), PickMode.onlyEdges, filterList);
                     // fromquadtree = pm.GetObjectsFromRect(pickrect, PickMode.singleEdge, filterList);
                     break;
             }
@@ -1137,8 +1150,8 @@ namespace CADability.Actions
             FilterList filterList = Frame.Project.FilterList;
             if (winrect.Width == 0) winrect.Inflate(1, 0);
             if (winrect.Height == 0) winrect.Inflate(0, 1);
-            Projection.PickArea pa = vw.Projection.GetPickSpace(winrect);
-            GeoObjectList fromocttree = vw.Model.GetObjectsFromRect(pa, new Set<Layer>(pm.GetVisibleLayers()), pickMode, filterList);
+            pickArea = vw.Projection.GetPickSpace(winrect);
+            GeoObjectList fromocttree = vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(pm.GetVisibleLayers()), pickMode, filterList);
             bool onlyInside = (FirstPoint.X < SecondPoint.X);
             foreach (IGeoObject go in fromocttree)
             {
@@ -1146,10 +1159,10 @@ namespace CADability.Actions
                 {   // fromocttree enthält hier alles auf der untersten Ebene.
                     // Bei blockchildren gehen wir nach oben, solange der Block noch ganz im Pickbereich liegt
                     // Das gilt nur für onlyinside, sonst macht es vermutlich keinen Sinn, bis wohin sollte man sonst gehen, Hittest passt ja dann immer
-                    if ((go.Owner is Block || go.Owner is Face || go.Owner is Shell || go.Owner is Solid) && go.HitTest(pa, onlyInside))
+                    if ((go.Owner is Block || go.Owner is Face || go.Owner is Shell || go.Owner is Solid) && go.HitTest(pickArea, onlyInside))
                     {   // beim Block die Kinder liefern, aber so weit nach oben gehen, bis es nicht mehr enthalten ist
                         IGeoObject prnt = go;
-                        while (prnt.Owner is IGeoObject && (prnt.Owner as IGeoObject).HitTest(pa, onlyInside)) prnt = prnt.Owner as IGeoObject;
+                        while (prnt.Owner is IGeoObject && (prnt.Owner as IGeoObject).HitTest(pickArea, onlyInside)) prnt = prnt.Owner as IGeoObject;
                         result.AddUnique(prnt);
                     }
                 }
@@ -1524,7 +1537,7 @@ namespace CADability.Actions
                     {
                         if (Frame.UIService.ModifierKeys == Keys.Control || accumulateObjects)
                         {
-                            GeoObjectList undercursor = ObjectsUnderCursor(e, vw, true); 
+                            GeoObjectList undercursor = ObjectsUnderCursor(e, vw, true);
                             GeoObjectList toSelect = selectedObjects.Clone();
                             foreach (IGeoObject go in undercursor)
                             {

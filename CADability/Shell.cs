@@ -806,7 +806,7 @@ namespace CADability.GeoObject
             }
             return thickness;
         }
-        public int GetFaceDistances(Face distanceFrom, out List<Face> distanceTo, out List<double> distance, out List<GeoPoint> pointsFrom, out List<GeoPoint> pointsTo)
+        public int GetFaceDistances(Face distanceFrom, GeoPoint touchingPoint, out List<Face> distanceTo, out List<double> distance, out List<GeoPoint> pointsFrom, out List<GeoPoint> pointsTo)
         {
             distanceTo = new List<Face>();
             distance = new List<double>();
