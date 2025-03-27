@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms.VisualStyles;
 using System.Xml.Linq;
 using Wintellect.PowerCollections;
+using static CADability.Projection;
 
 namespace ShapeIt
 {
@@ -62,6 +63,7 @@ namespace ShapeIt
         private List<IGeoObject> accumulatedObjects = new List<IGeoObject>(); // objects beeing accumulated
         private bool modelligIsActive; // if true, there is no normal or "old" CADability selection, but every mouseclick of the SelectObjectsAction is handled here
         private Feedback feedback;
+        private PickArea lastPickArea; // for ComposeModellingEntries to avoid passing it to all methods
         public ModellingPropertyEntries(IFrame cadFrame) : base("Modelling.Properties")
         {
             this.cadFrame = cadFrame;
@@ -224,9 +226,10 @@ namespace ShapeIt
             if (vw is ModelView mv) visiblaLayers = mv.GetVisibleLayers();
             return vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(visiblaLayers), PickMode.singleFaceAndCurve, null); // returns all the faces or edges under the cursor
         }
-        private void ComposeModellingEntries(GeoObjectList objectsUnderCursor, IView vw, Projection.PickArea pickArea)
+        private void ComposeModellingEntries(GeoObjectList objectsUnderCursor, IView vw, PickArea pickArea)
         {   // a mouse left button up took place. Compose all the entries for objects, which can be handled by 
             // the object(s) under the mouse cursor
+            lastPickArea = pickArea;
             subEntries.Clear(); // build a new list of modelling properties
             Axis clickBeam = new Axis(pickArea.FrontCenter, pickArea.Direction);
             if (isAccumulating && accumulatedObjects.Count > 0)
@@ -360,7 +363,7 @@ namespace ShapeIt
                 List<Face> axis = new List<Face>(); // the axis of these faces, which may be cylindrical, conical or toroidal
                 List<Edge> edges = new List<Edge>();
                 List<ICurve> curves = new List<ICurve>(); // curves, but not axis
-
+                Dictionary<Solid, List<Face>> solidToFaces = new Dictionary<Solid, List<Face>>();
                 for (int i = 0; i < objectsUnderCursor.Count; i++)
                 {
                     if (objectsUnderCursor[i] is Solid sld)
@@ -372,7 +375,12 @@ namespace ShapeIt
                         faces.Add(fc);
                         if (fc.Owner is Shell sh)
                         {
-                            if (sh.Owner is Solid solid) solids.Add(solid);
+                            if (sh.Owner is Solid solid)
+                            {
+                                solids.Add(solid);
+                                if (!solidToFaces.TryGetValue(solid, out List<Face> fcs)) solidToFaces[solid] = fcs = new List<Face>();
+                                fcs.Add(fc);
+                            }
                             else shells.Add(sh);
                         }
                     }
@@ -419,10 +427,6 @@ namespace ShapeIt
                     }
                 }
                 foreach (Face fc in faces)
-                {   // build the menu with extrusions and rotations
-                    AddExtensionProperties(fc, pickArea, vw);
-                }
-                foreach (Face fc in faces)
                 {   // add menus for dealing with face dimensions
                     AddFaceProperties(vw, fc, clickBeam);
                 }
@@ -432,7 +436,7 @@ namespace ShapeIt
                 }
                 foreach (Solid sld in solids)
                 {
-                    AddSolidProperties(vw, sld);
+                    AddSolidProperties(vw, sld, solidToFaces.TryGetValue(sld, out List<Face> found) ? found : null);
                 }
                 if (curves.Count > 1)
                 {
@@ -483,9 +487,59 @@ namespace ShapeIt
                 {
                     if (subEntries[i].Flags.HasFlag(PropertyEntryType.HasSubEntries) && subEntries[i].SubItems.Length > 0) pp.OpenSubEntries(subEntries[i], true);
                 }
-                if (subEntries.Count > 0) pp.SelectEntry(subEntries[0]);
+                for (int i = 0; i < subEntries.Count; ++i)
+                {
+                    pp.OpenSubEntries(subEntries[i], false);
+                }
+                // open and select according to this priority list:
+                IPropertyEntry spe;
+                if (null != (spe = FindSubItem("MenuId.Feature")))
+                {
+                    pp.OpenSubEntries(spe, true);
+                    pp.SelectEntry(spe);
+                }
+                if (null != (spe = FindSubItem("MenuId.Solid")))
+                {
+                    pp.OpenSubEntries(spe, true);
+                    pp.SelectEntry(spe);
+                }
+                else if (null != (spe = FindSubItem("MenuId.Face")))
+                {
+                    pp.OpenSubEntries(spe, true);
+                    pp.SelectEntry(spe);
+                }
+                else if (null != (spe = FindSubItem("MenuId.Edge")))
+                {
+                    pp.OpenSubEntries(spe, true);
+                    pp.SelectEntry(spe);
+                }
+                else
+                {
+                    if (subEntries.Count > 0)
+                    {
+                        pp.OpenSubEntries(subEntries[0], true);
+                        pp.SelectEntry(subEntries[0]);
+                    }
+                }
             }
         }
+        private void Clear()
+        {
+            IPropertyPage pp = propertyPage;
+            if (pp != null)
+            {
+                IPropertyEntry selection = pp.GetCurrentSelection();
+                if (selection != null)
+                {
+                    selection.UnSelected(selection); // to regenerate the feedback display
+                                                     // and by passing selected as "previousSelected" parameter, they can only regenerate projection dependant feedback 
+                }
+                subEntries.Clear();
+                pp.Remove(this); // to reflect this newly composed entry
+                pp.Add(this, true);
+            }
+        }
+
 
         private void AddCurveProperties(IView vw, ICurve curve, bool suppresRuledSolid)
         {
@@ -494,7 +548,7 @@ namespace ShapeIt
             lmh.IsSelected = (selected, frame) =>
             {
                 feedback.Clear();
-                if (selected) feedback.FrontFaces.Add(curve as IGeoObject);
+                if (selected) feedback.ShadowFaces.Add(curve as IGeoObject);
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                 return true;
             };
@@ -510,11 +564,25 @@ namespace ShapeIt
                         frame.SetAction(new Constr3DFaceExtrude(fc));
                         return true;
                     };
+                    extrude.IsSelected = (selected, frame) =>
+                    {
+                        feedback.Clear();
+                        if (selected) feedback.ShadowFaces.Add(fc);
+                        feedback.Refresh();
+                        return true;
+                    };
                     lmh.Add(extrude);
                     DirectMenuEntry rotate = new DirectMenuEntry("MenuId.Constr.Solid.FaceRotate"); // too bad, no icon yet, would be 160
                     rotate.ExecuteMenu = (frame) =>
                     {
                         frame.SetAction(new Constr3DFaceRotate(new GeoObjectList(fc)));
+                        return true;
+                    };
+                    rotate.IsSelected = (selected, frame) =>
+                    {
+                        feedback.Clear();
+                        if (selected) feedback.ShadowFaces.Add(fc);
+                        feedback.Refresh();
                         return true;
                     };
                     lmh.Add(rotate);
@@ -565,16 +633,23 @@ namespace ShapeIt
             subEntries.Add(mp);
         }
 
-        private void AddSolidProperties(IView vw, Solid sld)
+        private void AddSolidProperties(IView vw, Solid sld, List<Face> fromFaces)
         {
             SelectEntry solidMenus = new SelectEntry("MenuId.Solid", true); // the container for all menus or properties of the solid
             solidMenus.IsSelected = (selected, frame) =>
             {
                 feedback.Clear();
-                if (selected) feedback.FrontFaces.Add(sld);
+                if (selected) feedback.ShadowFaces.Add(sld);
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                 return true;
             };
+            if (fromFaces != null)
+            {
+                foreach (Face fc in fromFaces)
+                {   // build the menu with extrusions and rotations
+                    solidMenus.Add(AddExtensionProperties(fc, lastPickArea, vw).ToArray());
+                }
+            }
             Model owner = sld.Owner as Model;
             if (owner != null)
             {
@@ -586,27 +661,44 @@ namespace ShapeIt
                 }
                 if (otherSolids.Count > 0)
                 {   // there are other solids close to this solid, it is not guaranteed that these other solids interfere with this solid 
+                    Func<bool, IFrame, bool> IsSelected = (selected, frame) =>
+                    {   // this is the standard selection behaviour for BRep operations
+                        feedback.Clear();
+                        if (selected)
+                        {
+                            feedback.ShadowFaces.Add(sld);
+                            feedback.BackFaces.AddRange(otherSolids);
+                        }
+                        feedback.Refresh();
+                        return true;
+                    };
                     BRepOpWith bRepOp = new BRepOpWith(sld, otherSolids, cadFrame); // it is all implemented in BRepOpWith, so we use the ICommandHandler to forward it
                     DirectMenuEntry mhSubtractFrom = new DirectMenuEntry("MenuId.Solid.RemoveFrom");
                     mhSubtractFrom.ExecuteMenu = (frame) =>
                     {
                         (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.RemoveFrom");
+                        this.Clear();
                         return true;
                     };
+                    mhSubtractFrom.IsSelected = IsSelected;
                     solidMenus.Add(mhSubtractFrom);
                     DirectMenuEntry mhSubtractFromAll = new DirectMenuEntry("MenuId.Solid.RemoveFromAll");
                     mhSubtractFromAll.ExecuteMenu = (frame) =>
                     {
                         (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.RemoveFromAll");
+                        this.Clear();
                         return true;
                     };
+                    mhSubtractFromAll.IsSelected = IsSelected;
                     solidMenus.Add(mhSubtractFromAll);
                     DirectMenuEntry mhSubtractAllFromThis = new DirectMenuEntry("MenuId.Solid.RemoveAll");
                     mhSubtractAllFromThis.ExecuteMenu = (frame) =>
                     {
                         (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.RemoveAll");
+                        this.Clear();
                         return true;
                     };
+                    mhSubtractAllFromThis.IsSelected = IsSelected;
                     solidMenus.Add(mhSubtractAllFromThis);
                     DirectMenuEntry mhUniteWith = new DirectMenuEntry("MenuId.Solid.UniteWith");
                     mhUniteWith.ExecuteMenu = (frame) =>
@@ -614,34 +706,43 @@ namespace ShapeIt
                         (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.UniteWith");
                         return true;
                     };
+                    mhUniteWith.IsSelected = IsSelected;
                     solidMenus.Add(mhUniteWith);
                     DirectMenuEntry mhUniteWithAll = new DirectMenuEntry("MenuId.Solid.UniteWithAll");
                     mhUniteWithAll.ExecuteMenu = (frame) =>
                     {
                         (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.UniteWithAll");
+                        this.Clear();
                         return true;
                     };
+                    mhUniteWithAll.IsSelected = IsSelected;
                     solidMenus.Add(mhUniteWithAll);
                     DirectMenuEntry mhIntersectWith = new DirectMenuEntry("MenuId.Solid.IntersectWith");
                     mhIntersectWith.ExecuteMenu = (frame) =>
                     {
                         (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.IntersectWith");
+                        this.Clear();
                         return true;
                     };
+                    mhIntersectWith.IsSelected = IsSelected;
                     solidMenus.Add(mhIntersectWith);
                     DirectMenuEntry mhSplitWith = new DirectMenuEntry("MenuId.Solid.SplitWith");
                     mhSplitWith.ExecuteMenu = (frame) =>
                     {
                         (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.SplitWith");
+                        this.Clear();
                         return true;
                     };
+                    mhSplitWith.IsSelected = IsSelected;
                     solidMenus.Add(mhSplitWith);
                     DirectMenuEntry mhSplitWithAll = new DirectMenuEntry("MenuId.Solid.SplitWithAll");
                     mhSplitWithAll.ExecuteMenu = (frame) =>
                     {
                         (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.SplitWithAll");
+                        this.Clear();
                         return true;
                     };
+                    mhSplitWithAll.IsSelected = IsSelected;
                     solidMenus.Add(mhSplitWithAll);
                 }
             }
@@ -747,7 +848,7 @@ namespace ShapeIt
                 return true;
             };
             edgeMenus.Add(selectMoreEdges);
-
+            Shell owningShell = edg.PrimaryFace.Owner as Shell;
             DirectMenuEntry mhdist = new DirectMenuEntry("MenuId.Parametrics.DistanceTo");
             // mhdist.Target = new ParametricsDistanceActionOld(edg, selectAction.Frame); 
             // TODO!
@@ -758,7 +859,6 @@ namespace ShapeIt
                 (Axis rotationAxis1, GeoVector fromHere1, GeoVector toHere1) = ParametricsAngleAction.GetRotationAxis(edg.PrimaryFace, edg.SecondaryFace, clickBeam);
                 if (rotationAxis1.IsValid)
                 {
-                    GeoObjectList feedbackArrow = vw.Projection.MakeRotationArrow(rotationAxis1, fromHere1, toHere1);
                     DirectMenuEntry rotateMenu = new DirectMenuEntry("MenuId.FaceAngle");
                     rotateMenu.ExecuteMenu = (frame) =>
                     {
@@ -769,8 +869,9 @@ namespace ShapeIt
                     rotateMenu.IsSelected = (selected, frame) =>
                     {
                         feedback.Clear();
-                        if (selected) feedback.FrontFaces.AddRange(feedbackArrow);
-                        vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                        GeoObjectList feedbackArrow = FeedbackArrow.MakeArcArrow(owningShell, rotationAxis1, fromHere1, toHere1, vw, FeedbackArrow.ArrowFlags.secondRed);
+                        if (selected) feedback.Arrows.AddRange(feedbackArrow);
+                        feedback.Refresh();
                         return true;
                     };
                     edgeMenus.Add(rotateMenu);
@@ -778,7 +879,6 @@ namespace ShapeIt
                 (Axis rotationAxis2, GeoVector fromHere2, GeoVector toHere2) = ParametricsAngleAction.GetRotationAxis(edg.SecondaryFace, edg.PrimaryFace, clickBeam);
                 if (rotationAxis1.IsValid)
                 {
-                    GeoObjectList feedbackArrow = vw.Projection.MakeRotationArrow(rotationAxis2, fromHere2, toHere2);
                     DirectMenuEntry rotateMenu = new DirectMenuEntry("MenuId.FaceAngle");
                     rotateMenu.ExecuteMenu = (frame) =>
                     {
@@ -789,8 +889,9 @@ namespace ShapeIt
                     rotateMenu.IsSelected = (selected, frame) =>
                     {
                         feedback.Clear();
-                        if (selected) feedback.FrontFaces.AddRange(feedbackArrow);
-                        vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                        GeoObjectList feedbackArrow = FeedbackArrow.MakeArcArrow(owningShell, rotationAxis2, fromHere2, toHere2, vw, FeedbackArrow.ArrowFlags.secondRed);
+                        if (selected) feedback.Arrows.AddRange(feedbackArrow);
+                        feedback.Refresh();
                         return true;
                     };
                     edgeMenus.Add(rotateMenu);
@@ -837,7 +938,7 @@ namespace ShapeIt
             faceEntries.IsSelected = (selected, frame) =>
             {   // show the provided face and the "same geometry connected" faces as feedback
                 feedback.Clear();
-                if (selected) feedback.FrontFaces.AddRange(faces.ToArray());
+                if (selected) feedback.ShadowFaces.AddRange(faces.ToArray());
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                 return true;
             };
@@ -882,7 +983,7 @@ namespace ShapeIt
                         {
                             feedback.FrontFaces.AddRange(frontSide.ToArray());
                             feedback.FrontFaces.AddRange(backSide.ToArray());
-                            feedback.Arrows.AddRange(FeedbackArrow.MakeLengthArrow(owningShell, fc, backSide.First(), fc, fc.Surface.GetNormal(fc.Surface.PositionOf(touchingPoint)), touchingPoint, vw));
+                            feedback.Arrows.AddRange(FeedbackArrow.MakeLengthArrow(owningShell, fc, backSide.First(), fc, fc.Surface.GetNormal(fc.Surface.PositionOf(touchingPoint)), touchingPoint, vw, FeedbackArrow.ArrowFlags.secondRed));
                         }
                         vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                         return true;
@@ -918,11 +1019,10 @@ namespace ShapeIt
                         double capturedDistance = distance[j];
                         GeoPoint capturedPoint1 = pointsFrom[j];
                         GeoPoint capturedPoint2 = pointsTo[j];
-                        GeoObjectList feedbackArrow = vw.Projection.MakeArrow(pointsFrom[j], pointsTo[j], vw.Projection.ProjectionPlane, Projection.ArrowMode.circleArrow);
                         DirectMenuEntry faceDist = new DirectMenuEntry("MenuId.FaceDistance");
                         faceDist.ExecuteMenu = (frame) =>
                         {
-                            ParametricsDistanceAction pd = new ParametricsDistanceAction(capturedFaceI, capturedDistTo, capturedPoint1, capturedPoint2, selectAction.Frame);
+                            ParametricsDistanceAction pd = new ParametricsDistanceAction(capturedDistTo, capturedFaceI, capturedPoint2, capturedPoint1, touchingPoint, selectAction.Frame);
                             selectAction.Frame.SetAction(pd);
                             return true;
                         };
@@ -932,10 +1032,11 @@ namespace ShapeIt
                             if (selected)
                             {
                                 feedback.FrontFaces.AddRange(capturedFaceI.ToArray());
-                                feedback.FrontFaces.AddRange(capturedDistTo.ToArray());
-                                feedback.FrontFaces.AddRange(feedbackArrow);
+                                feedback.BackFaces.AddRange(capturedDistTo.ToArray());
+                                feedback.Arrows.AddRange(FeedbackArrow.MakeLengthArrow(owningShell, capturedFaceI.First(), capturedDistTo.First(), fc,
+                                    capturedPoint2 - capturedPoint1, touchingPoint, vw, FeedbackArrow.ArrowFlags.secondRed));
                             }
-                            vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                            feedback.Refresh();
                             return true;
                         };
                         faceEntries.Add(faceDist);
@@ -956,7 +1057,6 @@ namespace ShapeIt
                                 (Axis rotationAxis, GeoVector fromHere, GeoVector toHere) = ParametricsAngleAction.GetRotationAxis(fc, otherFace, clickBeam);
                                 if (rotationAxis.IsValid)
                                 {
-                                    GeoObjectList feedbackArrow = vw.Projection.MakeRotationArrow(rotationAxis, fromHere, toHere);
                                     DirectMenuEntry rotateMenu = new DirectMenuEntry("MenuId.FaceAngle");
                                     rotateMenu.ExecuteMenu = (frame) =>
                                     {
@@ -967,12 +1067,12 @@ namespace ShapeIt
                                     rotateMenu.IsSelected = (selected, frame) =>
                                     {
                                         feedback.Clear();
-                                        //currentMenuSelection.Add(capturedFace);
+                                        GeoObjectList feedbackArrow = FeedbackArrow.MakeArcArrow(owningShell, rotationAxis, fromHere, toHere, vw, FeedbackArrow.ArrowFlags.secondRed);
                                         if (selected)
                                         {
-                                            feedback.FrontFaces.AddRange(feedbackArrow);
+                                            feedback.Arrows.AddRange(feedbackArrow);
                                         }
-                                        vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                                        feedback.Refresh();
                                         return true;
                                     };
                                     rotateMenus.Add(rotateMenu);
@@ -995,9 +1095,10 @@ namespace ShapeIt
             }
             subEntries.Add(faceEntries);
         }
-        private void AddExtensionProperties(Face fc, Projection.PickArea pa, IView vw)
+        private List<IPropertyEntry> AddExtensionProperties(Face fc, Projection.PickArea pa, IView vw)
         {
-            if (!(fc.Owner is Shell)) return;
+            List<IPropertyEntry> res = new List<IPropertyEntry>();
+            if (!(fc.Owner is Shell)) return res;
             FindExtrusionLoops(fc, pa, out List<ICurve[]> loopCurves, out List<Face[]> loopFaces, out List<Edge[]> loopEdges, out List<Plane> loopPlanes, out List<SimpleShape> loopShapes, out GeoPoint pointOnFace);
             for (int i = 0; i < loopCurves.Count; i++)
             {
@@ -1039,7 +1140,7 @@ namespace ShapeIt
                         feedback.Clear();
                         feedback.SelectedObjects.Add(extrFace);
                         feedback.Arrows.AddRange(feedbackArrow);
-                        vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                        feedback.Refresh();
                     }
                     return true;
                 };
@@ -1053,8 +1154,9 @@ namespace ShapeIt
                     selectAction.Frame.SetAction(pea);
                     return true;
                 };
-                subEntries.Add(extrudeMenu);
+                res.Add(extrudeMenu);
             }
+            return res;
         }
 
         /// <summary>
@@ -1066,7 +1168,9 @@ namespace ShapeIt
         /// <param name="isGap">Is a hole in the solid or part standing out</param>
         private void AddFeatureProperties(IView vw, IEnumerable<Face> featureFaces, List<Face> connection, bool isGap)
         {
-            List<Face> ff = new List<Face>(featureFaces.Select(fc => fc.Clone() as Face));
+            Dictionary<Edge, Edge> clonedEdges = new Dictionary<Edge, Edge>();
+            Dictionary<Vertex, Vertex> clonedVertices = new Dictionary<Vertex, Vertex>();
+            List<Face> ff = new List<Face>(featureFaces.Select(fc => fc.Clone(clonedEdges, clonedVertices) as Face));
             GeoPoint2D uv = ff[0].Area.GetSomeInnerPoint(); // testpoint for orientation
             GeoPoint xyz = ff[0].Surface.PointAt(uv);
             GeoVector normal = ff[0].Surface.GetNormal(uv);
@@ -1380,7 +1484,7 @@ namespace ShapeIt
                 DirectMenuEntry fr = new DirectMenuEntry("MenuId.Fillet.ChangeRadius");
                 fr.ExecuteMenu = (frame) =>
                 {
-                    ParametricsRadiusAction pr = new ParametricsRadiusAction(connectedFillets.ToArray(), selectAction.Frame, true);
+                    ParametricsRadiusAction pr = new ParametricsRadiusAction(connectedFillets.ToArray(), selectAction.Frame, true, touchingPoint);
                     selectAction.Frame.SetAction(pr);
                     return true;
                 };
@@ -1443,15 +1547,20 @@ namespace ShapeIt
                     DirectMenuEntry mh = new DirectMenuEntry("MenuId.FeatureDiameter");
                     mh.ExecuteMenu = (frame) =>
                     {
-                        ParametricsRadiusAction pr = new ParametricsRadiusAction(lconnected.ToArray(), selectAction.Frame, false);
+                        ParametricsRadiusAction pr = new ParametricsRadiusAction(lconnected.ToArray(), selectAction.Frame, false, touchingPoint);
                         selectAction.Frame.SetAction(pr);
                         return true;
                     };
                     mh.IsSelected = (selected, frame) =>
                     {
                         feedback.Clear();
-                        if (selected) feedback.FrontFaces.AddRange(lconnected.ToArray());
-                        vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                        if (selected)
+                        {
+                            feedback.ShadowFaces.AddRange(lconnected.ToArray());
+                            GeoObjectList arrow = FeedbackArrow.MakeLengthArrow(shell, lconnected.First(), lconnected.Last(), null, GeoVector.NullVector, touchingPoint, vw, FeedbackArrow.ArrowFlags.firstRed | FeedbackArrow.ArrowFlags.secondRed);
+                            feedback.Arrows.AddRange(arrow);
+                        }
+                        feedback.Refresh();
                         return true;
                     };
                     res.Add(mh);
@@ -1504,14 +1613,14 @@ namespace ShapeIt
                             {
                                 // two parallel outline lines, we could parametrize the distance
                                 Edge o1 = outline[j]; // capture the two edges
-                                Edge o2 = outline[k]; 
+                                Edge o2 = outline[k];
                                 (GeoPoint p1, GeoPoint p2) = DistanceCalculator.DistanceBetweenObjects(l1, l2, pls.Normal ^ l1.StartDirection, touchingPoint, out GeoVector _, out GeoPoint dp1, out GeoPoint dp2);
                                 if ((p1 | p2) > Precision.eps)
                                 {
                                     DirectMenuEntry mh = new DirectMenuEntry("MenuId.EdgeDistance");
                                     mh.ExecuteMenu = (frame) =>
                                     {
-                                        ParametricsDistanceAction pd = new ParametricsDistanceAction(new Face[] { o1.OtherFace(face) }, new Face[] { o2.OtherFace(face) }, p1, p2, cadFrame);
+                                        ParametricsDistanceAction pd = new ParametricsDistanceAction(new Face[] { o2.OtherFace(face) }, new Face[] { o1.OtherFace(face) }, p2, p1, touchingPoint, cadFrame);
                                         cadFrame.SetAction(pd);
                                         return true;
                                     };
@@ -1520,12 +1629,12 @@ namespace ShapeIt
                                         feedback.Clear();
                                         if (selected)
                                         {
-                                            GeoObjectList fb = FeedbackArrow.MakeLengthArrow(shell, o1.Curve3D, o2.Curve3D, face, pls.Normal ^ l1.StartDirection, touchingPoint, vw);
+                                            GeoObjectList fb = FeedbackArrow.MakeLengthArrow(shell, o1.Curve3D, o2.Curve3D, face, pls.Normal ^ l1.StartDirection, touchingPoint, vw, FeedbackArrow.ArrowFlags.secondRed);
                                             feedback.Arrows.AddRange(fb);
                                             feedback.FrontFaces.Add(o1.OtherFace(face));
                                             feedback.BackFaces.Add(o2.OtherFace(face));
                                         }
-                                        vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                                        feedback.Refresh();
                                         return true;
                                     };
                                     res.Add(mh);

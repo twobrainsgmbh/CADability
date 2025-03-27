@@ -17,6 +17,7 @@ namespace ShapeIt
         private Shell shell; // the shell containing the edge
         private HashSet<Face> forwardFaces; // list of the faces in the forward direction
         private HashSet<Face> backwardFaces; // list of the faces in the backward direction
+        private GeoPoint touchingPoint; // here we should display the feedback arrow
         private Line axis = null; // if an axis is provided, we need another object for the distance
         private bool validResult;
         private LengthInput distanceInput; // input filed of the distance
@@ -81,7 +82,6 @@ namespace ShapeIt
             backwardFaces = new HashSet<Face>();
             shell = forwardFaces.First().Owner as Shell;
             this.axis = axis;
-            // feedback not yet implemented
             feedbackDimension = new GeoObjectList(axis);
             feedback = new Feedback();
 
@@ -109,7 +109,7 @@ namespace ShapeIt
         //        if (!fromHere.SecondaryFace.Surface.IsExtruded(originalOffset)) faces1.Add(fromHere.SecondaryFace);
         //    }
         //}
-        public ParametricsDistanceAction(IEnumerable<Face> part1, IEnumerable<Face> part2, GeoPoint point1, GeoPoint point2, IFrame frame) : base()
+        public ParametricsDistanceAction(IEnumerable<Face> part1, IEnumerable<Face> part2, GeoPoint point1, GeoPoint point2, GeoPoint touchingPoint, IFrame frame) : base()
         {
             //distanceFromHere = fromHere;
             //distanceToHere = toHere;
@@ -118,7 +118,8 @@ namespace ShapeIt
             shell = forwardFaces.First().Owner as Shell;
             this.point2 = point2;
             this.point1 = point1;
-            feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, point1, point2, null, point2 - point1, GeoPoint.Invalid, frame.ActiveView);
+            this.touchingPoint = touchingPoint;
+            feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, forwardFaces.First(), backwardFaces.First(), null, point2 - point1, touchingPoint, frame.ActiveView, FeedbackArrow.ArrowFlags.secondRed);
             feedback = new Feedback();
         }
 
@@ -142,8 +143,8 @@ namespace ShapeIt
             if (feedbackDimension != null) feedback.Arrows.AddRange(feedbackDimension);
             if (forwardFaces != null) feedback.FrontFaces.AddRange(forwardFaces);
             if (backwardFaces != null) feedback.BackFaces.AddRange(backwardFaces);
-            feedback.ShadowFaces.Add(shell.Clone());
             feedbackResult = shell.Clone() as Shell;
+            feedback.ShadowFaces.Add(feedbackResult);
             List<InputObject> actionInputs = new List<InputObject>();
 
             if (axis != null) // we have no object for 
@@ -365,23 +366,10 @@ namespace ShapeIt
                 GeoPoint endPoint = point2;
                 GeoVector dir = (point2 - point1).Normalized;
                 double originalDistance = point2 | point1;
-                switch (mode)
-                {
-                    case Mode.forward:
-                        endPoint = point2 + (distance - originalDistance) * dir;
-                        feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, startPoint, endPoint, null, endPoint-startPoint, GeoPoint.Invalid, base.CurrentMouseView); 
-                        break;
-                    case Mode.backward:
-                        startPoint = point1 - (distance - originalDistance) * dir;
-                        feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, startPoint, endPoint, null, endPoint - startPoint, GeoPoint.Invalid, base.CurrentMouseView);
-                        break;
-                    case Mode.symmetric:
-                        startPoint = point1 - 0.5 * (distance - originalDistance) * dir;
-                        endPoint = point2 + 0.5 * (distance - originalDistance) * dir;
-                        feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, startPoint, endPoint, null, endPoint - startPoint, GeoPoint.Invalid, base.CurrentMouseView);
-                        break;
-                }
                 Shell sh = null;
+                Face feedbackFrom = forwardFaces.First(), feedbackTo = backwardFaces.First();
+                Dictionary<Face, Face> faceDict = null;
+
                 for (int m = 0; m <= 1; m++)
                 {   // first try without moving connected faces, if this yields no result, try with moving connected faced
                     Parametric parametric = new Parametric(shell);
@@ -389,7 +377,7 @@ namespace ShapeIt
                     GeoVector offset = (distance - originalDistance) * dir;
                     switch (mode)
                     {
-                        case Mode.forward:
+                        case Mode.backward:
                             foreach (Face face in forwardFaces)
                             {
                                 allFacesToMove[face] = offset;
@@ -409,7 +397,7 @@ namespace ShapeIt
                                 allFacesToMove[face] = -0.5 * offset;
                             }
                             break;
-                        case Mode.backward:
+                        case Mode.forward:
                             foreach (Face face in backwardFaces)
                             {
                                 allFacesToMove[face] = -offset;
@@ -430,7 +418,7 @@ namespace ShapeIt
                             if (m == 1) pmode |= ParametricDistanceProperty.Mode.connected;
                             if (mode == Mode.symmetric) pmode |= ParametricDistanceProperty.Mode.symmetric;
                             // create the ParametricDistanceProperty here, because here we have all the information
-                            parametric.GetDictionaries(out Dictionary<Face, Face> faceDict, out Dictionary<Edge, Edge> edgeDict, out Dictionary<Vertex, Vertex> vertexDict);
+                            parametric.GetDictionaries(out faceDict, out Dictionary<Edge, Edge> edgeDict, out Dictionary<Vertex, Vertex> vertexDict);
                             // facesToKeep etc. contains original objects of the shell, affectedObjects contains objects of the sh = pm.Result()
                             // the parametricProperty will be applied to sh, so we need the objects from sh
                             if (mode == Mode.backward)
@@ -445,18 +433,44 @@ namespace ShapeIt
                                     Extensions.LookUp(forwardFaces, faceDict),
                                     parametric.GetAffectedObjects(), pmode, point1, point2);
                             }
+                            faceDict.TryGetValue(feedbackFrom, out feedbackFrom);
+                            faceDict.TryGetValue(feedbackTo, out feedbackTo);
                             break;
                         }
                     }
                 }
                 feedback.Clear();
+                switch (mode)
+                {
+                    case Mode.forward:
+                        endPoint = point2 + (distance - originalDistance) * dir;
+                        feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, feedbackFrom, feedbackTo, null, endPoint - startPoint, touchingPoint, CurrentMouseView, FeedbackArrow.ArrowFlags.secondRed);
+                        break;
+                    case Mode.backward:
+                        startPoint = point1 - (distance - originalDistance) * dir;
+                        feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, feedbackFrom, feedbackTo, null, endPoint - startPoint, touchingPoint, CurrentMouseView, FeedbackArrow.ArrowFlags.firstRed );
+                        break;
+                    case Mode.symmetric:
+                        startPoint = point1 - 0.5 * (distance - originalDistance) * dir;
+                        endPoint = point2 + 0.5 * (distance - originalDistance) * dir;
+                        feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, feedbackFrom, feedbackTo, null, endPoint - startPoint, touchingPoint, CurrentMouseView, FeedbackArrow.ArrowFlags.firstRed | FeedbackArrow.ArrowFlags.secondRed);
+                        break;
+                }
                 if (sh != null)
                 {
                     feedbackResult = sh;
                     validResult = true;
                     if (feedbackDimension != null) feedback.Arrows.AddRange(feedbackDimension);
-                    if (forwardFaces != null) feedback.FrontFaces.AddRange(forwardFaces);
-                    if (backwardFaces != null) feedback.BackFaces.AddRange(backwardFaces);
+                    if (mode == Mode.backward)
+                    {
+                        if (forwardFaces != null) feedback.BackFaces.AddRange(Extensions.LookUp(forwardFaces, faceDict));
+                        if (backwardFaces != null) feedback.FrontFaces.AddRange(Extensions.LookUp(backwardFaces, faceDict));
+                    }
+                    else
+                    {
+                        if (forwardFaces != null) feedback.FrontFaces.AddRange(Extensions.LookUp(forwardFaces, faceDict));
+                        if (backwardFaces != null) feedback.BackFaces.AddRange(Extensions.LookUp(backwardFaces, faceDict));
+                    }
                     feedback.ShadowFaces.Add(sh);
                     feedback.Refresh();
                     return true;

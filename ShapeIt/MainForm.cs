@@ -62,13 +62,29 @@ namespace ShapeIt
             CadFrame.ViewsChangedEvent += OnViewsChanged;
             CadFrame.ControlCenter.RemovePropertyPage("View");
             Assembly ThisAssembly = Assembly.GetExecutingAssembly();
-            using (System.IO.Stream str = ThisAssembly.GetManifestResourceStream("ShapeIt.MenuResource.xml"))
+            System.IO.Stream str;
+            using (str = ThisAssembly.GetManifestResourceStream("ShapeIt.MenuResource.xml"))
             {
                 XmlDocument menuDocument = new XmlDocument();
                 menuDocument.Load(str);
                 MenuResource.SetMenuResource(menuDocument);
                 ResetMainMenu(null);
             }
+
+            using (str = ThisAssembly.GetManifestResourceStream("ShapeIt.StringTableDeutsch.xml"))
+            {
+                XmlDocument stringXmlDocument = new XmlDocument();
+                stringXmlDocument.Load(str);
+                StringTable.AddStrings(stringXmlDocument);
+            }
+
+            using (str = ThisAssembly.GetManifestResourceStream("ShapeIt.StringTableEnglish.xml"))
+            {
+                XmlDocument stringXmlDocument = new XmlDocument();
+                stringXmlDocument.Load(str);
+                StringTable.AddStrings(stringXmlDocument);
+            }
+
             lastSaved = DateTime.Now;
             // the following installs the property page for modelling. This connects all modelling
             // tasks of ShapeIt with CADability

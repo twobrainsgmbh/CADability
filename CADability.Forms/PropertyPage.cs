@@ -16,7 +16,6 @@ namespace CADability.Forms
      * 
      * Klick auf "TreeViewButton" geht an IPropertyPage
     */
-
     public class PropertyPage : ScrollableControl, IPropertyPage
     {
         List<IPropertyEntry> rootProperties; // a list of all root entries (not including the subentries of opened entries)
@@ -285,6 +284,11 @@ namespace CADability.Forms
         }
         protected override void OnMouseDown(MouseEventArgs e)
         {
+            if (currentToolTip != null)
+            {
+                HideToolTip();
+                currentToolTip = null;
+            }
             base.OnMouseDown(e);
             (int index, EMousePos position, Rectangle hitItem) = GetMousePosition(e);
             if (position == EMousePos.onMiddleLine)
@@ -332,11 +336,17 @@ namespace CADability.Forms
                     else
                     {
                         if (currentToolTip != null) HideToolTip();
-                        Point mp = LabelArea(index).Location; //  e.Location; // PointToClient(MousePosition);
-                        mp.Y -= Font.Height;
+                        Point mp = LabelArea(index).Location; //  e.Location; //
+                        mp = PointToClient(MousePosition);
+                        mp = PointToClient(PointToScreen(e.Location));
+                        mp.Y -= 2 * Font.Height;
+                        mp.X -= 2 * Font.Height;
                         DelayShowToolTip(toDisplay, mp);
                     }
                     currentToolTip = toDisplay;
+                } else if (delay!=null)
+                {   // delay is already running, but the mouse is still moving. So we modify the point, where the tooltip should appear
+                    delay.Tag = new object[] { toDisplay, PointToClient(MousePosition) };
                 }
             }
             else
@@ -383,7 +393,7 @@ namespace CADability.Forms
             if (delay == null)
             {
                 delay = new Timer();
-                delay.Interval = 500;
+                delay.Interval = 1000;
                 delay.Tick += Delay_Tick;
                 delay.Tag = new object[] { toDisplay, mp };
                 delay.Start();
@@ -404,6 +414,12 @@ namespace CADability.Forms
             object[] oa = (sender as Timer).Tag as object[];
             string toDisplay = oa[0] as string;
             Point mp = (Point)oa[1];
+            Point currentMousePosition = PointToClient(MousePosition);
+            if (currentMousePosition.Y < mp.Y+2*Font.Height) // 
+            {   // I don't know, why this happens, because the tooltip is generated with the correct mouse position.
+                // it only happens, when the cursor enters the item from below
+                mp.Y = currentMousePosition.Y  - 2 * Font.Height;
+            }
             toolTip.Show(toDisplay, this, mp);
             delay.Stop();
             delay.Tick -= Delay_Tick;

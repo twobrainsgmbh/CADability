@@ -85,8 +85,10 @@
       <DependentUpon>MainForm.cs</DependentUpon>
     </Compile>
     <Compile Include="ModellingPropertyEntries.cs" />
+    <Compile Include="ParametricsAngleAction.cs" />
     <Compile Include="ParametricsDistanceAction.cs" />
     <Compile Include="ParametricsExtrudeAction.cs" />
+    <Compile Include="ParametricsRadiusAction.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="DirectMenuEntry.cs" />
@@ -139,6 +141,10 @@
       <ProductName>.NET Framework 3.5 SP1</ProductName>
       <Install>false</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="StringTableDeutsch.xml" />
+    <EmbeddedResource Include="StringTableEnglish.xml" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

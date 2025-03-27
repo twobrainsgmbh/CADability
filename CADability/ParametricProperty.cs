@@ -461,7 +461,7 @@ namespace CADability
 #endif
     }
 
-    internal class ParametricRadiusProperty : ParametricProperty, IJsonSerialize
+    public class ParametricRadiusProperty : ParametricProperty, IJsonSerialize
     {
         private List<Face> facesToModify; // the faces with the radius to modify
         private List<object> affectedObjects; // faces which are affected by this parametric
@@ -583,7 +583,7 @@ namespace CADability
 #endif
     }
 
-    internal class ParametricRotationProperty : ParametricProperty, IJsonSerialize, IJsonSerializeDone
+    public class ParametricRotationProperty : ParametricProperty, IJsonSerialize, IJsonSerializeDone
     {
         private List<Face> backwardFaces, forwardFaces; // if mode is symmetric, both faces will be moved
         private List<object> affectedObjects; // faces which are affected by this parametric

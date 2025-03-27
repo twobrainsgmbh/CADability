@@ -10,11 +10,18 @@ using System.Globalization;
 using CADability.Forms;
 using CADability.Attribute;
 using System.Drawing;
+using CADability.Shapes;
 
 namespace ShapeIt
 {
     internal class FeedbackArrow
     {
+        public enum ArrowFlags
+        {
+            None = 0,
+            firstRed = 1,
+            secondRed = 2,
+        }
         private static int arrowSize = 12; // should be a píxel on screen value
         private static NumberFormatInfo numberFormatInfo;
         public static ColorDef blackParts = new ColorDef("blackArrows", Color.Black);
@@ -38,7 +45,7 @@ namespace ShapeIt
         /// <param name="pickPoint"></param>
         /// <param name="projection"></param>
         /// <returns></returns>
-        public static GeoObjectList MakeLengthArrow(Shell onThisShell, object fromHere, object toHere, Face onThisFace, GeoVector forceDirection, GeoPoint pickPoint, IView vw)
+        public static GeoObjectList MakeLengthArrow(Shell onThisShell, object fromHere, object toHere, Face onThisFace, GeoVector forceDirection, GeoPoint pickPoint, IView vw, ArrowFlags flags = ArrowFlags.None)
         {
             Projection projection = vw.Projection;
             GeoObjectList res = new GeoObjectList();
@@ -68,7 +75,7 @@ namespace ShapeIt
                     Face triangle;
                     if (n * dir < 0) triangle = FeedbackArrow.MakeSimpleTriangle(d.endPoint, -dir, projection);
                     else triangle = FeedbackArrow.MakeSimpleTriangle(d.endPoint, dir, projection);
-                    triangle.ColorDef = redParts;
+                    triangle.ColorDef = blackParts;
                     res.Add(triangle);
                 }
                 // now find a place where to display the dimension line
@@ -76,7 +83,7 @@ namespace ShapeIt
                 if (onThisShell != null)
                 {
                     double arrowLength = projection.DeviceToWorldFactor * arrowSize;
-                    int[] evaluation = new int[8]; // haw good is the dimension in this direction visible
+                    int[] evaluation = new int[8]; // how good is the dimension in this direction visible
                     GeoPoint[] dimStartPoints = new GeoPoint[8];
                     GeoPoint[] dimEndPoints = new GeoPoint[8];
                     double minLength = double.MaxValue;
@@ -134,8 +141,10 @@ namespace ShapeIt
                         double pd1 = vw.Model.GetPickDistance(projection.GetPickSpace(new BoundingRect(tstpnt1, 1, 1)), null);
                         Face fromArrow = MakeSimpleTriangle(l3.StartPoint, l3.StartDirection, l1.StartDirection, projection);
                         Face toArrow = MakeSimpleTriangle(l3.EndPoint, -l3.EndDirection, l1.StartDirection, projection);
-                        fromArrow.ColorDef = blackParts;
-                        toArrow.ColorDef = redParts;
+                        if (flags.HasFlag(ArrowFlags.firstRed)) fromArrow.ColorDef = redParts;
+                        else fromArrow.ColorDef = blackParts;
+                        if (flags.HasFlag(ArrowFlags.secondRed)) toArrow.ColorDef = redParts;
+                        else toArrow.ColorDef = blackParts;
                         res.Add(fromArrow);
                         res.Add(toArrow);
                         GeoPoint2D txtloc = projection.WorldToWindow(l3.PointAt(0.5));
@@ -212,6 +221,77 @@ namespace ShapeIt
                 }
             }
             return res;
+        }
+        public static GeoObjectList MakeArcArrow(Shell onThisShell, Axis axis, GeoVector fromHere, GeoVector toHere, IView vw, ArrowFlags flags = ArrowFlags.None)
+        {
+            GeoObjectList res = new GeoObjectList();
+            GeoVector axisDirection = axis.Direction.Normalized; // to make further calculation easier
+            fromHere.Norm();
+            toHere.Norm();
+            double arrowWorldSize = vw.Projection.DeviceToWorldFactor * arrowSize;
+            double radius = arrowWorldSize * 10; // radius of the arc
+            Plane arcPlane = new Plane(axis.Location, axisDirection); // normal to the rotation axis
+            Plane fromPlane = new Plane(axis.Location, fromHere, axisDirection);
+            Plane toPlane = new Plane(axis.Location, toHere, axisDirection);
+            // axis.Location is the center for the arc dimension
+            Ellipse e = Ellipse.Construct(); // the arc of the arrow
+            e.SetArcPlaneCenterStartEndPoint(arcPlane, arcPlane.Project(axis.Location), arcPlane.Project(axis.Location + radius * fromHere), arcPlane.Project(axis.Location + radius * toHere), arcPlane, true);
+            if (Math.Abs(e.SweepParameter) > Math.PI)
+                e.SetArcPlaneCenterStartEndPoint(arcPlane, arcPlane.Project(axis.Location), arcPlane.Project(axis.Location + radius * fromHere), arcPlane.Project(axis.Location + radius * toHere), arcPlane, false);
+            // e is now the arc with less than 180° sweepparameter. Maybe this arc is insid the shell, so you cannot see the dimension
+            if (onThisShell.Contains(e.PointAt(0.5)))
+            {   // we are inside the shell, so we check with the arc that is rotated 180°
+                e.StartParameter += Math.PI;
+                if (onThisShell.Contains(e.PointAt(0.5)))
+                {   // still inside, so use the first one
+                    e.StartParameter -= Math.PI;
+                }
+            }
+
+            // the first line of dimension
+            GeoPoint p1 = axis.Location;
+            GeoPoint p2 = e.StartPoint;
+            GeoVector dirl = p2 - p1;
+            Line firstLeg = Line.TwoPoints(p1-0.1*dirl, p2+0.1*dirl);
+            p2 = e.EndPoint;
+            dirl = p2 - p1;
+            Line secondLeg = Line.TwoPoints(p1 - 0.1 * dirl, p2 + 0.1 * dirl);
+            res.Add(firstLeg);
+            res.Add(secondLeg);
+            res.Add(e); // we dont check visibility, because there are no easy alternatives
+
+            Face startArrow = MakeSimpleTriangle(e.StartPoint, e.StartDirection, vw.Projection);
+            Face endArrow = MakeSimpleTriangle(e.EndPoint, -e.EndDirection, vw.Projection);
+            if (flags.HasFlag(ArrowFlags.firstRed)) startArrow.ColorDef = redParts;
+            else startArrow.ColorDef = blackParts;
+            if (flags.HasFlag(ArrowFlags.secondRed)) endArrow.ColorDef = redParts;
+            else endArrow.ColorDef = blackParts;
+            res.Add(startArrow); 
+            res.Add(endArrow);
+
+            Text txt = Text.Construct();
+            GeoVector dir = 1.1*(e.PointAt(0.5) - p1); // points to the text location
+            GeoVector glyphDir = dir;
+            GeoVector txtDir = arcPlane.ToGlobal(arcPlane.Project(dir).ToLeft()); // direction of the text, maybe we have to tourn it, because it would show mirror text
+            if (vw.Projection.Direction * (txtDir ^ glyphDir) > 0) txtDir = -txtDir;
+            GeoVector2D txtDir2D = vw.Projection.ProjectionPlane.Project(txtDir);
+            if (txtDir2D.x<0)
+            {   // text goes from right to left, i.e. it is upside down.
+                txtDir = -txtDir; // rotate by 180°
+                glyphDir = -glyphDir;
+            }
+            txt.SetDirections(txtDir, glyphDir);
+            txt.Location = p1 + dir; ;
+            txt.Font = "Arial";
+            txt.Alignment = Text.AlignMode.Center;
+            txt.LineAlignment = Text.LineAlignMode.Center;
+            txt.TextSize = 2 * arrowWorldSize;
+
+            txt.TextString = Math.Abs(e.SweepParameter/Math.PI*180).ToString("f", numberFormatInfo) + "°";
+            res.Add(txt);
+
+            return res;
+
         }
         public static Face MakeSimpleTriangle(GeoPoint point, GeoVector dir, Projection projection)
         {

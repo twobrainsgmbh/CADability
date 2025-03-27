@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<language id="english">english</language>
+	<data name="Modelling.Properties">
+		<label>Modelling Mode</label>
+		<info>In the modelling mode you can change dimensions or features of objects</info>
+	</data>
+	<!-- 
+	-->
+</root>

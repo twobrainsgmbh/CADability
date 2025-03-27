@@ -171,6 +171,13 @@ namespace ShapeIt
             }
             else if (fromHere is Face f1 && toHere is Face f2)
             {
+                if (!(f1.Surface is PlaneSurface) && f2.Surface is PlaneSurface)
+                {   // first should be plane
+                    Face tmp = f1;
+                    f1 = f2;
+                    f2 = tmp;
+                    swapped = true;
+                }
                 if (f1.Surface is PlaneSurface ps1 && f2.Surface is PlaneSurface ps2)
                 {
                     if (Precision.SameDirection(ps1.Normal, ps2.Normal, false))
@@ -182,6 +189,31 @@ namespace ShapeIt
                         endPoint = ps2.PointAt(ps2.GetLineIntersection(m, ps2.Normal)[0]); // there must be a intersection
                     }
                     // non parallel surfaces don't work. How would the distance be defined?
+                }
+                else if (f1.Surface is PlaneSurface ps && f2.Surface is CylindricalSurface cy)
+                {
+
+                }
+                else if (f1.Surface is CylindricalSurface cyl1 && f2.Surface is CylindricalSurface cyl2)
+                {
+                    if (cyl1.SameGeometry(f1.Domain,cyl2,f2.Domain, Precision.eps, out ModOp2D _))
+                    {
+                        // a diameter of the cylinder is expected
+                        if (!preferredDirection.IsNullVector())
+                        {
+
+                        }
+                        if (preferredPoint.IsValid)
+                        {
+                            GeoPoint pax = Geometry.DropPL(preferredPoint, cyl1.Location, cyl1.Axis);
+                            GeoPoint2D[] pp = cyl1.GetLineIntersection(pax, preferredPoint - pax);
+                            if (pp.Length==2)
+                            {
+                                startPoint = cyl1.PointAt(pp[0]);
+                                endPoint = cyl1.PointAt(pp[1]);
+                            }
+                        }
+                    }
                 }
                 // other combinations with ISurface.GetExtremePositions, but there is some work to do....
             }

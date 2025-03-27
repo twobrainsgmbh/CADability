@@ -89,8 +89,8 @@ namespace ShapeIt
                     }
                 }
             }
-            measureFromHere = meassureTo;
-            measureToHere = meassureFrom;
+            measureToHere = meassureTo;
+            measureFromHere = meassureFrom;
             // now forwardMovingFaces contain all the faces connectd to the faces to be streched in the forward direction
             Shell.CombineFaces(forwardMovingFaces, forwardBarrier);
             Shell.CombineFaces(backwardMovingFaces, backwardBarrier);
@@ -322,18 +322,20 @@ namespace ShapeIt
             {
                 case Mode.forward:
                     ep = endPoint + (distance - originalDistance) * dir;
-                    feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, CloneAndMove(measureFromHere, (distance - originalDistance) * dir), CloneAndMove(measureToHere, GeoVector.NullVector), null, dir, GeoPoint.Invalid, CurrentMouseView);
+                    feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, CloneAndMove(measureFromHere, GeoVector.NullVector), CloneAndMove(measureToHere, (distance - originalDistance) * dir),
+                        null, dir, GeoPoint.Invalid, CurrentMouseView,FeedbackArrow.ArrowFlags.secondRed);
                     break;
                 case Mode.backward:
                     sp = startPoint - (distance - originalDistance) * dir;
-                    feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, CloneAndMove(measureFromHere, GeoVector.NullVector), CloneAndMove(measureToHere, -(distance - originalDistance) * dir), null, dir, GeoPoint.Invalid, CurrentMouseView);
+                    feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, CloneAndMove(measureFromHere, -(distance - originalDistance) * dir), CloneAndMove(measureToHere, GeoVector.NullVector),
+                        null, dir, GeoPoint.Invalid, CurrentMouseView, FeedbackArrow.ArrowFlags.firstRed);
                     break;
                 case Mode.symmetric:
                     sp = startPoint - 0.5 * (distance - originalDistance) * dir;
                     ep = endPoint + 0.5 * (distance - originalDistance) * dir;
                     GeoPoint mp = new GeoPoint(sp, ep);
-                    feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, CloneAndMove(measureFromHere, 0.5 * (distance - originalDistance) * dir),
-                        CloneAndMove(measureToHere, -0.5 * (distance - originalDistance) * dir), null, dir, GeoPoint.Invalid, CurrentMouseView);
+                    feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, CloneAndMove(measureFromHere,- 0.5 * (distance - originalDistance) * dir),
+                        CloneAndMove(measureToHere, 0.5 * (distance - originalDistance) * dir), null, dir, GeoPoint.Invalid, CurrentMouseView, FeedbackArrow.ArrowFlags.firstRed | FeedbackArrow.ArrowFlags.secondRed);
                     break;
             }
             Shell sh = null;
