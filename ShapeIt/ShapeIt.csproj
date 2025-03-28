@@ -86,6 +86,7 @@
     </Compile>
     <Compile Include="ModellingPropertyEntries.cs" />
     <Compile Include="ParametricsAngleAction.cs" />
+    <Compile Include="ParametricsCenterAction.cs" />
     <Compile Include="ParametricsDistanceAction.cs" />
     <Compile Include="ParametricsExtrudeAction.cs" />
     <Compile Include="ParametricsRadiusAction.cs" />

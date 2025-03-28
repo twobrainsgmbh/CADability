@@ -60,6 +60,7 @@ namespace ShapeIt
             CadFrame.ProjectOpenedEvent += OnProjectOpened;
             CadFrame.UIService.ApplicationIdle += OnIdle;
             CadFrame.ViewsChangedEvent += OnViewsChanged;
+            if (CadFrame.ActiveView != null) OnViewsChanged(CadFrame);
             CadFrame.ControlCenter.RemovePropertyPage("View");
             Assembly ThisAssembly = Assembly.GetExecutingAssembly();
             System.IO.Stream str;
@@ -96,6 +97,7 @@ namespace ShapeIt
 
         private void OnViewsChanged(IFrame theFrame)
         {
+            theFrame.ActiveView.Projection.ProjectionChangedEvent -= OnProjectionChanged; // not to double it?
             theFrame.ActiveView.Projection.ProjectionChangedEvent += OnProjectionChanged;
         }
 

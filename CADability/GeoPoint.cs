@@ -1303,15 +1303,15 @@ namespace CADability
             return x.GetHashCode() | y.GetHashCode();
         }
         public static GeoPoint2D Origin = new GeoPoint2D(0.0, 0.0);
-        internal static GeoPoint2D Invalid = new GeoPoint2D(double.NaN, double.NaN); // changed from maxvalue to nan, hopefully with no side effects!
-        internal bool IsValid
+        public static GeoPoint2D Invalid = new GeoPoint2D(double.NaN, double.NaN); // changed from maxvalue to nan, hopefully with no side effects!
+        public bool IsValid
         {
             get
             {
                 return !double.IsNaN(x) && !double.IsNaN(y);
             }
         }
-        internal bool IsNan
+        public bool IsNan
         {
             get
             {

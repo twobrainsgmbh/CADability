@@ -87,9 +87,9 @@ namespace ShapeIt
 
         private void SelectedObjectListChanged(SelectObjectsAction sender, GeoObjectList selectedObjects)
         {
-            IEnumerable<Layer> visiblaLayers = new List<Layer>();
-            if (cadFrame.ActiveView is ModelView mv) visiblaLayers = mv.GetVisibleLayers();
-            GeoObjectList singleObjects = cadFrame.ActiveView.Model.GetObjectsFromRect(sender.GetPickArea(), new Set<Layer>(visiblaLayers), PickMode.singleFaceAndCurve, null); // returns all the faces or edges under the cursor
+            IEnumerable<Layer> visibleLayers = new List<Layer>();
+            if (cadFrame.ActiveView is ModelView mv) visibleLayers = mv.GetVisibleLayers();
+            GeoObjectList singleObjects = cadFrame.ActiveView.Model.GetObjectsFromRect(sender.GetPickArea(), new Set<Layer>(visibleLayers), PickMode.singleFaceAndCurve, null); // returns all the faces or edges under the cursor
             ComposeModellingEntries(singleObjects, cadFrame.ActiveView, sender.GetPickArea());
             // if (cadFrame.UIService.ModifierKeys == Keys.Shift)
             if (modelligIsActive)
@@ -105,11 +105,12 @@ namespace ShapeIt
         private void ViewsChanged(IFrame theFrame)
         {
             cadFrame = theFrame;
-            selectAction = cadFrame.ActiveAction as SelectObjectsAction; // which should always be the case
+            selectAction = cadFrame.ActiveAction as SelectObjectsAction; // which should always be the case, and it is maybe new one
             if (selectAction != null)
             {
                 selectAction.FilterMouseMessagesEvent -= FilterSelectMouseMessages; // no problem, if it wasn't set
                 selectAction.FilterMouseMessagesEvent += FilterSelectMouseMessages;
+                selectAction.SelectedObjectListChangedEvent += SelectedObjectListChanged;
             }
             feedback.Attach(theFrame.ActiveView);
             if (modelligIsActive)
@@ -144,7 +145,7 @@ namespace ShapeIt
         }
         private void FilterSelectMouseMessages(SelectObjectsAction.MouseAction mouseAction, CADability.Substitutes.MouseEventArgs e, IView vw, ref bool handled)
         {
-            if (modelligIsActive)
+            if (modelligIsActive && cadFrame.ControlCenter.GetPropertyPage("Modelling").IsOnTop())
             {
                 // TODO: other mouse activities: cursor, drag rect etc.
                 if (mouseAction == SelectObjectsAction.MouseAction.MouseUp && e.Button == CADability.Substitutes.MouseButtons.Left)
@@ -548,10 +549,18 @@ namespace ShapeIt
             lmh.IsSelected = (selected, frame) =>
             {
                 feedback.Clear();
-                if (selected) feedback.ShadowFaces.Add(curve as IGeoObject);
-                vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                if (selected)
+                {
+                    feedback.ShadowFaces.Add(curve as IGeoObject);
+                }
+                feedback.Refresh();
+                
                 return true;
             };
+            if ((curve as IGeoObject).Owner is Model)
+            {
+                lmh.Add(ShowInSelectionTab(curve as IGeoObject));
+            }
             if (curve.IsClosed && curve.GetPlanarState() == PlanarState.Planar)
             {
                 Plane plane = curve.GetPlane();
@@ -604,6 +613,29 @@ namespace ShapeIt
             }
         }
 
+        private IPropertyEntry ShowInSelectionTab(IGeoObject go)
+        {
+            DirectMenuEntry showSelected = new DirectMenuEntry("MenuId.ShowSelected");
+            showSelected.ExecuteMenu = (frame) =>
+            {   // show this object in the selection tab of the ControlCenter
+                feedback.Clear();
+                feedback.Refresh();
+                selectAction.SetSelectedObjects(new GeoObjectList(go));
+                return true;
+            };
+            showSelected.IsSelected = (selected, frame) =>
+            {
+                feedback.Clear();
+                if (selected)
+                {
+                    feedback.ShadowFaces.Add(go);
+                }
+                feedback.Refresh();
+                return true;
+            };
+            return showSelected;
+        }
+
         private void AddMakePath(IView vw, List<ICurve> curves)
         {
             DirectMenuEntry mp = new DirectMenuEntry("MenuId.Object.MakePath");
@@ -643,6 +675,11 @@ namespace ShapeIt
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
                 return true;
             };
+            if (sld.Owner is Model)
+            {   // switch to selection tab and use "old" modification functions like move and delete
+                solidMenus.Add(ShowInSelectionTab(sld));
+            }
+
             if (fromFaces != null)
             {
                 foreach (Face fc in fromFaces)
@@ -991,6 +1028,7 @@ namespace ShapeIt
                     faceEntries.Add(gauge);
                 }
                 // is there a way to center these faces in the shell?
+                // betterprovide a test, whether this is possible at all
                 {
                     DirectMenuEntry center = new DirectMenuEntry("MenuId.Center");
                     center.ExecuteMenu = (frame) =>
@@ -1002,8 +1040,11 @@ namespace ShapeIt
                     center.IsSelected = (selected, frame) =>
                     {
                         feedback.Clear();
-                        if (selected) feedback.FrontFaces.AddRange(faces.ToArray());
-                        vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                        if (selected)
+                        {
+                            feedback.ShadowFaces.AddRange(faces.ToArray());
+                        }
+                        feedback.Refresh();
                         return true;
                     };
                     faceEntries.Add(center);

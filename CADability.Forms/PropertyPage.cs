@@ -387,7 +387,6 @@ namespace CADability.Forms
             }
             if (!showLabelExtension && propertiesExplorer.EntryWithLabelExtension != null) propertiesExplorer.HideLabelExtension();
         }
-
         private void DelayShowToolTip(string toDisplay, Point mp)
         {
             if (delay == null)
@@ -835,7 +834,10 @@ namespace CADability.Forms
         {
             return false;
         }
-
+        void IPropertyPage.BringToFront()
+        {
+            propertiesExplorer.ShowPropertyPage(this.TitleId);
+        }
         public void OpenSubEntries(IPropertyEntry toOpenOrClose, bool open)
         {
             if (open != toOpenOrClose.IsOpen)

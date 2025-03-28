@@ -773,7 +773,7 @@ namespace CADability
 #endif
     }
 
-    internal class ParametricCenterProperty : ParametricProperty, IJsonSerialize, IJsonSerializeDone
+    public class ParametricCenterProperty : ParametricProperty, IJsonSerialize, IJsonSerializeDone
     {
         private List<Face> facesToCenter; // These faces should be centered according to objectsToCenterOn
         private List<object> objectsToCenterOn; // e.g. two vertices, two faces, two edges, a rotational face

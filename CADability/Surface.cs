@@ -6569,7 +6569,7 @@ namespace CADability.GeoObject
         /// <param name="uv1"></param>
         /// <param name="uv2"></param>
         /// <returns></returns>
-        internal static bool ParallelDistance(ISurface surface1, BoundingRect domain1, ISurface surface2, BoundingRect domain2, out GeoPoint2D uv1, out GeoPoint2D uv2)
+        public static bool ParallelDistance(ISurface surface1, BoundingRect domain1, ISurface surface2, BoundingRect domain2, out GeoPoint2D uv1, out GeoPoint2D uv2)
         {
             if (surface1 is PlaneSurface pls1)
             {
