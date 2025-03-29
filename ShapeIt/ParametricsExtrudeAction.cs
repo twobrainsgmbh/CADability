@@ -57,8 +57,8 @@ namespace ShapeIt
         internal ParametricsExtrudeAction(object meassureFrom, object meassureTo, IEnumerable<Face> faces, IEnumerable<Edge> edges, Plane plane,
             Face crossSection, GeoPoint pickPoint, IEnumerable<Face> arrows, IFrame frame)
         {
-            Faces = new HashSet<Face>(faces);
-            Edges = new HashSet<Edge>(edges);
+            Faces = new HashSet<Face>(faces); // the faces to be streched
+            Edges = new HashSet<Edge>(edges); // the edges to be streched
             Plane = plane;
             this.crossSection = crossSection;
             this.pickPoint = pickPoint;
@@ -68,6 +68,38 @@ namespace ShapeIt
             HashSet<Edge> backwardBarrier = new HashSet<Edge>();
             forwardMovingFaces = new HashSet<Face>(); // faces to be moved forward
             backwardMovingFaces = new HashSet<Face>();
+            //foreach (Edge e in Edges)
+            //{
+            //    Vertex fvtx, bvtx;
+            //    if (plane.Distance(e.Vertex1.Position) > 0)
+            //    {
+            //        fvtx = e.Vertex1;
+            //        bvtx = e.Vertex2;
+            //    }
+            //    else
+            //    {
+            //        bvtx = e.Vertex1;
+            //        fvtx = e.Vertex2;
+            //    }
+            //    foreach (Edge e1 in fvtx.Edges)
+            //    {
+            //        if (!Edges.Contains(e1)) forwardBarrier.Add(e1);
+            //    }
+            //    foreach (Edge e1 in bvtx.Edges)
+            //    {
+            //        if (!Edges.Contains(e1)) backwardBarrier.Add(e1);
+            //    }
+            //}
+            //foreach(Edge e in forwardBarrier)
+            //{
+            //    if (!Faces.Contains(e.PrimaryFace)) forwardMovingFaces.Add(e.PrimaryFace);
+            //    if (!Faces.Contains(e.SecondaryFace)) forwardMovingFaces.Add(e.SecondaryFace);
+            //}
+            //foreach (Edge e in backwardBarrier)
+            //{
+            //    if (!Faces.Contains(e.PrimaryFace)) backwardMovingFaces.Add(e.PrimaryFace);
+            //    if (!Faces.Contains(e.SecondaryFace)) backwardMovingFaces.Add(e.SecondaryFace);
+            //}
             foreach (Face face in Faces)
             {
                 foreach (Edge edge in face.Edges)
@@ -92,8 +124,11 @@ namespace ShapeIt
             measureToHere = meassureTo;
             measureFromHere = meassureFrom;
             // now forwardMovingFaces contain all the faces connectd to the faces to be streched in the forward direction
-            Shell.CombineFaces(forwardMovingFaces, forwardBarrier);
-            Shell.CombineFaces(backwardMovingFaces, backwardBarrier);
+            HashSet<Edge> barrier = new HashSet<Edge>(forwardBarrier.Union(backwardBarrier));
+            Shell.CombineFaces(forwardMovingFaces, barrier);
+            Shell.CombineFaces(backwardMovingFaces, barrier);
+            forwardMovingFaces.ExceptWith(Faces);
+            backwardMovingFaces.ExceptWith(Faces);
             // the faces are the original faces of the shell
             // forwardMovingFaces and backwardMovingFaces must be disjunct!
             bool isDisjunct = !forwardMovingFaces.Intersect(backwardMovingFaces).Any();

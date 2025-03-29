@@ -62,6 +62,7 @@ namespace ShapeIt
         private bool isAccumulating; // expect more clicks to add same objects of a certain type (edges, faces)
         private List<IGeoObject> accumulatedObjects = new List<IGeoObject>(); // objects beeing accumulated
         private bool modelligIsActive; // if true, there is no normal or "old" CADability selection, but every mouseclick of the SelectObjectsAction is handled here
+        private bool selectionTabForced;
         private Feedback feedback;
         private PickArea lastPickArea; // for ComposeModellingEntries to avoid passing it to all methods
         public ModellingPropertyEntries(IFrame cadFrame) : base("Modelling.Properties")
@@ -79,6 +80,7 @@ namespace ShapeIt
             isAccumulating = false;
             cadFrame.ViewsChangedEvent += ViewsChanged;
             modelligIsActive = true;
+            selectionTabForced = false;
 
             feedback = new Feedback();
             feedback.Attach(cadFrame.ActiveView);
@@ -87,12 +89,14 @@ namespace ShapeIt
 
         private void SelectedObjectListChanged(SelectObjectsAction sender, GeoObjectList selectedObjects)
         {
+            return; // do we need this at all? selection here happens with filter mouse messages, this makes things complicated
+            if (!cadFrame.ControlCenter.GetPropertyPage("Modelling").IsOnTop()) return;
             IEnumerable<Layer> visibleLayers = new List<Layer>();
             if (cadFrame.ActiveView is ModelView mv) visibleLayers = mv.GetVisibleLayers();
             GeoObjectList singleObjects = cadFrame.ActiveView.Model.GetObjectsFromRect(sender.GetPickArea(), new Set<Layer>(visibleLayers), PickMode.singleFaceAndCurve, null); // returns all the faces or edges under the cursor
             ComposeModellingEntries(singleObjects, cadFrame.ActiveView, sender.GetPickArea());
             // if (cadFrame.UIService.ModifierKeys == Keys.Shift)
-            if (modelligIsActive)
+            if (modelligIsActive && !selectionTabForced)
             {
                 propertyPage?.BringToFront();
                 cadFrame.SetControlCenterFocus("Modelling", "Modelling.Properties", true, false);
@@ -150,6 +154,7 @@ namespace ShapeIt
                 // TODO: other mouse activities: cursor, drag rect etc.
                 if (mouseAction == SelectObjectsAction.MouseAction.MouseUp && e.Button == CADability.Substitutes.MouseButtons.Left)
                 {
+                    selectAction.SetSelectedObjects(new GeoObjectList());
                     GeoObjectList objectsUnderCursor = GetObjectsUnderCursor(e.Location, vw, out Projection.PickArea pickArea);
                     ComposeModellingEntries(objectsUnderCursor, vw, pickArea);
                     IsOpen = true;
@@ -620,7 +625,17 @@ namespace ShapeIt
             {   // show this object in the selection tab of the ControlCenter
                 feedback.Clear();
                 feedback.Refresh();
+                selectionTabForced = true;
                 selectAction.SetSelectedObjects(new GeoObjectList(go));
+                subEntries.Clear();
+                IPropertyPage pp = propertyPage;
+                if (pp != null)
+                {
+                    // pp.Refresh(this); // doesn't do the job, so we must remove and add
+                    pp.Remove(this); // to reflect this newly composed entry
+                    pp.Add(this, true);
+                }
+                selectionTabForced = false;
                 return true;
             };
             showSelected.IsSelected = (selected, frame) =>
