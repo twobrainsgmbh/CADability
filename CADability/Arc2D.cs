@@ -496,7 +496,7 @@ namespace CADability.Curve2D
             res.start = st;
 
             //Return null if the trimmed Arc2D would be invalid.
-            if(res.sweep.Degree < Precision.eps)
+            if(Math.Abs(res.Sweep) < Precision.eps)
                 return null;
 
             return res;
