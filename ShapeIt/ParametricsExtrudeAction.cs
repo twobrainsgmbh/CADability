@@ -64,10 +64,44 @@ namespace ShapeIt
             this.pickPoint = pickPoint;
             this.arrows = arrows;
             shell = faces.First().Owner as Shell;
-            HashSet<Edge> forwardBarrier = new HashSet<Edge>(); // edges which are moved forward and connect a face to be streched with a face to mof
-            HashSet<Edge> backwardBarrier = new HashSet<Edge>();
+            foreach (Face fc in shell.Faces)
+            {
+                fc.UserData.Add("ShapeIt.HashCode", fc.GetHashCode()); // set the HashCode as UserData to find corresponding faces in the result
+            }
+            (Shell[] upper, Shell[] lower) = BRepOperation.SplitByFace(shell, crossSection);
+            foreach (Face fc in shell.Faces)
+            {
+                fc.UserData.Remove("ShapeIt.HashCode"); // no more usage
+            }
             forwardMovingFaces = new HashSet<Face>(); // faces to be moved forward
             backwardMovingFaces = new HashSet<Face>();
+            if (upper.Length == 1 && lower.Length == 1)
+            {
+                HashSet<int> upperHC = new HashSet<int>();
+                HashSet<int> lowerHC = new HashSet<int>();
+                foreach (Face fc in upper[0].Faces)
+                {
+                    if ((fc.UserData as IDictionary<string, object>).TryGetValue("ShapeIt.HashCode",out object hc))
+                    {
+                        upperHC.Add((int)hc);
+                    }
+                }
+                foreach (Face fc in lower[0].Faces)
+                {
+                    if ((fc.UserData as IDictionary<string, object>).TryGetValue("ShapeIt.HashCode", out object hc))
+                    {
+                        lowerHC.Add((int)hc);
+                    }
+                }
+                foreach (Face fc in shell.Faces)
+                {
+                    if (Faces.Contains(fc)) continue;
+                    if (upperHC.Contains(fc.GetHashCode())) forwardMovingFaces.Add(fc);
+                    if (lowerHC.Contains(fc.GetHashCode())) backwardMovingFaces.Add(fc);
+                }
+            }
+            HashSet<Edge> forwardBarrier = new HashSet<Edge>(); // edges which are moved forward and connect a face to be streched with a face to mof
+            HashSet<Edge> backwardBarrier = new HashSet<Edge>();
             //foreach (Edge e in Edges)
             //{
             //    Vertex fvtx, bvtx;
@@ -100,35 +134,35 @@ namespace ShapeIt
             //    if (!Faces.Contains(e.PrimaryFace)) backwardMovingFaces.Add(e.PrimaryFace);
             //    if (!Faces.Contains(e.SecondaryFace)) backwardMovingFaces.Add(e.SecondaryFace);
             //}
-            foreach (Face face in Faces)
-            {
-                foreach (Edge edge in face.Edges)
-                {
-                    if (!Edges.Contains(edge))
-                    {
-                        if (plane.Distance(edge.Vertex1.Position) > 0)
-                        {
-                            forwardBarrier.Add(edge);
-                            if (Faces.Contains(edge.PrimaryFace)) forwardMovingFaces.Add(edge.SecondaryFace);
-                            else forwardMovingFaces.Add(edge.PrimaryFace);
-                        }
-                        else
-                        {
-                            backwardBarrier.Add(edge);
-                            if (Faces.Contains(edge.PrimaryFace)) backwardMovingFaces.Add(edge.SecondaryFace);
-                            else backwardMovingFaces.Add(edge.PrimaryFace);
-                        }
-                    }
-                }
-            }
+            //foreach (Face face in Faces)
+            //{
+            //    foreach (Edge edge in face.Edges)
+            //    {
+            //        if (!Edges.Contains(edge))
+            //        {
+            //            if (plane.Distance(edge.Vertex1.Position) > 0)
+            //            {
+            //                forwardBarrier.Add(edge);
+            //                if (Faces.Contains(edge.PrimaryFace)) forwardMovingFaces.Add(edge.SecondaryFace);
+            //                else forwardMovingFaces.Add(edge.PrimaryFace);
+            //            }
+            //            else
+            //            {
+            //                backwardBarrier.Add(edge);
+            //                if (Faces.Contains(edge.PrimaryFace)) backwardMovingFaces.Add(edge.SecondaryFace);
+            //                else backwardMovingFaces.Add(edge.PrimaryFace);
+            //            }
+            //        }
+            //    }
+            //}
             measureToHere = meassureTo;
             measureFromHere = meassureFrom;
             // now forwardMovingFaces contain all the faces connectd to the faces to be streched in the forward direction
-            HashSet<Edge> barrier = new HashSet<Edge>(forwardBarrier.Union(backwardBarrier));
-            Shell.CombineFaces(forwardMovingFaces, barrier);
-            Shell.CombineFaces(backwardMovingFaces, barrier);
-            forwardMovingFaces.ExceptWith(Faces);
-            backwardMovingFaces.ExceptWith(Faces);
+            //HashSet<Edge> barrier = new HashSet<Edge>(forwardBarrier.Union(backwardBarrier));
+            //Shell.CombineFaces(forwardMovingFaces, barrier);
+            //Shell.CombineFaces(backwardMovingFaces, barrier);
+            //forwardMovingFaces.ExceptWith(Faces);
+            //backwardMovingFaces.ExceptWith(Faces);
             // the faces are the original faces of the shell
             // forwardMovingFaces and backwardMovingFaces must be disjunct!
             bool isDisjunct = !forwardMovingFaces.Intersect(backwardMovingFaces).Any();

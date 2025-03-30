@@ -1682,6 +1682,21 @@ namespace CADability
             operation = Operation.difference;
             prepare();
         }
+        /// <summary>
+        /// Split the shell <paramref name="toSplit"/> by a face. The face <paramref name="splitBy"/> must split the shell into two or more parts
+        /// It may not enter the shell without cutting through
+        /// </summary>
+        /// <param name="toSplit"></param>
+        /// <param name="splitBy"></param>
+        public BRepOperation(Shell toSplit, Face splitBy)
+        {
+            shell1 = toSplit.Clone() as Shell;   // clone the shell because its faces will be modified
+            shell1.AssertOutwardOrientation();
+            BoundingCube ext = shell1.GetExtent(0.0);
+            shell2 = Shell.MakeShell(new Face[] { splitBy.Clone() as Face }, false); // open shell
+            operation = Operation.difference;
+            prepare();
+        }
         public BRepOperation(Face toClip, Shell clipBy)
         {
             shell1 = Shell.MakeShell(new Face[] { toClip }, false);
@@ -2011,6 +2026,16 @@ namespace CADability
             Shell[] upper = brep.Result();
             pln = new Plane(pln.Location, pln.DirectionY, pln.DirectionX); // the same plane, but reversed
             brep = new BRepOperation(shell, pln);
+            Shell[] lower = brep.Result();
+            return (upper, lower);
+        }
+        public static (Shell[] upperPart, Shell[] lowerPart) SplitByFace(Shell toSplit, Face splitBy)
+        {
+            BRepOperation brep = new BRepOperation(toSplit, splitBy);
+            Shell[] upper = brep.Result();
+            Face reversed = splitBy.Clone() as Face;
+            reversed.ReverseOrientation();
+            brep = new BRepOperation(toSplit, reversed);
             Shell[] lower = brep.Result();
             return (upper, lower);
         }
