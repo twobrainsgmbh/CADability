@@ -1,5 +1,17 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
 	<language id="deutsch" default="true">deutsch</language>
-
+	<data name="Modelling.Properties">
+		<label>Modellier Modus</label>
+		<info>Modelliermodus: ändere geometrische EIgenschaften der Objekte </info>
+	</data>
+	<data name="Accumulating.Faces">
+		<label>Flächen ansammeln</label>
+		<info>Im Sammelmodus für Flächen kannst du mehrere Flächen auswählen und gemeinsam verwenden</info>
+	</data>
+	<data name="Accumulating.Faces.List">
+		<label>Liste der Flächen ({0})</label>
+		<info>Liste der angesammelten Flächen</info>
+	</data>
+	
 </root>

@@ -171,10 +171,12 @@ namespace ShapeIt
                 accumulatedObjects.Clear();
                 accumulatedObjects.AddRange(capturedOjbects);
                 isAccumulating = true;
+                ComposeModellingEntries(new GeoObjectList(), cadFrame.ActiveView, null);
                 return true;
             }));
             isAccumulating = false;
             accumulatedObjects.Clear();
+            Clear();
         }
         internal bool OnEscape()
         {
@@ -235,14 +237,20 @@ namespace ShapeIt
         private void ComposeModellingEntries(GeoObjectList objectsUnderCursor, IView vw, PickArea pickArea)
         {   // a mouse left button up took place. Compose all the entries for objects, which can be handled by 
             // the object(s) under the mouse cursor
-            lastPickArea = pickArea;
+            Axis clickBeam = Axis.InvalidAxis;
+            if (pickArea != null)
+            {
+                lastPickArea = pickArea;
+                clickBeam = new Axis(pickArea.FrontCenter, pickArea.Direction);
+            }
             subEntries.Clear(); // build a new list of modelling properties
-            Axis clickBeam = new Axis(pickArea.FrontCenter, pickArea.Direction);
+
             if (isAccumulating && accumulatedObjects.Count > 0)
             {
                 // we are in accumulation mode. 
-                if (objectsUnderCursor.Count == 0)
+                if (objectsUnderCursor.Count == 0 && pickArea != null) // pickArea==null: first call to setup the new menu
                 {   // clicked on empty space: clear accumulated objects, but you can undo this
+                    // The first call comes with an empty objectsUnderCursor list but also with
                     StopAccumulating();
                 }
                 for (int i = 0; i < objectsUnderCursor.Count; i++)
@@ -250,17 +258,29 @@ namespace ShapeIt
                     if (((accumulatedObjects[0] is ICurve && objectsUnderCursor[i] is ICurve) && (accumulatedObjects[0].Owner.GetType() == objectsUnderCursor[i].Owner.GetType())) // both are curves or both are edges
                         || accumulatedObjects[0].GetType() == objectsUnderCursor[i].GetType())
                     {   // if this object is already in the accumulated objects, remove it, else add it
-                        if (accumulatedObjects.Contains(objectsUnderCursor[i])) accumulatedObjects.Remove(objectsUnderCursor[i]);
-                        else accumulatedObjects.Add(objectsUnderCursor[i]);
+                        if (objectsUnderCursor[i] is Face face)
+                        {
+                            HashSet<Face> connectedFaces = Shell.ConnectedSameGeometryFaces(new Face[] { face }); // add all faces which have the same surface and are connected
+                            foreach (Face f in connectedFaces)
+                            {
+                                if (accumulatedObjects.Contains(f)) accumulatedObjects.Remove(f);
+                                else accumulatedObjects.Add(f);
+                            }
+                        }
+                        else
+                        {
+                            if (accumulatedObjects.Contains(objectsUnderCursor[i])) accumulatedObjects.Remove(objectsUnderCursor[i]);
+                            else accumulatedObjects.Add(objectsUnderCursor[i]);
+                        }
                     }
                 }
 
             }
             // handle either accumulated objects or the objects under the cursor
-            if (accumulatedObjects.Count > 1)
-            {   // there must be at least 2 objects of the same type be accumulated to show actions for this group
+            if (accumulatedObjects.Count > 0)
+            {
                 // the first accumulated object tells which type of object we are accumulation
-                SimplePropertyGroup title = null;
+                SelectEntry title = null;
                 SimplePropertyGroup collection = null;
                 Type accumulatingType = accumulatedObjects[0].GetType(); // Face, Edge, ICurve
                 if (accumulatedObjects[0] is ICurve)
@@ -270,21 +290,32 @@ namespace ShapeIt
                 }
                 if (accumulatingType == typeof(Edge))
                 {
-                    title = new SimplePropertyGroup("Accumulating.Edges");
+                    title = new SelectEntry("Accumulating.Edges", true);
                     collection = new SimplePropertyGroup("Accumulating.Edges.List");
                 }
                 else if (accumulatingType == typeof(ICurve))
                 {
-                    title = new SimplePropertyGroup("Accumulating.Curves");
+                    title = new SelectEntry("Accumulating.Curves", true);
                     collection = new SimplePropertyGroup("Accumulating.Curves.List");
                 }
                 else if (accumulatingType == typeof(Face))
                 {
-                    title = new SimplePropertyGroup("Accumulating.Faces");
-                    collection = new SimplePropertyGroup("Accumulating.faces.List");
+                    title = new SelectEntry("Accumulating.Faces", true);
+                    collection = new SimplePropertyGroup("Accumulating.Faces.List");
+                    collection.LabelText = StringTable.GetFormattedString("Accumulating.Faces.List", accumulatedObjects.Count);
                 }
                 subEntries.Add(title);
                 title.Add(collection);
+                title.IsSelected = (selected, frame) =>
+                {
+                    feedback.Clear();
+                    if (selected)
+                    {
+                        feedback.ShadowFaces.AddRange(accumulatedObjects);
+                    }
+                    feedback.Refresh();
+                    return true;
+                };
                 DirectMenuEntry stopAccumulating = new DirectMenuEntry("Accumulating.Stop");
                 stopAccumulating.ExecuteMenu = (frame) =>
                 {
@@ -296,69 +327,8 @@ namespace ShapeIt
                 {
                     collection.Add(accumulatedObjects[i].GetShowProperties(cadFrame));
                 }
-                if (accumulatingType == typeof(ICurve))
-                {
-                    List<ICurve> curves = accumulatedObjects.OfType<ICurve>().ToList();
-                    // check the condition to make a ruled solid:
-                    // two closed curves not in the same plane
-                    List<Path> paths = Path.FromSegments(curves);
-                    // if we have two paths which are flat but not in the same plane, we could make a ruled solid directly
-                    // if we need more user control, e.g. specifying synchronous points on each path, we woould need a more
-                    // sophisticated action
-                    if (paths.Count == 2 && paths[0].GetPlanarState() == PlanarState.Planar && paths[1].GetPlanarState() == PlanarState.Planar)
-                    {
-                        if (!Precision.IsEqual(paths[0].GetPlane(), paths[1].GetPlane()) && paths[0].IsClosed && paths[1].IsClosed)
-                        {
-                            try
-                            {
-                                Solid sld = Make3D.MakeRuledSolid(paths[0], paths[1], cadFrame.Project);
-                                if (sld != null)
-                                {
-                                    DirectMenuEntry makeRuledSolid = new DirectMenuEntry("MenuId.Constr.Solid.RuledSolid");
-                                    makeRuledSolid.IsSelected = (selected, frame) =>
-                                    {
-                                        feedback.Clear();
-                                        if (selected) feedback.FrontFaces.Add(sld);
-                                        vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
-                                        return true;
-                                    };
-                                    makeRuledSolid.ExecuteMenu = (frame) =>
-                                    {
-                                        frame.Project.GetActiveModel().Add(sld);
-                                        StopAccumulating();
-                                        return true;
-                                    };
-                                    title.Add(makeRuledSolid);
-                                }
-                            }
-                            catch (NotImplementedException) { }
-                        }
-                    }
-                    if (paths.Count == 1 && paths[0].IsClosed && paths[0].GetPlanarState() == PlanarState.Planar)
-                    {
-                        Plane pln = paths[0].GetPlane();
-                        Face fc = Face.MakeFace(new GeoObjectList(paths[0]));
-                        if (fc != null)
-                        {
-                            DirectMenuEntry extrude = new DirectMenuEntry("MenuId.Constr.Solid.FaceExtrude"); // too bad, no icon yet, would be 159
-                            extrude.ExecuteMenu = (frame) =>
-                            {
-                                frame.SetAction(new Constr3DFaceExtrude(fc));
-                                StopAccumulating();
-                                return true;
-                            };
-                            title.Add(extrude);
-                            DirectMenuEntry rotate = new DirectMenuEntry("MenuId.Constr.Solid.FaceRotate"); // too bad, no icon yet, would be 160
-                            rotate.ExecuteMenu = (frame) =>
-                            {
-                                frame.SetAction(new Constr3DFaceRotate(new GeoObjectList(fc)));
-                                StopAccumulating();
-                                return true;
-                            };
-                            title.Add(rotate);
-                        }
-                    }
-                }
+                if (accumulatingType == typeof(ICurve)) title.Add(GetCurvesProperties(accumulatedObjects.OfType<ICurve>().ToList()));
+                if (accumulatingType == typeof(Face)) title.Add(GetFacesProperties(accumulatedObjects.OfType<Face>().ToList(), vw));
             }
             else
             {   // show actions for all vertices, edges, faces and curves in 
@@ -414,7 +384,8 @@ namespace ShapeIt
                         if (edgesShell.FeatureFromLoops(connectedEdges, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
                         {
                             // there is a feature
-                            AddFeatureProperties(vw, featureFaces, connection, isGap);
+                            IPropertyEntry fp = GetFeatureProperties(vw, featureFaces, connection, isGap);
+                            if (fp.SubItems.Length > 0) subEntries.Add(fp);
                         }
                     }
                 }
@@ -428,7 +399,8 @@ namespace ShapeIt
                         {
                             // there is a feature. Multiple different features are not considered, we would need FeaturesFromFaces
                             // which would return more than one feature
-                            AddFeatureProperties(vw, featureFaces, connection, isGap);
+                            IPropertyEntry fp = GetFeatureProperties(vw, featureFaces, connection, isGap);
+                            if (fp.SubItems.Length > 0) subEntries.Add(fp);
                         }
                     }
                 }
@@ -529,6 +501,97 @@ namespace ShapeIt
                 }
             }
         }
+
+        private IPropertyEntry[] GetFacesProperties(List<Face> faces, IView vw)
+        {
+            List<IPropertyEntry> res = new List<IPropertyEntry>();
+            Shell facesShell = faces.First().Owner as Shell;
+            if (facesShell != null)
+            {
+                HashSet<Face> connectedFaces = Shell.ConnectedSameGeometryFaces(faces); // add all faces which have the same surface and are connected
+                if (facesShell.FeatureFromFaces(connectedFaces, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
+                {
+                    // there is a feature. Multiple different features are not considered, we would need FeaturesFromFaces
+                    // which would return more than one feature
+                    IPropertyEntry fp = GetFeatureProperties(vw, featureFaces, connection, isGap);
+                    if (fp.SubItems.Length > 0) res.Add(fp);
+                }
+            }
+            return res.ToArray();
+        }
+
+        private void Title_PropertyEntryChangedStateEvent(IPropertyEntry sender, StateChangedArgs args)
+        {
+            throw new NotImplementedException();
+        }
+
+        private IPropertyEntry[] GetCurvesProperties(List<ICurve> curves)
+        {
+            List<IPropertyEntry> res = new List<IPropertyEntry>();
+            // check the condition to make a ruled solid:
+            // two closed curves not in the same plane
+            List<Path> paths = Path.FromSegments(curves);
+            // if we have two paths which are flat but not in the same plane, we could make a ruled solid directly
+            // if we need more user control, e.g. specifying synchronous points on each path, we woould need a more
+            // sophisticated action
+            if (paths.Count == 2 && paths[0].GetPlanarState() == PlanarState.Planar && paths[1].GetPlanarState() == PlanarState.Planar)
+            {
+                if (!Precision.IsEqual(paths[0].GetPlane(), paths[1].GetPlane()) && paths[0].IsClosed && paths[1].IsClosed)
+                {
+                    try
+                    {
+                        Solid sld = Make3D.MakeRuledSolid(paths[0], paths[1], cadFrame.Project);
+                        if (sld != null)
+                        {
+                            DirectMenuEntry makeRuledSolid = new DirectMenuEntry("MenuId.Constr.Solid.RuledSolid");
+                            makeRuledSolid.IsSelected = (selected, frame) =>
+                            {
+                                feedback.Clear();
+                                if (selected) feedback.FrontFaces.Add(sld);
+                                feedback.Refresh();
+                                return true;
+                            };
+                            makeRuledSolid.ExecuteMenu = (frame) =>
+                            {
+                                frame.Project.GetActiveModel().Add(sld);
+                                StopAccumulating();
+                                return true;
+                            };
+                            res.Add(makeRuledSolid);
+                        }
+                    }
+                    catch (NotImplementedException) { }
+                }
+            }
+            if (paths.Count == 1 && paths[0].IsClosed && paths[0].GetPlanarState() == PlanarState.Planar)
+            {
+                Plane pln = paths[0].GetPlane();
+                Face fc = Face.MakeFace(new GeoObjectList(paths[0]));
+                if (fc != null)
+                {
+                    DirectMenuEntry extrude = new DirectMenuEntry("MenuId.Constr.Solid.FaceExtrude"); // too bad, no icon yet, would be 159
+                    extrude.ExecuteMenu = (frame) =>
+                    {
+                        frame.SetAction(new Constr3DFaceExtrude(fc));
+                        StopAccumulating();
+                        return true;
+                    };
+                    res.Add(extrude);
+                    DirectMenuEntry rotate = new DirectMenuEntry("MenuId.Constr.Solid.FaceRotate"); // too bad, no icon yet, would be 160
+                    rotate.ExecuteMenu = (frame) =>
+                    {
+                        frame.SetAction(new Constr3DFaceRotate(new GeoObjectList(fc)));
+                        StopAccumulating();
+                        return true;
+                    };
+                    res.Add(rotate);
+                }
+            }
+            return res.ToArray();
+        }
+        /// <summary>
+        /// Empty the modelling tab page, leave only the title
+        /// </summary>
         private void Clear()
         {
             IPropertyPage pp = propertyPage;
@@ -559,7 +622,7 @@ namespace ShapeIt
                     feedback.ShadowFaces.Add(curve as IGeoObject);
                 }
                 feedback.Refresh();
-                
+
                 return true;
             };
             if ((curve as IGeoObject).Owner is Model)
@@ -1001,6 +1064,7 @@ namespace ShapeIt
             {
                 accumulatedObjects.AddRange(faces);
                 isAccumulating = true;
+                ComposeModellingEntries(new GeoObjectList(), vw, null);
                 return true;
             };
             selectMoreFaces.IsSelected = (selected, frame) =>
@@ -1222,7 +1286,7 @@ namespace ShapeIt
         /// <param name="featureFaces">Faces of the shell, which belong to the feature</param>
         /// <param name="connection">Additional faces, which seperate the feature from the shell</param>
         /// <param name="isGap">Is a hole in the solid or part standing out</param>
-        private void AddFeatureProperties(IView vw, IEnumerable<Face> featureFaces, List<Face> connection, bool isGap)
+        private IPropertyEntry GetFeatureProperties(IView vw, IEnumerable<Face> featureFaces, List<Face> connection, bool isGap)
         {
             Dictionary<Edge, Edge> clonedEdges = new Dictionary<Edge, Edge>();
             Dictionary<Vertex, Vertex> clonedVertices = new Dictionary<Vertex, Vertex>();
@@ -1367,6 +1431,7 @@ namespace ShapeIt
                 }
                 return true;
             };
+            return mh;
         }
         /// <summary>
         /// There is a face <paramref name="fc"/> pointed at by <paramref name="pa"/>. We try to find a loop of curves on faces

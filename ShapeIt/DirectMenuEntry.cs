@@ -78,7 +78,7 @@ namespace ShapeIt
         /// <param name="button"></param>
         public override void ButtonClicked(PropertyEntryButton button)
         {
-            if (Flags.HasFlag(PropertyEntryType.DirectMenu)) ExecuteMenu(Frame);
+            if (Flags.HasFlag(PropertyEntryType.DirectMenu) || button == PropertyEntryButton.doubleclick) ExecuteMenu(Frame);
         }
     }
 }

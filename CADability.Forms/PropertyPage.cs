@@ -436,7 +436,18 @@ namespace CADability.Forms
             (sender as Timer).Tick -= ToolTipOff_Tick;
             // currentToolTip = null; makes tooltip go on repeatedly
         }
-
+        protected override void OnMouseDoubleClick(MouseEventArgs e)
+        {
+            base.OnMouseDoubleClick(e);
+            (int index, EMousePos position, Rectangle hitItem) = GetMousePosition(e);
+            if (position == EMousePos.onLabel)
+            {
+                if (selected == index)
+                {
+                    entries[index].ButtonClicked(PropertyEntryButton.doubleclick);
+                }
+            }
+        }
         protected override void OnMouseClick(MouseEventArgs e)
         {
             base.OnMouseClick(e);

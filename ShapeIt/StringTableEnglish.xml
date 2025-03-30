@@ -5,6 +5,14 @@
 		<label>Modelling Mode</label>
 		<info>In the modelling mode you can change dimensions or features of objects</info>
 	</data>
+	<data name="Accumulating.Faces">
+		<label>Accumulating faces</label>
+		<info>In accumulation mode, you can add more faces to the collection and do something with the collection as a whole</info>
+	</data>
+	<data name="Accumulating.Faces.List">
+		<label>List of faces ({0})</label>
+		<info>List of already accumulated faces</info>
+	</data>
 	<!-- 
 	-->
 </root>

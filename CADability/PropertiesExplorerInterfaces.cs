@@ -46,7 +46,7 @@ namespace CADability.UserInterface
         public int x, y;
         public int wheelDiff;
     }
-    public enum PropertyEntryButton { contextMenu, dropDown, ok, cancel, check, value, locked, directMenu };
+    public enum PropertyEntryButton { contextMenu, dropDown, ok, cancel, check, value, locked, directMenu, doubleclick };
     [Flags]
     public enum PropertyEntryType
     {
