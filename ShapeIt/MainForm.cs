@@ -160,9 +160,9 @@ namespace ShapeIt
         }
         private void OnProjectOpened(Project theProject, IFrame theFrame)
         {
-            theProject.ModelsChangedEvent += (Project sender, Model model, bool added) =>
+            theProject.ProjectModifiedEvent += (Project sender) =>
             {
-                modifiedSinceLastAutosave = true;
+                if (sender == theProject) modifiedSinceLastAutosave = true;
             };
         }
         protected override void OnLoad(EventArgs e)

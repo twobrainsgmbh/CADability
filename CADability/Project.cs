@@ -407,15 +407,15 @@ namespace CADability
         }
         private void OnGeoObjectDidChange(IGeoObject Sender, GeoObjectChange Change)
         {
-            this.isModified = true;
+            IsModified = true;
         }
         private void OnGeoObjectRemovedFromModel(IGeoObject go)
         {
-            this.isModified = true;
+            IsModified = true;
         }
         private void OnGeoObjectAddedToModel(IGeoObject go)
         {
-            this.isModified = true;
+            IsModified = true;
         }
         /// <summary>
         /// Removes the given <see cref="Model"/> from the project. Fires a
