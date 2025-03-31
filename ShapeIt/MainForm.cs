@@ -23,6 +23,7 @@ namespace ShapeIt
     {
         private ModellingPropertyEntries modellingPropertyEntries;
         private DateTime lastSaved; // time, when the current file has been saved the last time, see OnIdle
+        private bool modifiedSinceLastAutosave = false;
         bool projectionChanged = false; // to handle projection changes in OnIdle
         public MainForm(string[] args) : base(args)
         {   // interpret the command line arguments as a name of a file, which should be opened
@@ -134,9 +135,9 @@ namespace ShapeIt
                 projectionChanged = false;
                 modellingPropertyEntries.OnProjectionChanged(); // to update the feedback objects, which are projection dependant
             }
-            if (CadFrame.Project.IsModified && (DateTime.Now - lastSaved).TotalMinutes > 2)
+            if (modifiedSinceLastAutosave && (DateTime.Now - lastSaved).TotalMinutes > 2)
             {
-                CadFrame.Project.IsModified = false;
+                modifiedSinceLastAutosave = false;
                 string path = Path.GetTempPath();
                 path = Path.Combine(path, "ShapeIt");
                 DirectoryInfo dirInfo = Directory.CreateDirectory(path);
@@ -159,7 +160,10 @@ namespace ShapeIt
         }
         private void OnProjectOpened(Project theProject, IFrame theFrame)
         {
-            // manage autosave OnIdle
+            theProject.ModelsChangedEvent += (Project sender, Model model, bool added) =>
+            {
+                modifiedSinceLastAutosave = true;
+            };
         }
         protected override void OnLoad(EventArgs e)
         {
@@ -169,16 +173,15 @@ namespace ShapeIt
             this.Size = new Size(1294, 727);
 
         }
-
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            if (!CadFrame.Project.SaveModified()) e.Cancel = true;
+            base.OnFormClosing(e);
+        }
         public override bool OnCommand(string MenuId)
         {
             if (MenuId == "MenuId.App.Exit")
             {   // this command cannot be handled by CADability.dll
-#if DEBUG
-                System.GC.Collect();
-                System.GC.WaitForFullGCComplete();
-                System.GC.Collect();
-#endif
                 Application.Exit();
                 return true;
             }

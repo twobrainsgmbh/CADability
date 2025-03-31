@@ -45,6 +45,20 @@ namespace ShapeIt
         private string name = "";
         private double distance;
         /// <summary>
+        /// Making it possible to add a face as user data to an IGeoObject. When the face is beeing cloned, the user data also will be cloned,
+        /// which would result in an infinite loop
+        /// </summary>
+        private class FaceDontClone: ICloneable
+        {
+            public FaceDontClone(Face face) { Face = face; }
+            public Face Face { get; }
+
+            public object Clone()
+            {
+                return this; // don't clone the face, this would result in an infinite loop
+            }
+        }
+        /// <summary>
         /// Initialize an extrusion action: The shell, which contains the <paramref name="faces"/>, is going to be streched along the normal of the <paramref name="plane"/>.
         /// The distance is meassured from <paramref name="meassureFrom"/> to <paramref name="meassureTo"/>, which may be vertices, edges or faces.
         /// </summary>
@@ -66,9 +80,9 @@ namespace ShapeIt
             shell = faces.First().Owner as Shell;
             foreach (Face fc in shell.Faces)
             {
-                fc.UserData.Add("ShapeIt.HashCode", fc.GetHashCode()); // set the HashCode as UserData to find corresponding faces in the result
+                fc.UserData.Add("ShapeIt.HashCode", new FaceDontClone(fc)); // set the HashCode as UserData to find corresponding faces in the result
             }
-            (Shell[] upper, Shell[] lower) = BRepOperation.SplitByFace(shell, crossSection);
+            (Shell[] lower, Shell[] upper) = BRepOperation.SplitByFace(shell, crossSection);
             foreach (Face fc in shell.Faces)
             {
                 fc.UserData.Remove("ShapeIt.HashCode"); // no more usage
@@ -81,23 +95,19 @@ namespace ShapeIt
                 HashSet<int> lowerHC = new HashSet<int>();
                 foreach (Face fc in upper[0].Faces)
                 {
-                    if ((fc.UserData as IDictionary<string, object>).TryGetValue("ShapeIt.HashCode",out object hc))
+                    FaceDontClone f = fc.UserData.GetData("ShapeIt.HashCode") as FaceDontClone;
+                    if (f != null && !Faces.Contains(f.Face))
                     {
-                        upperHC.Add((int)hc);
+                        forwardMovingFaces.Add(f.Face);
                     }
                 }
                 foreach (Face fc in lower[0].Faces)
                 {
-                    if ((fc.UserData as IDictionary<string, object>).TryGetValue("ShapeIt.HashCode", out object hc))
+                    FaceDontClone f = fc.UserData.GetData("ShapeIt.HashCode") as FaceDontClone;
+                    if (f != null && !Faces.Contains(f.Face))
                     {
-                        lowerHC.Add((int)hc);
+                        backwardMovingFaces.Add(f.Face);
                     }
-                }
-                foreach (Face fc in shell.Faces)
-                {
-                    if (Faces.Contains(fc)) continue;
-                    if (upperHC.Contains(fc.GetHashCode())) forwardMovingFaces.Add(fc);
-                    if (lowerHC.Contains(fc.GetHashCode())) backwardMovingFaces.Add(fc);
                 }
             }
             HashSet<Edge> forwardBarrier = new HashSet<Edge>(); // edges which are moved forward and connect a face to be streched with a face to mof

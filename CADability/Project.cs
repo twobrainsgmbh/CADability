@@ -553,7 +553,7 @@ namespace CADability
         {
             get
             {
-                if (gdiViews== null) { gdiViews= new List<GDI2DView>(); }
+                if (gdiViews == null) { gdiViews = new List<GDI2DView>(); }
                 return gdiViews;
             }
         }
@@ -913,7 +913,14 @@ namespace CADability
         public bool IsModified
         {
             get { return isModified; }
-            set { isModified = value; }
+            set
+            {
+                isModified = value;
+                if (isModified)
+                {
+                    ProjectModifiedEvent?.Invoke(this);
+                }
+            }
         }
         /// <summary>
         /// The name of the file in which this project ist stored. May be null.
@@ -1961,6 +1968,8 @@ namespace CADability
         public event ViewChangedDelegate ViewChangedEvent;
         public delegate void ModelsChangedDelegate(Project sender, Model model, bool added);
         public event ModelsChangedDelegate ModelsChangedEvent;
+        public delegate void ProjectModifiedDelegate(Project sender);
+        public event ProjectModifiedDelegate ProjectModifiedEvent;
         internal static void InsertDebugLine(GeoPoint sp, GeoPoint ep, Color clr)
         {
             IFrame fr = FrameImpl.MainFrame;
