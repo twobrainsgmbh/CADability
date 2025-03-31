@@ -190,23 +190,23 @@ namespace CADability.Actions
                 {
                     Face face = faces.First();
                     Face otherFace = faces.ElementAt(1);
-                    if (Surfaces.ParallelDistance(face.Surface, face.Domain, otherFace.Surface, otherFace.Domain, out GeoPoint2D uv1, out GeoPoint2D uv2))
-                    {
-                        GeoPoint p1 = face.Surface.PointAt(uv1);
-                        GeoPoint p2 = face.Surface.PointAt(uv2);
-                        if (face.Surface is PlaneSurface && otherFace.Surface is PlaneSurface)
-                        {
-                            // we are free to move the two points so that the line goes through pointToCenter
-                            GeoPoint closest = Geometry.DropPL(pointToCenter, p1, p2);
-                            GeoVector translate = pointToCenter - closest;
-                            startPoint = p1 + translate;
-                            endPoint = p2 + translate;
-                        }
-                        else
-                        {   // with two parallel cylinders we still have a degree of freedom, tilted cylinder define p1, p2 exactely
+                    //if (Surfaces.ParallelDistance(face.Surface, face.Domain, otherFace.Surface, otherFace.Domain, out GeoPoint2D uv1, out GeoPoint2D uv2))
+                    //{
+                    //    GeoPoint p1 = face.Surface.PointAt(uv1);
+                    //    GeoPoint p2 = face.Surface.PointAt(uv2);
+                    //    if (face.Surface is PlaneSurface && otherFace.Surface is PlaneSurface)
+                    //    {
+                    //        // we are free to move the two points so that the line goes through pointToCenter
+                    //        GeoPoint closest = Geometry.DropPL(pointToCenter, p1, p2);
+                    //        GeoVector translate = pointToCenter - closest;
+                    //        startPoint = p1 + translate;
+                    //        endPoint = p2 + translate;
+                    //    }
+                    //    else
+                    //    {   // with two parallel cylinders we still have a degree of freedom, tilted cylinder define p1, p2 exactely
 
-                        }
-                    }
+                    //    }
+                    //}
                 }
                 else if (vertices.Count() > 1)
                 {

@@ -89,20 +89,8 @@ namespace ShapeIt
 
         private void SelectedObjectListChanged(SelectObjectsAction sender, GeoObjectList selectedObjects)
         {
+            Clear(); // the user is in "old" selection mode and has changed the selction. Clear all selections in modelling mode
             return; // do we need this at all? selection here happens with filter mouse messages, this makes things complicated
-            if (!cadFrame.ControlCenter.GetPropertyPage("Modelling").IsOnTop()) return;
-            IEnumerable<Layer> visibleLayers = new List<Layer>();
-            if (cadFrame.ActiveView is ModelView mv) visibleLayers = mv.GetVisibleLayers();
-            GeoObjectList singleObjects = cadFrame.ActiveView.Model.GetObjectsFromRect(sender.GetPickArea(), new Set<Layer>(visibleLayers), PickMode.singleFaceAndCurve, null); // returns all the faces or edges under the cursor
-            ComposeModellingEntries(singleObjects, cadFrame.ActiveView, sender.GetPickArea());
-            // if (cadFrame.UIService.ModifierKeys == Keys.Shift)
-            if (modelligIsActive && !selectionTabForced)
-            {
-                propertyPage?.BringToFront();
-                cadFrame.SetControlCenterFocus("Modelling", "Modelling.Properties", true, false);
-            }
-            IsOpen = true;
-            Refresh();
 
         }
         #region CADability events

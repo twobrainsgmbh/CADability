@@ -170,7 +170,7 @@ namespace ShapeIt
                 }
             }
             else if (fromHere is Face f1 && toHere is Face f2)
-            {
+            {   // use Surfaces.ParallelDistance for most cases!!!
                 if (!(f1.Surface is PlaneSurface) && f2.Surface is PlaneSurface)
                 {   // first should be plane
                     Face tmp = f1;
@@ -192,11 +192,15 @@ namespace ShapeIt
                 }
                 else if (f1.Surface is PlaneSurface ps && f2.Surface is CylindricalSurface cy)
                 {
-
+                    if (Surfaces.ParallelDistance(f1.Surface, f1.Domain, f2.Surface, f2.Domain, preferredPoint, out GeoPoint2D uv1, out GeoPoint2D uv2))
+                    {
+                        startPoint = f1.Surface.PointAt(uv1);
+                        endPoint = f2.Surface.PointAt(uv2);
+                    }
                 }
                 else if (f1.Surface is CylindricalSurface cyl1 && f2.Surface is CylindricalSurface cyl2)
                 {
-                    if (cyl1.SameGeometry(f1.Domain,cyl2,f2.Domain, Precision.eps, out ModOp2D _))
+                    if (cyl1.SameGeometry(f1.Domain, cyl2, f2.Domain, Precision.eps, out ModOp2D _))
                     {
                         // a diameter of the cylinder is expected
                         if (!preferredDirection.IsNullVector())
@@ -207,7 +211,7 @@ namespace ShapeIt
                         {
                             GeoPoint pax = Geometry.DropPL(preferredPoint, cyl1.Location, cyl1.Axis);
                             GeoPoint2D[] pp = cyl1.GetLineIntersection(pax, preferredPoint - pax);
-                            if (pp.Length==2)
+                            if (pp.Length == 2)
                             {
                                 startPoint = cyl1.PointAt(pp[0]);
                                 endPoint = cyl1.PointAt(pp[1]);

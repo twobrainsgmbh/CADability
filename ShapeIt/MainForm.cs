@@ -156,12 +156,17 @@ namespace ShapeIt
         }
         void OnProjectClosed(Project theProject, IFrame theFrame)
         {
-            // manage autosave OnIdle
+            // manage autosave OnIdle, remove autosaved files
         }
+        /// <summary>
+        /// When a new or exisiting project has been opened
+        /// </summary>
+        /// <param name="theProject"></param>
+        /// <param name="theFrame"></param>
         private void OnProjectOpened(Project theProject, IFrame theFrame)
         {
             theProject.ProjectModifiedEvent += (Project sender) =>
-            {
+            {   // register modifications of the project to manage autosave
                 if (sender == theProject) modifiedSinceLastAutosave = true;
             };
         }
@@ -173,6 +178,10 @@ namespace ShapeIt
             this.Size = new Size(1294, 727);
 
         }
+        /// <summary>
+        /// Give the user a chance to save the modified project
+        /// </summary>
+        /// <param name="e"></param>
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             if (!CadFrame.Project.SaveModified()) e.Cancel = true;

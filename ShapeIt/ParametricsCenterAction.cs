@@ -260,7 +260,7 @@ namespace ShapeIt
                     Face face = faces.First();
                     Face otherFace = faces.ElementAt(1);
                     // DistanceCalculater does something similar
-                    if (Surfaces.ParallelDistance(face.Surface, face.Domain, otherFace.Surface, otherFace.Domain, out GeoPoint2D uv1, out GeoPoint2D uv2))
+                    if (Surfaces.ParallelDistance(face.Surface, face.Domain, otherFace.Surface, otherFace.Domain, GeoPoint.Invalid, out GeoPoint2D uv1, out GeoPoint2D uv2))
                     {
                         GeoPoint p1 = face.Surface.PointAt(uv1);
                         GeoPoint p2 = face.Surface.PointAt(uv2);

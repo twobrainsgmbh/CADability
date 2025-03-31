@@ -6324,7 +6324,7 @@ namespace CADability.GeoObject
                 if (seeds.Count > 1)
                 {   // seeds are not sorted. But if we have 4 seeds, two curves have been used , the first curve created seed 0 and 1, the second 2 and 3
                     // so we better exchange 1 and 2
-                    if (seeds.Count==4)
+                    if (seeds.Count == 4)
                     {
                         GeoPoint tmp = seeds[1];
                         seeds[1] = seeds[2];
@@ -6557,82 +6557,6 @@ namespace CADability.GeoObject
 
             }
             throw new NotImplementedException();
-        }
-        /// <summary>
-        /// Find two points on the surfaces, where the connection is perpendicular to both surfaces. Currently used by parametrics to identify faces where we can
-        /// change the distance
-        /// </summary>
-        /// <param name="surface1"></param>
-        /// <param name="domain1"></param>
-        /// <param name="surface2"></param>
-        /// <param name="domain2"></param>
-        /// <param name="uv1"></param>
-        /// <param name="uv2"></param>
-        /// <returns></returns>
-        public static bool ParallelDistance(ISurface surface1, BoundingRect domain1, ISurface surface2, BoundingRect domain2, out GeoPoint2D uv1, out GeoPoint2D uv2)
-        {
-            if (surface1 is PlaneSurface pls1)
-            {
-                if (surface2 is PlaneSurface pls2)
-                {
-                    if (Precision.SameDirection(pls1.Normal, pls2.Normal, false))
-                    {
-                        uv1 = domain1.GetCenter();
-                        uv2 = pls2.PositionOf(pls1.PointAt(uv1));
-                        return true;
-                    }
-                }
-                if (surface2 is ICylinder cyl)
-                {
-                    if (Precision.IsPerpendicular(pls1.Normal, cyl.Axis.Direction, false))
-                    {
-                        GeoPoint2D axloc = pls1.PositionOf(cyl.Axis.Location);
-                        GeoVector2D axdir = pls1.PositionOf(cyl.Axis.Location + cyl.Axis.Direction) - axloc;
-                        GeoPoint2D p1 = axloc;
-                        GeoPoint2D p2 = axloc + axdir;
-                        if (p1.x > domain1.Left && Math.Abs(axdir.x) > Precision.eps)
-                        {
-                            double f = (p1.x - domain1.Left) / axdir.x;
-                            p1 = p1 - f * axdir;
-                        }
-                        else if (p2.x < domain1.Right && Math.Abs(axdir.x) > Precision.eps)
-                        {
-                            double f = (axloc.x - domain1.Right) / axdir.x;
-                            p2 = p2 - f * axdir;
-                        }
-                        if (p1.y > domain1.Bottom && Math.Abs(axdir.y) > Precision.eps)
-                        {
-                            double f = (p1.y - domain1.Bottom) / axdir.y;
-                            p1 = p1 - f * axdir;
-                        }
-                        else if (p2.y < domain1.Top && Math.Abs(axdir.y) > Precision.eps)
-                        {
-                            double f = (axloc.y - domain1.Top) / axdir.y;
-                            p2 = p2 - f * axdir;
-                        }
-                        ClipRect clr = new ClipRect(domain1);
-                        if (clr.ClipLine(ref p1, ref p2))
-                        {
-                            GeoPoint2D pm = new GeoPoint2D(p1, p2);
-                            GeoPoint2D[] ips = surface2.GetLineIntersection(pls1.PointAt(pm), pls1.Normal);
-                            for (int i = 0; i < ips.Length; i++)
-                            {
-                                SurfaceHelper.AdjustPeriodic(surface2, domain2, ref ips[i]);
-                                if (domain2.Contains(ips[i]))
-                                {
-                                    uv1 = pm;
-                                    uv2 = ips[i];
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            else if (surface2 is PlaneSurface pls2) return ParallelDistance(surface2, domain2, surface1, domain1, out uv2, out uv1);
-            uv1 = GeoPoint2D.Invalid;
-            uv2 = GeoPoint2D.Invalid;
-            return false;
         }
     }
     internal class FindTangentCurves
@@ -14726,7 +14650,7 @@ namespace CADability.GeoObject
             yield return srf.FixedV(ext.Top, ext.Left, ext.Right);
 
         }
-        internal static void AdjustPeriodic(double uperiod, double vperiod, ref GeoPoint2D p)
+        public static void AdjustPeriodic(double uperiod, double vperiod, ref GeoPoint2D p)
         {
             if (uperiod > 0.0)
             {
@@ -14891,7 +14815,7 @@ namespace CADability.GeoObject
                 }
             }
         }
-        internal static void AdjustPeriodic(ISurface surface, BoundingRect bounds, ref GeoPoint2D p2d)
+        public static void AdjustPeriodic(ISurface surface, BoundingRect bounds, ref GeoPoint2D p2d)
         {
             if (surface.IsUPeriodic || surface.IsVPeriodic)
             {
@@ -14992,7 +14916,7 @@ namespace CADability.GeoObject
         public static GeoPoint2D[] GetExtrema(ISurface surface, BoundingRect domain, GeoVector dir)
         {
             ISurface srf = surface.Clone();
-            if (!Precision.SameDirection(dir,GeoVector.ZAxis,false))
+            if (!Precision.SameDirection(dir, GeoVector.ZAxis, false))
             {   // modify the surface, so that dir is the z-axis
                 srf.Modify(ModOp.Rotate(GeoPoint.Origin, dir, GeoVector.ZAxis));
             }
