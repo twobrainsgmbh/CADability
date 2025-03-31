@@ -85,11 +85,13 @@ namespace ShapeIt
             feedback = new Feedback();
             feedback.Attach(cadFrame.ActiveView);
             FeedbackArrow.SetNumberFormat(cadFrame);
+            ViewsChanged(cadFrame); // first initialisation
         }
 
         private void SelectedObjectListChanged(SelectObjectsAction sender, GeoObjectList selectedObjects)
         {
-            Clear(); // the user is in "old" selection mode and has changed the selction. Clear all selections in modelling mode
+            // the user is in "old" selection mode and has changed the selction. Clear all selections in modelling mode
+            if (!cadFrame.ControlCenter.GetPropertyPage("Modelling").IsOnTop()) Clear(); 
             return; // do we need this at all? selection here happens with filter mouse messages, this makes things complicated
 
         }

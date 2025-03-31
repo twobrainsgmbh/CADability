@@ -88,6 +88,26 @@ namespace ShapeIt
             }
 
             lastSaved = DateTime.Now;
+            AppDomain.CurrentDomain.UnhandledException += (sender, exobj) =>
+            {
+                // exobj.ExceptionObject as Exception;
+                try
+                {
+                    string path = Path.GetTempPath();
+                    path = Path.Combine(path, "ShapeIt");
+                    DirectoryInfo dirInfo = Directory.CreateDirectory(path);
+                    string currentFileName = CadFrame.Project.FileName;
+                    if (string.IsNullOrEmpty(CadFrame.Project.FileName)) path = Path.Combine(path, "crash_"+ DateTime.Now.ToString("yyMMddHHmm")+".cdb.json");
+                    else
+                    {
+                        string crashFileName = Path.GetFileNameWithoutExtension(CadFrame.Project.FileName);
+                        if (crashFileName.EndsWith(".cdb")) crashFileName = Path.GetFileNameWithoutExtension(crashFileName); // we usually have two extensions: .cdb.json
+                        path = Path.Combine(path, crashFileName + "_X.cdb.json");
+                    }
+                    CadFrame.Project.WriteToFile(path);
+                }
+                catch (Exception ) { };
+            };
             // the following installs the property page for modelling. This connects all modelling
             // tasks of ShapeIt with CADability
             IPropertyPage modellingPropPage = CadFrame.ControlCenter.AddPropertyPage("Modelling", 6);
