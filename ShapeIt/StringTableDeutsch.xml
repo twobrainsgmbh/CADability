@@ -13,5 +13,9 @@
 		<label>Liste der Flächen ({0})</label>
 		<info>Liste der angesammelten Flächen</info>
 	</data>
-	
+	<data name="MenuId.GeneralModifications">
+		<label>Allgmeine Änderungen für dieses Objekt</label>
+		<info>Verschieben, drehen, skalieren, spiegeln, kopieren oder löschen</info>
+	</data>
+
 </root>

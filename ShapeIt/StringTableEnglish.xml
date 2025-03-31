@@ -13,6 +13,10 @@
 		<label>List of faces ({0})</label>
 		<info>List of already accumulated faces</info>
 	</data>
+	<data name="MenuId.GeneralModifications">
+		<label>General modifications of this object</label>
+		<info>Move, rotate, reflect, scale, copy or delete this object</info>
+	</data>
 	<!-- 
 	-->
 </root>

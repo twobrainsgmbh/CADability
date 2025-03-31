@@ -91,7 +91,7 @@ namespace ShapeIt
         private void SelectedObjectListChanged(SelectObjectsAction sender, GeoObjectList selectedObjects)
         {
             // the user is in "old" selection mode and has changed the selction. Clear all selections in modelling mode
-            if (!cadFrame.ControlCenter.GetPropertyPage("Modelling").IsOnTop()) Clear(); 
+            if (!cadFrame.ControlCenter.GetPropertyPage("Modelling").IsOnTop()) Clear();
             return; // do we need this at all? selection here happens with filter mouse messages, this makes things complicated
 
         }
@@ -617,7 +617,7 @@ namespace ShapeIt
             };
             if ((curve as IGeoObject).Owner is Model)
             {
-                lmh.Add(ShowInSelectionTab(curve as IGeoObject));
+                lmh.Add(ModifyMenu(curve as IGeoObject));
             }
             if (curve.IsClosed && curve.GetPlanarState() == PlanarState.Planar)
             {
@@ -671,27 +671,10 @@ namespace ShapeIt
             }
         }
 
-        private IPropertyEntry ShowInSelectionTab(IGeoObject go)
+        private IPropertyEntry ModifyMenu(IGeoObject go)
         {
-            DirectMenuEntry showSelected = new DirectMenuEntry("MenuId.ShowSelected");
-            showSelected.ExecuteMenu = (frame) =>
-            {   // show this object in the selection tab of the ControlCenter
-                feedback.Clear();
-                feedback.Refresh();
-                selectionTabForced = true;
-                selectAction.SetSelectedObjects(new GeoObjectList(go));
-                subEntries.Clear();
-                IPropertyPage pp = propertyPage;
-                if (pp != null)
-                {
-                    // pp.Refresh(this); // doesn't do the job, so we must remove and add
-                    pp.Remove(this); // to reflect this newly composed entry
-                    pp.Add(this, true);
-                }
-                selectionTabForced = false;
-                return true;
-            };
-            showSelected.IsSelected = (selected, frame) =>
+            SelectEntry modifyMenu = new SelectEntry("MenuId.GeneralModifications");
+            modifyMenu.IsSelected = (selected, frame) =>
             {
                 feedback.Clear();
                 if (selected)
@@ -701,7 +684,49 @@ namespace ShapeIt
                 feedback.Refresh();
                 return true;
             };
-            return showSelected;
+            MenuWithHandler move = new MenuWithHandler("MenuId.Object.Move");
+            move.OnCommand = (e) =>
+            {
+                Clear();
+                cadFrame.SetAction(new MoveObjects(new GeoObjectList(go)));
+                return true;
+            };
+            MenuWithHandler rotate = new MenuWithHandler("MenuId.Object.Rotate");
+            rotate.OnCommand = (e) =>
+            {
+                Clear();
+                cadFrame.SetAction(new RotateObjects(new GeoObjectList(go)));
+                return true;
+            };
+            MenuWithHandler scale = new MenuWithHandler("MenuId.Object.Scale");
+            scale.OnCommand = (e) =>
+            {
+                Clear();
+                cadFrame.SetAction(new ScaleObjects(new GeoObjectList(go)));
+                return true;
+            };
+            MenuWithHandler reflect = new MenuWithHandler("MenuId.Object.Reflect");
+            reflect.OnCommand = (e) =>
+            {
+                Clear();
+                cadFrame.SetAction(new ReflectObjects(new GeoObjectList(go)));
+                return true;
+            };
+            MenuWithHandler copy = new MenuWithHandler("MenuId.Edit.Copy");
+            copy.OnCommand = (e) =>
+            {
+                cadFrame.UIService.SetClipboardData(new GeoObjectList(go), true);
+                return true;
+            };
+            MenuWithHandler delete = new MenuWithHandler("MenuId.Edit.Copy");
+            delete.OnCommand = (e) =>
+            {
+                cadFrame.ActiveView.Model.Remove(new GeoObjectList(go));
+                Clear();
+                return true;
+            };
+            modifyMenu.Menu = new MenuWithHandler[] { move, rotate, scale, reflect, MenuWithHandler.Separator, copy, delete };
+            return modifyMenu;
         }
 
         private void AddMakePath(IView vw, List<ICurve> curves)
@@ -745,7 +770,7 @@ namespace ShapeIt
             };
             if (sld.Owner is Model)
             {   // switch to selection tab and use "old" modification functions like move and delete
-                solidMenus.Add(ShowInSelectionTab(sld));
+                solidMenus.Add(ModifyMenu(sld));
             }
 
             if (fromFaces != null)

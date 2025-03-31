@@ -19,7 +19,15 @@ namespace ShapeIt
         /// <summary>
         /// Marks this entry as selectable and having a directMenu button and behaviour
         /// </summary>
-        public override PropertyEntryType Flags => flags;
+        public override PropertyEntryType Flags
+        {
+            get 
+            {
+                if (Menu != null) return flags | PropertyEntryType.ContextMenu;
+                else return flags;
+            }
+        }
+        public MenuWithHandler[] Menu { private get; set; }
         public SelectEntry(string resourceId, bool hasSubEntries = false) : base(resourceId)
         {
             if (hasSubEntries) flags = PropertyEntryType.Selectable | PropertyEntryType.GroupTitle | PropertyEntryType.HasSubEntries;
@@ -47,6 +55,7 @@ namespace ShapeIt
             IsSelected(false, Frame);
             base.UnSelected(nowSelected);
         }
+        public override MenuWithHandler[] ContextMenu => Menu;
     }
     /// <summary>
     /// A simple line in the property grid of a property page. It shows the text of the resourceId which can be overwritten
