@@ -21,12 +21,43 @@ namespace ShapeIt
 {
     public partial class MainForm : CadForm
     {
+        private PictureBox logoBox;
         private ModellingPropertyEntries modellingPropertyEntries;
         private DateTime lastSaved; // time, when the current file has been saved the last time, see OnIdle
         private bool modifiedSinceLastAutosave = false;
         bool projectionChanged = false; // to handle projection changes in OnIdle
+        private void ShowLogo()
+        {
+            // Create PictureBox 
+            logoBox = new PictureBox();
+            logoBox.Image = Properties.Resources.Logo;
+            logoBox.SizeMode = PictureBoxSizeMode.AutoSize;
+
+            // Center PictureBox
+            logoBox.Location = new Point(
+                (this.ClientSize.Width - logoBox.Width) / 2,
+                Math.Max(0,(this.ClientSize.Height - logoBox.Height) / 2));
+
+            // Add Logo
+            this.Controls.Add(logoBox);
+            logoBox.BringToFront();
+            // Timer
+            var timer = new Timer();
+            timer.Interval = 4000; // 2 Sekunden
+            timer.Tick += (s, e) =>
+            {
+                timer.Stop();
+                // logoBox.Visible = false;
+                Controls.Remove(logoBox);
+            };
+            timer.Start();
+        }
         public MainForm(string[] args) : base(args)
         {   // interpret the command line arguments as a name of a file, which should be opened
+
+            //InitializeComponent();
+            ShowLogo();
+
             string fileName = "";
             for (int i = 0; i < args.Length; i++)
             {

@@ -150,5 +150,8 @@
     <EmbeddedResource Include="StringTableDeutsch.xml" />
     <EmbeddedResource Include="StringTableEnglish.xml" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Logo.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

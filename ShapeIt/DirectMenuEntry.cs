@@ -1,4 +1,5 @@
 ﻿using CADability;
+using CADability.Substitutes;
 using CADability.UserInterface;
 using System;
 using System.Collections.Generic;
@@ -8,12 +9,22 @@ using System.Threading.Tasks;
 
 namespace ShapeIt
 {
+    internal interface IHandleKey
+    {
+        /// <summary>
+        /// Handle the 
+        /// </summary>
+        /// <param name="keyEvent"></param>
+        /// <returns></returns>
+        bool HandleKeyCommand(KeyEventArgs keyEvent);
+        bool SelectOnThisKeyStroke(KeyEventArgs keyEvent);
+    }
     /// <summary>
     /// A simple line in the property grid of a property page. It shows the text of the resourceId which can be overwritten
     /// by setting the LabelText property. When selected or unselected <see cref="IsSelected"/> is beeing called, where you can
     /// give feedback in the current View. 
     /// </summary>
-    internal class SelectEntry : SimplePropertyGroup
+    internal class SelectEntry : SimplePropertyGroup, IHandleKey
     {
         private PropertyEntryType flags;
         /// <summary>
@@ -21,7 +32,7 @@ namespace ShapeIt
         /// </summary>
         public override PropertyEntryType Flags
         {
-            get 
+            get
             {
                 if (Menu != null) return flags | PropertyEntryType.ContextMenu;
                 else return flags;
@@ -55,6 +66,25 @@ namespace ShapeIt
             IsSelected(false, Frame);
             base.UnSelected(nowSelected);
         }
+        public Func<Keys, bool> TestShortcut { get; set; } = (key) => false;
+
+        public virtual bool HandleKeyCommand(KeyEventArgs keyEvent)
+        {
+            return TestShortcut(keyEvent.KeyCode);
+        }
+        /// <summary>
+        /// Simply check the first character of the Label Text
+        /// </summary>
+        /// <param name="keyEvent"></param>
+        /// <returns></returns>
+        public virtual bool SelectOnThisKeyStroke(KeyEventArgs keyEvent)
+        {
+            if (!string.IsNullOrEmpty(LabelText) 
+                && ((int)keyEvent.KeyData == (int)LabelText[0] || (int)keyEvent.KeyData == (int)LabelText.ToUpper()[0]))
+                return true;
+            else return false;
+        }
+
         public override MenuWithHandler[] ContextMenu => Menu;
     }
     /// <summary>

@@ -82,10 +82,23 @@ namespace ShapeIt
             modelligIsActive = true;
             selectionTabForced = false;
 
+            cadFrame.ProcessContextMenuEvent += ProcessContextMenu;
+
             feedback = new Feedback();
             feedback.Attach(cadFrame.ActiveView);
             FeedbackArrow.SetNumberFormat(cadFrame);
             ViewsChanged(cadFrame); // first initialisation
+        }
+
+        private void ProcessContextMenu(ICommandHandler target, string MenuId, ref bool Processed)
+        {
+            if (MenuId == "MenuId.Object.Delete")
+            {
+                if (propertyPage.GetCurrentSelection() is IHandleKey handleKey)
+                {    // so we don't have to implement it twice
+                    if (handleKey.HandleKeyCommand(new KeyEventArgs(Keys.Delete))) Processed = true;
+                }
+            }
         }
 
         private void SelectedObjectListChanged(SelectObjectsAction sender, GeoObjectList selectedObjects)
@@ -149,8 +162,8 @@ namespace ShapeIt
                     ComposeModellingEntries(objectsUnderCursor, vw, pickArea);
                     IsOpen = true;
                     Refresh();
-                    handled = true;
                 }
+                handled = true;
             }
         }
         private void StopAccumulating()
@@ -213,6 +226,16 @@ namespace ShapeIt
             feedback.Clear();
             cadFrame.ActiveView.Invalidate(PaintBuffer.DrawingAspect.Select, cadFrame.ActiveView.DisplayRectangle);
             base.Selected(previousSelected);
+        }
+        public override void Added(IPropertyPage pp)
+        {
+            pp.OnPreProcessKeyDown += OnPreProcessKeyDown;
+            base.Added(pp);
+        }
+        public override void Removed(IPropertyPage pp)
+        {
+            pp.OnPreProcessKeyDown -= OnPreProcessKeyDown;
+            base.Removed(pp);
         }
         #endregion
         private GeoObjectList GetObjectsUnderCursor(System.Drawing.Point mousePoint, IView vw, out Projection.PickArea pickArea)
@@ -684,6 +707,17 @@ namespace ShapeIt
                 feedback.Refresh();
                 return true;
             };
+            modifyMenu.TestShortcut = (key) =>
+            {   // directly delete the selected object
+                if (key == Keys.Delete)
+                {
+                    cadFrame.ActiveView.Model.Remove(new GeoObjectList(go));
+                    Clear();
+                    return true;
+                }
+                return false;
+            };
+
             MenuWithHandler move = new MenuWithHandler("MenuId.Object.Move");
             move.OnCommand = (e) =>
             {
@@ -718,7 +752,7 @@ namespace ShapeIt
                 cadFrame.UIService.SetClipboardData(new GeoObjectList(go), true);
                 return true;
             };
-            MenuWithHandler delete = new MenuWithHandler("MenuId.Edit.Copy");
+            MenuWithHandler delete = new MenuWithHandler("MenuId.Object.Delete");
             delete.OnCommand = (e) =>
             {
                 cadFrame.ActiveView.Model.Remove(new GeoObjectList(go));
@@ -771,6 +805,17 @@ namespace ShapeIt
             if (sld.Owner is Model)
             {   // switch to selection tab and use "old" modification functions like move and delete
                 solidMenus.Add(ModifyMenu(sld));
+                // here we process the delete key!
+                solidMenus.TestShortcut = (key) =>
+                {
+                    if (key == Keys.Delete)
+                    {
+                        cadFrame.ActiveView.Model.Remove(new GeoObjectList(sld));
+                        Clear();
+                        return true;
+                    }
+                    return false; 
+                };
             }
 
             if (fromFaces != null)
@@ -1116,12 +1161,12 @@ namespace ShapeIt
             {
                 // check whether we can mate
                 Model model = owningShell.Owner as Model;
-                if (model==null) model = (owningShell.Owner as Solid).Owner as Model;
+                if (model == null) model = (owningShell.Owner as Solid).Owner as Model;
                 bool canMate = false;
                 foreach (IGeoObject geoObject in model)
                 {
-                    if (geoObject is Solid && geoObject!=owningShell.Owner) canMate = true;
-                    if (geoObject is Shell && geoObject!=owningShell) canMate = true;
+                    if (geoObject is Solid && geoObject != owningShell.Owner) canMate = true;
+                    if (geoObject is Shell && geoObject != owningShell) canMate = true;
                     if (canMate) break;
                 }
                 if (canMate)
@@ -1881,6 +1926,16 @@ namespace ShapeIt
                 }
             }
         }
-
+        /// <summary>
+        /// Handle keystrokes forwarded from propertyPage
+        /// </summary>
+        /// <param name="keyEventArgs"></param>
+        private void OnPreProcessKeyDown(KeyEventArgs keyEventArgs)
+        {
+            if (propertyPage.GetCurrentSelection() is IHandleKey handleKey)
+            {
+                if (handleKey.HandleKeyCommand(keyEventArgs)) keyEventArgs.SuppressKeyPress = true;
+            }
+        }
     }
 }

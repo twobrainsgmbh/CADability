@@ -266,6 +266,7 @@ namespace CADability.UserInterface
         /// <returns></returns>
         string GetErrorText();
     }
+    public delegate void PreProcessKeyDown(KeyEventArgs keyEventArgs);
     public interface IPropertyPage
     {
         void BringToFront();
@@ -289,6 +290,7 @@ namespace CADability.UserInterface
         #endregion
         bool ContainsEntry(IPropertyEntry entryWithTextBox);
         bool IsOnTop();
+        event PreProcessKeyDown OnPreProcessKeyDown;
     }
 
     public interface IUIService

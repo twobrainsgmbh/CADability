@@ -32,6 +32,8 @@ namespace CADability.Forms
         private Timer delay;
         private PropertiesExplorer propertiesExplorer;
 
+        public event PreProcessKeyDown OnPreProcessKeyDown;
+
         public PropertyPage(string titleId, int iconId, PropertiesExplorer propExplorer)
         {
             TitleId = titleId;
@@ -967,6 +969,11 @@ namespace CADability.Forms
                 entries[i].Removed(this);
             }
             base.Dispose(disposing);
+        }
+
+        internal void PreProcessKeyDown(Substitutes.KeyEventArgs e)
+        {
+            OnPreProcessKeyDown?.Invoke(e);
         }
     }
 }

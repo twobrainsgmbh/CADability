@@ -502,6 +502,10 @@ namespace CADability.Forms
                     e.Handled = SelectNextEntry(false);
                     break;
             }
+            if (!e.SuppressKeyPress)
+            {
+                (ActivePropertyPage as PropertyPage).PreProcessKeyDown(e);
+            }
         }
         public void HideEntry(string entryId, bool hide)
         {
