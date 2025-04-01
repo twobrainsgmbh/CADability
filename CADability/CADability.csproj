@@ -8,6 +8,7 @@
     <AssemblyOriginatorKeyFile>CADabilityKey.snk</AssemblyOriginatorKeyFile>
     <AssemblyName>CADability</AssemblyName>
     <Platforms>AnyCPU;x64</Platforms>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
