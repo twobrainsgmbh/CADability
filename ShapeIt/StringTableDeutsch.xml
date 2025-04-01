@@ -17,5 +17,18 @@
 		<label>Allgmeine Änderungen für dieses Objekt</label>
 		<info>Verschieben, drehen, skalieren, spiegeln, kopieren oder löschen</info>
 	</data>
-
+	<data name="Mate.Mode">
+		<label>Orientierung</label>
+		<info>Von innen oder außen andocken</info>
+	</data>
+	<data name="Mate.Mode.Values">
+		<label>|von innen|von außen</label>
+	</data>
+	<data name="Mate.Target">
+		<label>Zielfläche</label>
+		<info>Fläche, an die angedockt werden soll</info>
+	</data>
+	<data name="Construct.MateFaces">
+		<label>Andocken</label>
+	</data>
 </root>

@@ -17,6 +17,21 @@
 		<label>General modifications of this object</label>
 		<info>Move, rotate, reflect, scale, copy or delete this object</info>
 	</data>
+	<data name="Mate.Mode">
+		<label>Orientation</label>
+		<info>Mate from inside or outside</info>
+	</data>
+	<data name="Mate.Mode.Values">
+		<label>|from inside|from outside</label>
+	</data>
+	<data name="Mate.Target">
+		<label>Target face</label>
+		<info>Face onto which will be mated</info>
+	</data>
+	<data name="Construct.MateFaces">
+		<label>Mating</label>
+	</data>
+
 	<!-- 
 	-->
 </root>

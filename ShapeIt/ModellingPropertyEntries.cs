@@ -780,6 +780,23 @@ namespace ShapeIt
                     solidMenus.Add(AddExtensionProperties(fc, lastPickArea, vw).ToArray());
                 }
             }
+            // Split by plane is always possible
+            DirectMenuEntry splitByPlane = new DirectMenuEntry("MenuId.Solid.SplitByPlane");
+            splitByPlane.ExecuteMenu = (frame) =>
+            {
+                cadFrame.SetAction(new SplitSolidByPlane(sld));
+                this.Clear();
+                return true;
+            };
+            splitByPlane.IsSelected = (selected, frame) =>
+            {
+                feedback.Clear();
+                if (selected) feedback.ShadowFaces.Add(sld);
+                feedback.Refresh();
+                return true;
+            };
+            solidMenus.Add(splitByPlane);
+
             Model owner = sld.Owner as Model;
             if (owner != null)
             {
@@ -1091,11 +1108,44 @@ namespace ShapeIt
             };
             faceEntries.Add(selectMoreFaces);
 
+
             // add more menus for faces with specific surfaces
             faceEntries.Add(GetSurfaceSpecificSubmenus(fc, vw, touchingPoint).ToArray());
 
             if (fc.Owner is Shell owningShell)
             {
+                // check whether we can mate
+                Model model = owningShell.Owner as Model;
+                if (model==null) model = (owningShell.Owner as Solid).Owner as Model;
+                bool canMate = false;
+                foreach (IGeoObject geoObject in model)
+                {
+                    if (geoObject is Solid && geoObject!=owningShell.Owner) canMate = true;
+                    if (geoObject is Shell && geoObject!=owningShell) canMate = true;
+                    if (canMate) break;
+                }
+                if (canMate)
+                {
+                    DirectMenuEntry mate = new DirectMenuEntry("MenuId.Mate");
+                    mate.ExecuteMenu = (frame) =>
+                    {
+                        MateFacesAction po = new MateFacesAction(fc);
+                        cadFrame.SetAction(po);
+                        return true;
+                    };
+                    mate.IsSelected = (selected, frame) =>
+                    {
+                        feedback.Clear();
+                        if (selected)
+                        {
+                            feedback.FrontFaces.Add(fc);
+                        }
+                        feedback.Refresh();
+                        return true;
+                    };
+                    faceEntries.Add(mate);
+                }
+
                 // can we find a thickness or gauge in the shell?
                 double thickness = owningShell.GetGauge(fc, out HashSet<Face> frontSide, out HashSet<Face> backSide);
                 if (thickness != double.MaxValue && thickness > 0.0 && frontSide.Count > 0)
@@ -1116,7 +1166,7 @@ namespace ShapeIt
                             feedback.FrontFaces.AddRange(backSide.ToArray());
                             feedback.Arrows.AddRange(FeedbackArrow.MakeLengthArrow(owningShell, fc, backSide.First(), fc, fc.Surface.GetNormal(fc.Surface.PositionOf(touchingPoint)), touchingPoint, vw, FeedbackArrow.ArrowFlags.secondRed));
                         }
-                        vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                        feedback.Refresh();
                         return true;
                     };
                     faceEntries.Add(gauge);
