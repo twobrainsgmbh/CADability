@@ -4099,6 +4099,23 @@ references:
   isSpec: "True"
   fullName: CADability.Forms.PropertyPage.Add
   nameWithType: PropertyPage.Add
+- uid: CADability.Forms.PropertyPage.CADability#UserInterface#IPropertyPage#BringToFront
+  name: IPropertyPage.BringToFront()
+  href: api/CADability.Forms.PropertyPage.html#CADability_Forms_PropertyPage_CADability_UserInterface_IPropertyPage_BringToFront
+  commentId: M:CADability.Forms.PropertyPage.CADability#UserInterface#IPropertyPage#BringToFront
+  name.vb: CADability.UserInterface.IPropertyPage.BringToFront()
+  fullName: CADability.Forms.PropertyPage.CADability.UserInterface.IPropertyPage.BringToFront()
+  nameWithType: PropertyPage.IPropertyPage.BringToFront()
+  nameWithType.vb: PropertyPage.CADability.UserInterface.IPropertyPage.BringToFront()
+- uid: CADability.Forms.PropertyPage.CADability#UserInterface#IPropertyPage#BringToFront*
+  name: IPropertyPage.BringToFront
+  href: api/CADability.Forms.PropertyPage.html#CADability_Forms_PropertyPage_CADability_UserInterface_IPropertyPage_BringToFront_
+  commentId: Overload:CADability.Forms.PropertyPage.CADability#UserInterface#IPropertyPage#BringToFront
+  isSpec: "True"
+  name.vb: CADability.UserInterface.IPropertyPage.BringToFront
+  fullName: CADability.Forms.PropertyPage.CADability.UserInterface.IPropertyPage.BringToFront
+  nameWithType: PropertyPage.IPropertyPage.BringToFront
+  nameWithType.vb: PropertyPage.CADability.UserInterface.IPropertyPage.BringToFront
 - uid: CADability.Forms.PropertyPage.CADability#UserInterface#IPropertyPage#Selected
   name: IPropertyPage.Selected
   href: api/CADability.Forms.PropertyPage.html#CADability_Forms_PropertyPage_CADability_UserInterface_IPropertyPage_Selected
@@ -4298,6 +4315,19 @@ references:
   isSpec: "True"
   fullName: CADability.Forms.PropertyPage.OnMouseClick
   nameWithType: PropertyPage.OnMouseClick
+- uid: CADability.Forms.PropertyPage.OnMouseDoubleClick(System.Windows.Forms.MouseEventArgs)
+  name: OnMouseDoubleClick(MouseEventArgs)
+  href: api/CADability.Forms.PropertyPage.html#CADability_Forms_PropertyPage_OnMouseDoubleClick_System_Windows_Forms_MouseEventArgs_
+  commentId: M:CADability.Forms.PropertyPage.OnMouseDoubleClick(System.Windows.Forms.MouseEventArgs)
+  fullName: CADability.Forms.PropertyPage.OnMouseDoubleClick(System.Windows.Forms.MouseEventArgs)
+  nameWithType: PropertyPage.OnMouseDoubleClick(MouseEventArgs)
+- uid: CADability.Forms.PropertyPage.OnMouseDoubleClick*
+  name: OnMouseDoubleClick
+  href: api/CADability.Forms.PropertyPage.html#CADability_Forms_PropertyPage_OnMouseDoubleClick_
+  commentId: Overload:CADability.Forms.PropertyPage.OnMouseDoubleClick
+  isSpec: "True"
+  fullName: CADability.Forms.PropertyPage.OnMouseDoubleClick
+  nameWithType: PropertyPage.OnMouseDoubleClick
 - uid: CADability.Forms.PropertyPage.OnMouseDown(System.Windows.Forms.MouseEventArgs)
   name: OnMouseDown(MouseEventArgs)
   href: api/CADability.Forms.PropertyPage.html#CADability_Forms_PropertyPage_OnMouseDown_System_Windows_Forms_MouseEventArgs_
@@ -4350,6 +4380,12 @@ references:
   isSpec: "True"
   fullName: CADability.Forms.PropertyPage.OnPaint
   nameWithType: PropertyPage.OnPaint
+- uid: CADability.Forms.PropertyPage.OnPreProcessKeyDown
+  name: OnPreProcessKeyDown
+  href: api/CADability.Forms.PropertyPage.html#CADability_Forms_PropertyPage_OnPreProcessKeyDown
+  commentId: E:CADability.Forms.PropertyPage.OnPreProcessKeyDown
+  fullName: CADability.Forms.PropertyPage.OnPreProcessKeyDown
+  nameWithType: PropertyPage.OnPreProcessKeyDown
 - uid: CADability.Forms.PropertyPage.OnSizeChanged(System.EventArgs)
   name: OnSizeChanged(EventArgs)
   href: api/CADability.Forms.PropertyPage.html#CADability_Forms_PropertyPage_OnSizeChanged_System_EventArgs_

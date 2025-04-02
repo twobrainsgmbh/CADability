@@ -65,6 +65,11 @@ namespace ShapeIt
         private bool selectionTabForced;
         private Feedback feedback;
         private PickArea lastPickArea; // for ComposeModellingEntries to avoid passing it to all methods
+        private System.Drawing.Point mouseDownPosition; // to check whether the user is dragging a selection rectangle
+        private int dragWidth = 5; // Delta to to check for start dragging the selection rectangle
+        private System.Drawing.Point mouseCurrentPosition; // when dragging a selection rectangle, the second point
+        private bool isDragging = false; // the user is dragging a selection rectangle
+
         public ModellingPropertyEntries(IFrame cadFrame) : base("Modelling.Properties")
         {
             this.cadFrame = cadFrame;
@@ -154,16 +159,54 @@ namespace ShapeIt
         {
             if (modelligIsActive && cadFrame.ControlCenter.GetPropertyPage("Modelling").IsOnTop())
             {
-                // TODO: other mouse activities: cursor, drag rect etc.
-                if (mouseAction == SelectObjectsAction.MouseAction.MouseUp && e.Button == CADability.Substitutes.MouseButtons.Left)
+                if (mouseAction == SelectObjectsAction.MouseAction.MouseDown && e.Button == CADability.Substitutes.MouseButtons.Left)
                 {
+                    mouseDownPosition = e.Location;
+                }
+                else if (mouseAction == SelectObjectsAction.MouseAction.MouseMove && e.Button == CADability.Substitutes.MouseButtons.Left)
+                {
+                    if (isDragging)
+                    {
+                        vw.SetCursor("SmallMove");
+                        mouseCurrentPosition = e.Location;
+                        feedback.selectionRectangle = Rectangle.FromLTRB(Math.Min(mouseCurrentPosition.X, mouseDownPosition.X),
+                            Math.Min(mouseCurrentPosition.Y, mouseDownPosition.Y),
+                            Math.Max(mouseCurrentPosition.X, mouseDownPosition.X),
+                            Math.Max(mouseCurrentPosition.Y, mouseDownPosition.Y));
+                        feedback.Refresh();
+                    }
+                    else
+                    {
+                        // get the cursor from the current mouse position
+                        vw.SetCursor("Arrow"); // TODO: change to CursorFromMousePosition (depending on edge, face)
+                    }
+                    // left button is pressed and the mouse is moving. Check the distance to the last mouseDownPosition to switch on
+                    // dragging mode
+                    if (Math.Abs(e.X - mouseDownPosition.X) > dragWidth || Math.Abs(e.Y - mouseDownPosition.Y) > dragWidth)
+                    {
+                        isDragging = true;
+                        vw.SetCursor("SmallMove");
+                    }
+                }
+                else if (mouseAction == SelectObjectsAction.MouseAction.MouseMove && e.Button == CADability.Substitutes.MouseButtons.None)
+                {
+                    vw.SetCursor("Arrow"); // TODO: change to CursorFromMousePosition (depending on edge, face)
+                }
+                else if (mouseAction == SelectObjectsAction.MouseAction.MouseUp && e.Button == CADability.Substitutes.MouseButtons.Left)
+                {
+                    if (isDragging)
+                    {
+                        feedback.selectionRectangle = Rectangle.Empty;
+                        feedback.Refresh();
+                        isDragging = false;
+                    }
                     selectAction.SetSelectedObjects(new GeoObjectList());
                     GeoObjectList objectsUnderCursor = GetObjectsUnderCursor(e.Location, vw, out Projection.PickArea pickArea);
                     ComposeModellingEntries(objectsUnderCursor, vw, pickArea);
                     IsOpen = true;
                     Refresh();
-                    handled = true;
                 }
+                handled = true;
             }
         }
         private void StopAccumulating()
@@ -814,7 +857,7 @@ namespace ShapeIt
                         Clear();
                         return true;
                     }
-                    return false; 
+                    return false;
                 };
             }
 

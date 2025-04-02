@@ -18,6 +18,7 @@ namespace ShapeIt
         public GeoObjectList ShadowFaces = new GeoObjectList(); // List of faces, usually the result of an operation, displayed as a transparent overlay
         public GeoObjectList SelectedObjects = new GeoObjectList(); // List of selected objects to be displayed, when a entry is selected, displayed as brim
         public GeoObjectList Arrows = new GeoObjectList(); // List of highlighted objects to be displayed, when a entry is selected
+        public Rectangle selectionRectangle = Rectangle.Empty;
         private IPaintTo3DList frontFacesDisplayList = null;
         private IPaintTo3DList backFacesDisplayList = null;
         private IPaintTo3DList shadowFacesDisplayList = null;
@@ -159,6 +160,21 @@ namespace ShapeIt
             PaintToSelect.SelectMode = oldSelect;
             PaintToSelect.PaintSurfaceEdges = pse;
             PaintToSelect.PopState();
+
+            if (!selectionRectangle.IsEmpty)
+            {
+                Color bckgnd = view.Canvas.Frame.GetColorSetting("Colors.Background", Color.AliceBlue);
+                Color infocolor;
+                if (bckgnd.GetBrightness() > 0.5) infocolor = Color.Black;
+                else infocolor = Color.White;
+
+                PaintToSelect.SetColor(infocolor);
+                PaintToSelect.Line2D(selectionRectangle.Left, selectionRectangle.Bottom, selectionRectangle.Right, selectionRectangle.Bottom);
+                PaintToSelect.Line2D(selectionRectangle.Right, selectionRectangle.Bottom, selectionRectangle.Right, selectionRectangle.Top);
+                PaintToSelect.Line2D(selectionRectangle.Right, selectionRectangle.Top, selectionRectangle.Left, selectionRectangle.Top);
+                PaintToSelect.Line2D(selectionRectangle.Left, selectionRectangle.Top, selectionRectangle.Left, selectionRectangle.Bottom);
+
+            }
         }
     }
 }
