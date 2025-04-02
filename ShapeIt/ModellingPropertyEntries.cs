@@ -162,8 +162,8 @@ namespace ShapeIt
                     ComposeModellingEntries(objectsUnderCursor, vw, pickArea);
                     IsOpen = true;
                     Refresh();
+                    handled = true;
                 }
-                handled = true;
             }
         }
         private void StopAccumulating()

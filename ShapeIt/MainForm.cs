@@ -16,6 +16,7 @@ using System.Runtime.InteropServices;
 using static ShapeIt.MainForm;
 using System.IO;
 using CADability.Actions;
+using System.Drawing.Imaging;
 
 namespace ShapeIt
 {
@@ -26,37 +27,107 @@ namespace ShapeIt
         private DateTime lastSaved; // time, when the current file has been saved the last time, see OnIdle
         private bool modifiedSinceLastAutosave = false;
         bool projectionChanged = false; // to handle projection changes in OnIdle
+
+        private Control FindControlByName(Control parent, string name)
+        {
+            foreach (Control child in parent.Controls)
+            {
+                if (child.Name == name)
+                    return child;
+
+                Control found = FindControlByName(child, name);
+                if (found != null)
+                    return found;
+            }
+
+            return null;
+        }
+
+        void FadeOutPictureBox(PictureBox pb)
+        {
+            var timer = new Timer();
+            timer.Interval = 50;
+            double alpha = 1.0;
+
+            Image original = pb.Image;
+            Bitmap faded = new Bitmap(original.Width, original.Height);
+
+            timer.Tick += (s, e) =>
+            {
+                alpha -= 0.01;
+                if (alpha <= 0)
+                {
+                    timer.Stop();
+                    pb.Parent.Controls.Remove(pb);
+                    //pb.Visible = false;
+                    pb.Dispose();
+                    return;
+                }
+
+                using (Graphics g = Graphics.FromImage(faded))
+                {
+                    g.Clear(Color.Transparent);
+                    ColorMatrix matrix = new ColorMatrix
+                    {
+                        Matrix33 = (float)alpha // Alpha-Kanal
+                    };
+                    ImageAttributes attributes = new ImageAttributes();
+                    attributes.SetColorMatrix(matrix, ColorMatrixFlag.Default, ColorAdjustType.Bitmap);
+
+                    g.DrawImage(original,
+                        new Rectangle(0, 0, faded.Width, faded.Height),
+                        0, 0, original.Width, original.Height,
+                        GraphicsUnit.Pixel,
+                        attributes);
+                }
+
+                pb.Image = (Image)faded.Clone(); // neues Bild setzen
+            };
+
+            timer.Start();
+        }
+
         private void ShowLogo()
         {
+            Control pex = FindControlByName(this, "propertiesExplorer");
             // Create PictureBox 
             logoBox = new PictureBox();
             logoBox.Image = Properties.Resources.Logo;
-            logoBox.SizeMode = PictureBoxSizeMode.AutoSize;
+            logoBox.SizeMode = PictureBoxSizeMode.Zoom;
 
-            // Center PictureBox
-            logoBox.Location = new Point(
-                (this.ClientSize.Width - logoBox.Width) / 2,
-                Math.Max(0,(this.ClientSize.Height - logoBox.Height) / 2));
+            double aspectRatio = (double)logoBox.Image.Height / logoBox.Image.Width;
 
-            // Add Logo
-            this.Controls.Add(logoBox);
+            // Zielbreite übernehmen
+            int targetWidth = pex.ClientSize.Width - 4;
+            int berechneteHoehe = (int)(targetWidth * aspectRatio);
+
+            // Größe setzen
+            logoBox.Size = new Size(targetWidth, berechneteHoehe);
+
+            // Position am unteren Rand
+            logoBox.Location = new Point(2, pex.ClientSize.Height - berechneteHoehe - 2);
+
+            // Logo zum Ziel-Control hinzufügen
+            pex.Controls.Add(logoBox);
             logoBox.BringToFront();
-            // Timer
-            var timer = new Timer();
-            timer.Interval = 4000; // 2 Sekunden
-            timer.Tick += (s, e) =>
+
+            FadeOutPictureBox(logoBox);
+
+            pex.Resize += (s, e) =>
             {
-                timer.Stop();
-                // logoBox.Visible = false;
-                Controls.Remove(logoBox);
+                int newWidth = pex.ClientSize.Width - 4;
+                int newHeight = (int)(newWidth * aspectRatio);
+                logoBox.Size = new Size(newWidth, newHeight);
+                logoBox.Location = new Point(2, pex.ClientSize.Height - newHeight - 2);
             };
-            timer.Start();
         }
         public MainForm(string[] args) : base(args)
         {   // interpret the command line arguments as a name of a file, which should be opened
 
             //InitializeComponent();
             ShowLogo();
+
+            this.Icon = Properties.Resources.Icon;
 
             string fileName = "";
             for (int i = 0; i < args.Length; i++)
@@ -128,7 +199,7 @@ namespace ShapeIt
                     path = Path.Combine(path, "ShapeIt");
                     DirectoryInfo dirInfo = Directory.CreateDirectory(path);
                     string currentFileName = CadFrame.Project.FileName;
-                    if (string.IsNullOrEmpty(CadFrame.Project.FileName)) path = Path.Combine(path, "crash_"+ DateTime.Now.ToString("yyMMddHHmm")+".cdb.json");
+                    if (string.IsNullOrEmpty(CadFrame.Project.FileName)) path = Path.Combine(path, "crash_" + DateTime.Now.ToString("yyMMddHHmm") + ".cdb.json");
                     else
                     {
                         string crashFileName = Path.GetFileNameWithoutExtension(CadFrame.Project.FileName);
@@ -137,7 +208,7 @@ namespace ShapeIt
                     }
                     CadFrame.Project.WriteToFile(path);
                 }
-                catch (Exception ) { };
+                catch (Exception) { };
             };
             // the following installs the property page for modelling. This connects all modelling
             // tasks of ShapeIt with CADability
