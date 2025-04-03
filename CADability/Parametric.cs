@@ -325,10 +325,10 @@ namespace CADability
                         if (!modifiedFaces.Contains(otherFace) && tangential)
                         {
                             tangentialEdgesModified[edge] = edge.Curve3D.CloneModified(rotate); // these edges play a role in calculating the new vertices
-                                                                                              // the edges will be recalculated in "Result()", but here we need the already modified curve for intersection purposes
+                                                                                                // the edges will be recalculated in "Result()", but here we need the already modified curve for intersection purposes
                             if (!otherFace.Surface.IsRotated(rotationAxis))
                             {
-                                if (nextLevel.ContainsKey(otherFace) && (nextLevel[otherFace]*rotate.GetInverse()).IsIdentity(Precision.eps))
+                                if (nextLevel.ContainsKey(otherFace) && (nextLevel[otherFace] * rotate.GetInverse()).IsIdentity(Precision.eps))
                                 {   // there are two different requirements to move this face. This face may not propagate its movement and must be modified
                                     // according to the constraints by the surrounding faces
                                     nextLevel.Remove(otherFace);
@@ -854,6 +854,7 @@ namespace CADability
                 foreach (Face face in involvedFaces)
                 {
                     face.ForceAreaRecalc();
+                    face.Modify(ModOp.Identity); // fir did change! we would need access to IGeoObject.FireDidChange here
                 }
                 foreach (Face face in involvedFaces)
                 {   // checks the topology of the bounds in 2d: no intersection or overlapping, holes inside the outline

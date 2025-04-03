@@ -65,10 +65,10 @@
     <AssemblyOriginatorKeyFile>ShapeIt.snk.pfx</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>6D82C49637637898C479C7DCD463A1EE06D470C4</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>2A93EE0FE1183D67BAA46A4B050A5CC0FE09A520</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>ShapeIt_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>ShapeIt_1_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <GenerateManifests>true</GenerateManifests>
@@ -132,6 +132,7 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
     <None Include="ShapeIt.snk.pfx" />
+    <None Include="ShapeIt_1_TemporaryKey.pfx" />
     <None Include="ShapeIt_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>

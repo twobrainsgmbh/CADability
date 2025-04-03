@@ -58,7 +58,11 @@ namespace CADability
         /// <summary>
         /// may return a face and a curve, but both are checked to be above other faces or curves. Used for modelling
         /// </summary>
-        singleFaceAndCurve
+        singleFaceAndCurve,
+        /// <summary>
+        /// return all faces and curves inside the pickarea
+        /// </summary>
+        multipleFacesAndCurves
     }
 
     /// <summary>
@@ -2292,6 +2296,33 @@ namespace CADability
                         else if (singleCurve != null)
                         {
                             res.Add(singleCurve as IGeoObject);
+                        }
+                        return res;
+                    }
+                case CADability.PickMode.multipleFacesAndCurves: // all faces and curves inside the pickarea
+                    {
+                        // TODO: we would need a visibility test here, maybe with a different mode "visibleFacesAndCurves"
+                        foreach (IGeoObject go in oct)
+                        {
+                            if (go.HitTest(area, true)) // only completely inside
+                            {
+                                if (go is Face fc)
+                                {
+                                    if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
+                                        (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer) || visibleLayers.Contains(go.Layer)))
+                                    {
+                                        res.Add(fc);
+                                    }
+                                }
+                                if (go is ICurve crv)
+                                {
+                                    if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
+                                        (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer) || visibleLayers.Contains(go.Layer)))
+                                    {
+                                        res.Add(go);
+                                    }
+                                }
+                            }
                         }
                         return res;
                     }

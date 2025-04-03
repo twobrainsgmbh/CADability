@@ -6784,6 +6784,7 @@ namespace CADability.GeoObject
                 Dictionary<ISurface, List<Face>> surfaces = new Dictionary<ISurface, List<Face>>();
                 foreach (Face fc in boundingFaces)
                 {
+                    if (fc == null) continue;
                     bool found = false;
                     foreach (KeyValuePair<ISurface, List<Face>> item in surfaces)
                     {

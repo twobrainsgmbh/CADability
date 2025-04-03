@@ -190,18 +190,31 @@ namespace ShapeIt
                 }
                 else if (mouseAction == SelectObjectsAction.MouseAction.MouseMove && e.Button == CADability.Substitutes.MouseButtons.None)
                 {
-                    vw.SetCursor("Arrow"); // TODO: change to CursorFromMousePosition (depending on edge, face)
+                    vw.SetCursor(GetCursor(e.Location, vw));
                 }
                 else if (mouseAction == SelectObjectsAction.MouseAction.MouseUp && e.Button == CADability.Substitutes.MouseButtons.Left)
                 {
+                    PickArea pickArea;
+                    bool multiple;
                     if (isDragging)
                     {
                         feedback.selectionRectangle = Rectangle.Empty;
                         feedback.Refresh();
                         isDragging = false;
+                        Rectangle winrect = new Rectangle(Math.Min(mouseDownPosition.X, e.Location.X), Math.Min(mouseDownPosition.Y, e.Location.Y),
+                            Math.Abs(mouseDownPosition.X - e.Location.X), Math.Abs(mouseDownPosition.Y - e.Location.Y));
+                        if (winrect.Width == 0) winrect.Inflate(1, 0);
+                        if (winrect.Height == 0) winrect.Inflate(0, 1);
+                        pickArea = vw.Projection.GetPickSpace(winrect);
+                        multiple = true;
                     }
-                    selectAction.SetSelectedObjects(new GeoObjectList());
-                    GeoObjectList objectsUnderCursor = GetObjectsUnderCursor(e.Location, vw, out Projection.PickArea pickArea);
+                    else
+                    {
+                        int pickRadius = selectAction.Frame.GetIntSetting("Select.PickRadius", 5);
+                        pickArea = vw.Projection.GetPickSpace(new Rectangle(e.Location.X - pickRadius, e.Location.Y - pickRadius, pickRadius * 2, pickRadius * 2));
+                        multiple = false;
+                    }
+                    GeoObjectList objectsUnderCursor = GetObjectsUnderCursor(e.Location, vw, pickArea, multiple);
                     ComposeModellingEntries(objectsUnderCursor, vw, pickArea);
                     IsOpen = true;
                     Refresh();
@@ -209,6 +222,7 @@ namespace ShapeIt
                 handled = true;
             }
         }
+
         private void StopAccumulating()
         {
             IGeoObject[] capturedOjbects = accumulatedObjects.ToArray(); // a list captured for the undo method
@@ -281,15 +295,24 @@ namespace ShapeIt
             base.Removed(pp);
         }
         #endregion
-        private GeoObjectList GetObjectsUnderCursor(System.Drawing.Point mousePoint, IView vw, out Projection.PickArea pickArea)
+        private GeoObjectList GetObjectsUnderCursor(System.Drawing.Point mousePoint, IView vw, PickArea pickArea, bool multiple)
         {
             GeoObjectList objectsUnderCursor = new GeoObjectList();
-            int pickRadius = selectAction.Frame.GetIntSetting("Select.PickRadius", 5);
-            pickArea = vw.Projection.GetPickSpace(new Rectangle(mousePoint.X - pickRadius, mousePoint.Y - pickRadius, pickRadius * 2, pickRadius * 2));
             IEnumerable<Layer> visiblaLayers = new List<Layer>();
             if (vw is ModelView mv) visiblaLayers = mv.GetVisibleLayers();
-            return vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(visiblaLayers), PickMode.singleFaceAndCurve, null); // returns all the faces or edges under the cursor
+            PickMode pm = multiple ? PickMode.multipleFacesAndCurves : PickMode.singleFaceAndCurve;
+            return vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(visiblaLayers), pm, null); // returns all the faces or edges under the cursor
         }
+        private string GetCursor(System.Drawing.Point location, IView vw)
+        {
+            int pickRadius = selectAction.Frame.GetIntSetting("Select.PickRadius", 5);
+            PickArea pickArea = vw.Projection.GetPickSpace(new Rectangle(location.X - pickRadius, location.Y - pickRadius, pickRadius * 2, pickRadius * 2));
+            IEnumerable<Layer> visiblaLayers = new List<Layer>();
+            if (vw is ModelView mv) visiblaLayers = mv.GetVisibleLayers();
+            if (vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(visiblaLayers), PickMode.singleFaceAndCurve, null).Count > 0) return "Hand";
+            else return "Arrow";
+        }
+
         private void ComposeModellingEntries(GeoObjectList objectsUnderCursor, IView vw, PickArea pickArea)
         {   // a mouse left button up took place. Compose all the entries for objects, which can be handled by 
             // the object(s) under the mouse cursor

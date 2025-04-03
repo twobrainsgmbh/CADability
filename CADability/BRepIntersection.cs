@@ -3338,7 +3338,7 @@ namespace CADability
             faceToCommonFaces = new Dictionary<Face, Set<Face>>(); // to each overlapping face associate the common parts with other faces (both orientations)
             Set<Face> usedByOverlapping = new Set<Face>();
             Set<Face> overlappingCommonFaces = CollectOverlappingCommonFaces(usedByOverlapping); // same oriented overlapping faces yield their common parts
-            Set<Face> oppositeCommonFaces = CollectOppositeCommonFaces(discardedFaces); // same oriented overlapping faces yield their common parts
+            Set<Face> oppositeCommonFaces = CollectOppositeCommonFaces(discardedFaces); // opposite oriented overlapping faces yield their common parts
             VertexConnectionSet nonManifoldEdges = new VertexConnectionSet();
             foreach (KeyValuePair<Face, Set<Edge>> kv in faceToIntersectionEdges)
             {   // faceToIntersectionEdges contains all faces, which are intersected by faces of the relative other shell, as well as those intersection edges
