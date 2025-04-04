@@ -1,6 +1,7 @@
 ﻿using CADability.Attribute;
 using CADability.Curve2D;
 using CADability.Shapes;
+using MathNet.Numerics.Distributions;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -419,7 +420,7 @@ namespace CADability.GeoObject
                     if (edg.SecondaryFace != null) mustBeCloned = true;
                 }
                 if (mustBeCloned) fc = fc.Clone() as Face; // neue Edges
-                
+
                 return Solid.MakeSolid(MakeBrutePrism(fc, extrusion));
 
                 //Unreachable code
@@ -987,6 +988,27 @@ namespace CADability.GeoObject
                 // plus add "wedges" at the sharp bends
                 List<Face> pipeFaces = new List<Face>();
                 ModOp fromStartToEnd = ModOp.Identity;
+                if (shell.Faces.Length == 1 && shell.Faces[0].Surface is PlaneSurface ps)
+                {
+                    double[] pars = (along as ICurve).GetPlaneIntersection(ps.Plane);
+                    double pos = -1.0;
+                    for (int i = 0; i < pars.Length; i++)
+                    {
+                        if (pars[i] >= 0.0 && pars[i] <= 1.0)
+                        {
+                            pos = pars[i];
+                            break;
+                        }
+                    }
+                    if (pos >= 0.0)
+                    {   // position the face at the beginning of the curve
+                        GeoVector normal = (along.StartDirection ^ along.EndDirection).Normalized;
+                        GeoVector dir = along.DirectionAt(pos).Normalized;
+                        ModOp m = ModOp.Fit(along.PointAt(pos), new GeoVector[] { dir, normal, normal ^ dir },
+                            along.StartPoint, new GeoVector[] { along.StartDirection.Normalized, normal, normal ^ along.StartDirection.Normalized });
+                        shell.Modify(m);
+                    }
+                }
                 for (int i = 0; i < alongParts.Length; i++)
                 {
                     for (int j = 0; j < openEdges.Length; j++)
@@ -1024,7 +1046,13 @@ namespace CADability.GeoObject
                     pipeFaces.AddRange(sc.Faces);
                 }
                 Shell[] res = SewFaces(pipeFaces.ToArray());
-                if (res.Length == 1) return res[0];
+                if (res.Length == 1)
+                {
+                    Solid sld = Solid.Construct();
+                    sld.SetShell(res[0]);
+                    if (project != null) project.SetDefaults(sld);
+                    return sld;
+                }
                 return null;
             }
             throw new NotImplementedException();
@@ -2462,7 +2490,7 @@ namespace CADability.GeoObject
             ICurve2D pcurve = res.Surface.GetProjectedCurve(curve, 0.0);
             BoundingRect ext = pcurve.GetExtent(); // this is important for cylindrical (periodic) surfaces to set the domain
             if (ext.Width == 0.0) { ext.Left = 0.0; ext.Right = 1.0; }
-            if (ext.Height==0.0) { ext.Bottom = 0.0; ext.Top = 1.0; }
+            if (ext.Height == 0.0) { ext.Bottom = 0.0; ext.Top = 1.0; }
             res.area = new SimpleShape(Border.MakeRectangle(ext));
             Edge[] edges = new Edge[4];
             if (edge0 == null)

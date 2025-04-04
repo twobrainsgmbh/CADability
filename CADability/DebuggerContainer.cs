@@ -52,6 +52,7 @@ namespace CADability
         }
         public void Add(IGeoObject toAdd)
         {
+            if (toAdd is IColorDef cd && cd.ColorDef==null) toAdd = toAdd.Clone(); // otherwise we would change the color of the original
             AssertColor(toAdd);
             if (toAdd != null) toShow.Add(toAdd);
         }
@@ -59,6 +60,7 @@ namespace CADability
         {
             if (toAdd == null) return;
             IntegerProperty ip = new IntegerProperty(debugHint, "Debug.Hint");
+            if (toAdd is IColorDef cd && cd.ColorDef == null) toAdd = toAdd.Clone(); // otherwise we would change the color of the original
             toAdd.UserData.Add("Debug", ip);
             AssertColor(toAdd);
             toShow.Add(toAdd);

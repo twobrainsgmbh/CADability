@@ -2594,7 +2594,7 @@ namespace CADability.GeoObject
                                         }
                                     }
                                 }
-                                if (loop.Count>0) looplist.Add(loop);
+                                if (loop.Count > 0) looplist.Add(loop);
                             }
                             // Now the looplist contains one or more outer loops (counterclock) and maybe some inner loops (clockwise)
                             // for this (nonperiodic) patch of the surface. In very rare cases there are multiple outer loops. then we have to find which inner loop
@@ -9108,29 +9108,6 @@ namespace CADability.GeoObject
             {
                 dc.Add(surface.Make3dCurve(sss[i]) as IGeoObject);
             }
-            //GeoPoint[] trianglePoint;
-            //GeoPoint2D[] triangleUVPoint;
-            //int[] triangleIndex;
-            //BoundingCube triangleExtent;
-            //Face deser = (Face)Project.SerializeDeserialize(this);
-            //deser.GetTriangulation(0.01, out trianglePoint, out triangleUVPoint, out triangleIndex, out triangleExtent);
-            //DebuggerContainer dctr2d = new CADability.DebuggerContainer();
-            //DebuggerContainer dctr3d = new CADability.DebuggerContainer();
-            //for (int ti = 0; ti < triangleIndex.Length; ti += 3)
-            //{
-            //    Line2D l1 = new Line2D(triangleUVPoint[triangleIndex[ti]], triangleUVPoint[triangleIndex[ti + 1]]);
-            //    Line2D l2 = new Line2D(triangleUVPoint[triangleIndex[ti + 1]], triangleUVPoint[triangleIndex[ti + 2]]);
-            //    Line2D l3 = new Line2D(triangleUVPoint[triangleIndex[ti + 2]], triangleUVPoint[triangleIndex[ti]]);
-            //    dctr2d.Add(l1, System.Drawing.Color.Red, ti);
-            //    dctr2d.Add(l2, System.Drawing.Color.Red, ti);
-            //    dctr2d.Add(l3, System.Drawing.Color.Red, ti);
-            //    Line l11 = Line.MakeLine(trianglePoint[triangleIndex[ti]], trianglePoint[triangleIndex[ti + 1]]);
-            //    Line l12 = Line.MakeLine(trianglePoint[triangleIndex[ti + 1]], trianglePoint[triangleIndex[ti + 2]]);
-            //    Line l13 = Line.MakeLine(trianglePoint[triangleIndex[ti + 2]], trianglePoint[triangleIndex[ti]]);
-            //    dctr3d.Add(l11, ti);
-            //    dctr3d.Add(l12, ti + 1);
-            //    dctr3d.Add(l13, ti + 2);
-            //}
 #endif
         }
         internal void MakeInverseOrientation()

@@ -131,7 +131,7 @@ namespace ShapeIt
                 }
                 else
                 {
-                    if (matchFromOutside) rotate = ModOp.Rotate(scnt, tnormal, snormal);
+                    if (matchFromOutside) rotate = ModOp.Rotate(scnt, snormal, -tnormal);
                     else rotate = ModOp.Rotate(scnt, snormal, tnormal);
                 }
                 ModOp move = ModOp.Translate(tcnt - scnt);
