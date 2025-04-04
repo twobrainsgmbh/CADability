@@ -92,7 +92,7 @@ namespace ShapeIt
             Control pex = FindControlByName(this, "propertiesExplorer");
             // Create PictureBox 
             logoBox = new PictureBox();
-            logoBox.Image = Properties.Resources.Logo;
+            logoBox.Image = Properties.Resources.ShapeIt2;
             logoBox.SizeMode = PictureBoxSizeMode.Zoom;
 
             double aspectRatio = (double)logoBox.Image.Height / logoBox.Image.Width;

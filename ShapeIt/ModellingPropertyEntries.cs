@@ -1940,6 +1940,26 @@ namespace ShapeIt
                         }
                     }
                 }
+                // still plane surface: Extrude this face
+                // we also could extrude non planar faces, but this is more complex
+                DirectMenuEntry extrudeFace = new DirectMenuEntry("MenuId.ExtrudeFace");
+                extrudeFace.ExecuteMenu = (frame) =>
+                {
+                    cadFrame.SetAction(new Constr3DFaceExtrude(face));
+                    return true;
+                };
+                extrudeFace.IsSelected = (selected, frame) =>
+                {
+                    feedback.Clear();
+                    if (selected)
+                    {
+                        feedback.ShadowFaces.Add(face);
+                    }
+                    feedback.Refresh();
+                    return true;
+                };
+                res.Add(extrudeFace);
+
             }
             if (res.Count > 6)
             {
