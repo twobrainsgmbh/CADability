@@ -110,6 +110,7 @@ namespace ShapeIt
             feedback.Clear();
             if (shell != null && length > 0.0)
             {
+                GeoObjectList arrow;
                 Parametric pm = new Parametric(shell);
                 bool ok = false;
                 if (isFillet) ok = pm.ModifyFilletRadius(facesWithRadius, length);
@@ -119,26 +120,26 @@ namespace ShapeIt
                     if (pm.Apply())
                     {
                         result = pm.Result();
-                        validResult = true;
-                        pm.GetDictionaries(out Dictionary<Face, Face> faceDict, out Dictionary<Edge, Edge> edgeDict, out Dictionary<Vertex, Vertex> vertexDict);
-                        parametricProperty = new ParametricRadiusProperty("", Extensions.LookUp(facesWithRadius, faceDict), diameter, pm.GetAffectedObjects());
+                        if (result != null)
+                        {
+                            validResult = true;
+                            pm.GetDictionaries(out Dictionary<Face, Face> faceDict, out Dictionary<Edge, Edge> edgeDict, out Dictionary<Vertex, Vertex> vertexDict);
+                            parametricProperty = new ParametricRadiusProperty("", Extensions.LookUp(facesWithRadius, faceDict), diameter, pm.GetAffectedObjects());
 
-                        GeoObjectList arrow = FeedbackArrow.MakeLengthArrow(shell, faceDict[facesWithRadius[0]], faceDict[facesWithRadius[facesWithRadius.Length - 1]], null, GeoVector.NullVector, touchingPoint, base.CurrentMouseView, FeedbackArrow.ArrowFlags.firstRed | FeedbackArrow.ArrowFlags.secondRed);
-                        feedback.Arrows.AddRange(arrow);
-                        feedback.ShadowFaces.AddRange(Extensions.LookUp(facesWithRadius, faceDict));
-                        feedback.Refresh();
+                            arrow = FeedbackArrow.MakeLengthArrow(shell, faceDict[facesWithRadius[0]], faceDict[facesWithRadius[facesWithRadius.Length - 1]], null, GeoVector.NullVector, touchingPoint, base.CurrentMouseView, FeedbackArrow.ArrowFlags.firstRed | FeedbackArrow.ArrowFlags.secondRed);
+                            feedback.Arrows.AddRange(arrow);
+                            feedback.ShadowFaces.AddRange(Extensions.LookUp(facesWithRadius, faceDict));
+                            feedback.Refresh();
 
-                        return true;
-                    }
-                    else
-                    {
-                        GeoObjectList arrow = FeedbackArrow.MakeLengthArrow(shell, facesWithRadius[0], facesWithRadius[facesWithRadius.Length - 1], null, GeoVector.NullVector, touchingPoint, base.CurrentMouseView, FeedbackArrow.ArrowFlags.firstRed | FeedbackArrow.ArrowFlags.secondRed);
-                        feedback.Arrows.AddRange(arrow);
-                        feedback.ShadowFaces.AddRange(facesWithRadius);
-                        feedback.Refresh();
-                        return false;
+                            return true;
+                        }
                     }
                 }
+                arrow = FeedbackArrow.MakeLengthArrow(shell, facesWithRadius[0], facesWithRadius[facesWithRadius.Length - 1], null, GeoVector.NullVector, touchingPoint, base.CurrentMouseView, FeedbackArrow.ArrowFlags.firstRed | FeedbackArrow.ArrowFlags.secondRed);
+                feedback.Arrows.AddRange(arrow);
+                feedback.ShadowFaces.AddRange(facesWithRadius);
+                feedback.Refresh();
+                return false;
             }
             feedback.Refresh();
             return false;

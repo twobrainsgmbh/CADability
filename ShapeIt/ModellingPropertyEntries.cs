@@ -934,8 +934,8 @@ namespace ShapeIt
                     DirectMenuEntry mhSubtractFrom = new DirectMenuEntry("MenuId.Solid.RemoveFrom");
                     mhSubtractFrom.ExecuteMenu = (frame) =>
                     {
-                        (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.RemoveFrom");
                         this.Clear();
+                        frame.SetAction(new SelectSecondSolidAction(sld, BRepOperation.Operation.difference));
                         return true;
                     };
                     mhSubtractFrom.IsSelected = IsSelected;
@@ -943,8 +943,8 @@ namespace ShapeIt
                     DirectMenuEntry mhSubtractFromAll = new DirectMenuEntry("MenuId.Solid.RemoveFromAll");
                     mhSubtractFromAll.ExecuteMenu = (frame) =>
                     {
-                        (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.RemoveFromAll");
                         this.Clear();
+                        (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.RemoveFromAll");
                         return true;
                     };
                     mhSubtractFromAll.IsSelected = IsSelected;
@@ -952,8 +952,8 @@ namespace ShapeIt
                     DirectMenuEntry mhSubtractAllFromThis = new DirectMenuEntry("MenuId.Solid.RemoveAll");
                     mhSubtractAllFromThis.ExecuteMenu = (frame) =>
                     {
-                        (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.RemoveAll");
                         this.Clear();
+                        (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.RemoveAll");
                         return true;
                     };
                     mhSubtractAllFromThis.IsSelected = IsSelected;
@@ -961,7 +961,8 @@ namespace ShapeIt
                     DirectMenuEntry mhUniteWith = new DirectMenuEntry("MenuId.Solid.UniteWith");
                     mhUniteWith.ExecuteMenu = (frame) =>
                     {
-                        (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.UniteWith");
+                        this.Clear();
+                        frame.SetAction(new SelectSecondSolidAction(sld, BRepOperation.Operation.union));
                         return true;
                     };
                     mhUniteWith.IsSelected = IsSelected;
@@ -969,8 +970,8 @@ namespace ShapeIt
                     DirectMenuEntry mhUniteWithAll = new DirectMenuEntry("MenuId.Solid.UniteWithAll");
                     mhUniteWithAll.ExecuteMenu = (frame) =>
                     {
-                        (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.UniteWithAll");
                         this.Clear();
+                        (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.UniteWithAll");
                         return true;
                     };
                     mhUniteWithAll.IsSelected = IsSelected;
@@ -978,8 +979,8 @@ namespace ShapeIt
                     DirectMenuEntry mhIntersectWith = new DirectMenuEntry("MenuId.Solid.IntersectWith");
                     mhIntersectWith.ExecuteMenu = (frame) =>
                     {
-                        (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.IntersectWith");
                         this.Clear();
+                        frame.SetAction(new SelectSecondSolidAction(sld, BRepOperation.Operation.intersection));
                         return true;
                     };
                     mhIntersectWith.IsSelected = IsSelected;
@@ -987,8 +988,8 @@ namespace ShapeIt
                     DirectMenuEntry mhSplitWith = new DirectMenuEntry("MenuId.Solid.SplitWith");
                     mhSplitWith.ExecuteMenu = (frame) =>
                     {
-                        (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.SplitWith");
                         this.Clear();
+                        frame.SetAction(new SelectSecondSolidAction(sld, BRepOperation.Operation.clip));
                         return true;
                     };
                     mhSplitWith.IsSelected = IsSelected;
@@ -996,8 +997,8 @@ namespace ShapeIt
                     DirectMenuEntry mhSplitWithAll = new DirectMenuEntry("MenuId.Solid.SplitWithAll");
                     mhSplitWithAll.ExecuteMenu = (frame) =>
                     {
-                        (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.SplitWithAll");
                         this.Clear();
+                        (bRepOp as ICommandHandler).OnCommand("MenuId.Solid.SplitWithAll");
                         return true;
                     };
                     mhSplitWithAll.IsSelected = IsSelected;

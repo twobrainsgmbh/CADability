@@ -615,6 +615,122 @@ namespace CADability.GeoObject
                 }
             }
 
+            if (Math.Abs(angToz - Math.PI / 4) <= Precision.epsa)
+            #region Parabola
+            {
+                //Hier können eine Gerade, eine Prabola, ein Punkt oder nichts raus kommen
+                // System.Diagnostics.Trace.WriteLine("Hier können eine Gerade, eine Prabola, ein Punkt oder nichts raus kommen");
+                bool ok1 = false;
+                bool ok2 = false;
+
+                Angle b = new Angle(pln.Normal.x, pln.Normal.y);
+                ModOp m = ModOp.Rotate(GeoVector.ZAxis, -b);
+                ModOp m1 = m.GetInverse();
+                GeoVector normal = m * pln.Normal;
+                GeoVector2D dirline = new GeoVector2D(normal.z, -normal.x);
+
+                GeoPoint l = pln.Intersect(GeoPoint.Origin, GeoVector.ZAxis);
+                if (vmax > Precision.eps && Math.Abs(l.z - 2 * vmax) <= Precision.eps)
+                {   //Hier kommt nur ein Punkt raus                    
+                    return new IDualSurfaceCurve[0];
+                }
+                if (vmin < -Precision.eps && Math.Abs(l.z - 2 * vmin) <= Precision.eps)
+                {   //Hier kommt nur ein Punkt raus                    
+                    return new IDualSurfaceCurve[0];
+                }
+                if (Precision.IsEqual(l, GeoPoint.Origin))
+                {   //Hier kommt nur eine Gerade raus                    
+                    GeoPoint gp1 = new GeoPoint();
+                    GeoPoint gp2 = new GeoPoint();
+                    Angle beta = new Angle(dirline.x, dirline.y);
+                    if (Math.Abs(beta.Radian - Math.PI / 4) <= Precision.epsa || Math.Abs(beta.Radian - 5 * Math.PI / 4) <= Precision.epsa)
+                    {
+                        gp1 = new GeoPoint(vmin, 0, vmin);
+                        gp2 = new GeoPoint(vmax, 0, vmax);
+                    }
+                    if (Math.Abs(beta.Radian - 3 * Math.PI / 4) <= Precision.epsa || Math.Abs(beta.Radian - 7 * Math.PI / 4) <= Precision.epsa)
+                    {
+                        gp1 = new GeoPoint(-vmin, 0, vmin);
+                        gp2 = new GeoPoint(-vmax, 0, vmax);
+                    }
+                    //Gerade im Weltsystem
+                    Line glw = Line.Construct();
+                    glw.StartPoint = toCone * (m1 * gp1);
+                    glw.EndPoint = toCone * (m1 * gp2);
+                    //Gerade in der pl Ebene
+                    Line2D glpl = new Line2D(pl.PositionOf(m1 * gp1), pl.PositionOf(m1 * gp2));
+                    //Gerade im (u,v) System
+                    beta = new Angle(pln.Normal.x, pln.Normal.y);
+                    Line2D gluv = new Line2D(new GeoPoint2D(beta.Radian + Math.PI / 2, vmin),
+                        new GeoPoint2D(beta.Radian + Math.PI / 2, vmax));
+                    DualSurfaceCurve gdsc = new DualSurfaceCurve(glw, this, gluv, pl, glpl);
+
+                    return new IDualSurfaceCurve[] { gdsc };
+                }
+                GeoPoint2D l2D = new GeoPoint2D(0, l.z);
+                GeoPoint2D pm2D;
+                if (vmax > Precision.eps && l.z > Precision.eps)
+                    pm2D = new GeoPoint2D(0, vmax);
+                else if (vmin < -Precision.eps && l.z < -Precision.eps)
+                    pm2D = new GeoPoint2D(0, vmin);
+                else
+                    return new IDualSurfaceCurve[0];
+
+                GeoPoint2D p12D;
+                ok1 = Geometry.IntersectLL(l2D, dirline, pm2D, GeoVector2D.XAxis, out p12D);
+                GeoPoint2D cn2D;
+                ok2 = Geometry.IntersectLL(l2D, dirline, GeoPoint2D.Origin, new GeoVector2D(normal.x, normal.z), out cn2D);
+                GeoPoint cn = m1 * new GeoPoint(cn2D.x, 0, cn2D.y);
+                GeoPoint ptmp = m1 * new GeoPoint(p12D.x, 0, p12D.y);
+                GeoPoint p1 = toCone * cn;
+                GeoPoint pptmp = toCone * ptmp;
+                GeoVector dir = new GeoVector(dirline.x, 0, dirline.y);
+                GeoVector wn = normal ^ dir;
+                GeoVector won = toCone * (m1 * wn);
+                GeoPoint2D[] pp;
+                pp = GetLineIntersection(pptmp, won);
+                if (pp.Length < 2)
+                {
+                    //Die Ebene trifft nicht den Kegel im Weltsystem
+                    // oder nur in einen Punkt
+                    return new IDualSurfaceCurve[0];
+                }
+
+                GeoPoint p0 = PointAt(pp[0]);
+                GeoPoint p2 = PointAt(pp[1]);
+                //Herstellung des Parable 
+                // im Weltsystem
+                GeoPoint[] arrp = new GeoPoint[3];
+                arrp[0] = p0;
+                arrp[1] = p1;
+                arrp[2] = p2;
+                BSpline bsp = BSpline.Construct();
+                bsp.ThroughPoints(arrp, 2, false);
+                // im der Ebene
+                GeoPoint2D[] arrp2D = new GeoPoint2D[3];
+                arrp2D[0] = pl.PositionOf(p0);
+                arrp2D[1] = pl.PositionOf(p1);
+                arrp2D[2] = pl.PositionOf(p2);
+                BSpline2D bsp2D = new BSpline2D(arrp2D, 2, false);
+                //in der (u,v) System
+                GeoPoint2D[] pnts = new GeoPoint2D[50];
+                for (int i = 0; i < pnts.Length; i++)
+                {
+                    GeoPoint bp = (bsp as ICurve).PointAt(i * 1.0 / (pnts.Length - 1));
+                    GeoPoint2D zp = this.PositionOf(bp);
+                    //Der Winkel zurückgeliefert bei PointAt() liegt zwischen -Pi und Pi
+                    //aber im (u,v) System variert u zwischen null und 2Pi
+                    pnts[i].x = 2 * Math.PI + zp.x;
+                    pnts[i].y = zp.y;
+                    //pnts[i] = zp;
+                }
+                BSpline2D.AdjustPeriodic(pnts, 2 * Math.PI, 0);
+                BSpline2D c2d = new BSpline2D(pnts, 2, false);
+                DualSurfaceCurve dsc = new DualSurfaceCurve(bsp, this, c2d, pl, bsp2D);
+                return new IDualSurfaceCurve[] { dsc };
+                // return base.GetPlaneIntersection(pl, umin, umax, vmin, vmax);
+            }
+            #endregion
             if (angToz > Math.PI / 4 && angToz <= Math.PI / 2)
             #region Hyperbola
             {   //Hier kommt ein Hyperbel, ein Punkt oder nichts raus
@@ -1002,122 +1118,6 @@ namespace CADability.GeoObject
                 //BSpline2D hc2do = new BSpline2D(hpnts, 3, false);
                 //DualSurfaceCurve hdsco = new DualSurfaceCurve(hbspo, this, hc2do, pl, hbsp2Do);
                 //return new IDualSurfaceCurve[] { hdsc, hdsco };
-                // return base.GetPlaneIntersection(pl, umin, umax, vmin, vmax);
-            }
-            #endregion
-            if (Math.Abs(angToz - Math.PI / 4) <= Precision.epsa)
-            #region Parabola
-            {
-                //Hier können eine Gerade, eine Prabola, ein Punkt oder nichts raus kommen
-                // System.Diagnostics.Trace.WriteLine("Hier können eine Gerade, eine Prabola, ein Punkt oder nichts raus kommen");
-                bool ok1 = false;
-                bool ok2 = false;
-
-                Angle b = new Angle(pln.Normal.x, pln.Normal.y);
-                ModOp m = ModOp.Rotate(GeoVector.ZAxis, -b);
-                ModOp m1 = m.GetInverse();
-                GeoVector normal = m * pln.Normal;
-                GeoVector2D dirline = new GeoVector2D(normal.z, -normal.x);
-
-                GeoPoint l = pln.Intersect(GeoPoint.Origin, GeoVector.ZAxis);
-                if (vmax > Precision.eps && Math.Abs(l.z - 2 * vmax) <= Precision.eps)
-                {   //Hier kommt nur ein Punkt raus                    
-                    return new IDualSurfaceCurve[0];
-                }
-                if (vmin < -Precision.eps && Math.Abs(l.z - 2 * vmin) <= Precision.eps)
-                {   //Hier kommt nur ein Punkt raus                    
-                    return new IDualSurfaceCurve[0];
-                }
-                if (Precision.IsEqual(l, GeoPoint.Origin))
-                {   //Hier kommt nur eine Gerade raus                    
-                    GeoPoint gp1 = new GeoPoint();
-                    GeoPoint gp2 = new GeoPoint();
-                    Angle beta = new Angle(dirline.x, dirline.y);
-                    if (Math.Abs(beta.Radian - Math.PI / 4) <= Precision.epsa || Math.Abs(beta.Radian - 5 * Math.PI / 4) <= Precision.epsa)
-                    {
-                        gp1 = new GeoPoint(vmin, 0, vmin);
-                        gp2 = new GeoPoint(vmax, 0, vmax);
-                    }
-                    if (Math.Abs(beta.Radian - 3 * Math.PI / 4) <= Precision.epsa || Math.Abs(beta.Radian - 7 * Math.PI / 4) <= Precision.epsa)
-                    {
-                        gp1 = new GeoPoint(-vmin, 0, vmin);
-                        gp2 = new GeoPoint(-vmax, 0, vmax);
-                    }
-                    //Gerade im Weltsystem
-                    Line glw = Line.Construct();
-                    glw.StartPoint = toCone * (m1 * gp1);
-                    glw.EndPoint = toCone * (m1 * gp2);
-                    //Gerade in der pl Ebene
-                    Line2D glpl = new Line2D(pl.PositionOf(m1 * gp1), pl.PositionOf(m1 * gp2));
-                    //Gerade im (u,v) System
-                    beta = new Angle(pln.Normal.x, pln.Normal.y);
-                    Line2D gluv = new Line2D(new GeoPoint2D(beta.Radian + Math.PI / 2, vmin),
-                        new GeoPoint2D(beta.Radian + Math.PI / 2, vmax));
-                    DualSurfaceCurve gdsc = new DualSurfaceCurve(glw, this, gluv, pl, glpl);
-
-                    return new IDualSurfaceCurve[] { gdsc };
-                }
-                GeoPoint2D l2D = new GeoPoint2D(0, l.z);
-                GeoPoint2D pm2D;
-                if (vmax > Precision.eps && l.z > Precision.eps)
-                    pm2D = new GeoPoint2D(0, vmax);
-                else if (vmin < -Precision.eps && l.z < -Precision.eps)
-                    pm2D = new GeoPoint2D(0, vmin);
-                else
-                    return new IDualSurfaceCurve[0];
-
-                GeoPoint2D p12D;
-                ok1 = Geometry.IntersectLL(l2D, dirline, pm2D, GeoVector2D.XAxis, out p12D);
-                GeoPoint2D cn2D;
-                ok2 = Geometry.IntersectLL(l2D, dirline, GeoPoint2D.Origin, new GeoVector2D(normal.x, normal.z), out cn2D);
-                GeoPoint cn = m1 * new GeoPoint(cn2D.x, 0, cn2D.y);
-                GeoPoint ptmp = m1 * new GeoPoint(p12D.x, 0, p12D.y);
-                GeoPoint p1 = toCone * cn;
-                GeoPoint pptmp = toCone * ptmp;
-                GeoVector dir = new GeoVector(dirline.x, 0, dirline.y);
-                GeoVector wn = normal ^ dir;
-                GeoVector won = toCone * (m1 * wn);
-                GeoPoint2D[] pp;
-                pp = GetLineIntersection(pptmp, won);
-                if (pp.Length < 2)
-                {
-                    //Die Ebene trifft nicht den Kegel im Weltsystem
-                    // oder nur in einen Punkt
-                    return new IDualSurfaceCurve[0];
-                }
-
-                GeoPoint p0 = PointAt(pp[0]);
-                GeoPoint p2 = PointAt(pp[1]);
-                //Herstellung des Parable 
-                // im Weltsystem
-                GeoPoint[] arrp = new GeoPoint[3];
-                arrp[0] = p0;
-                arrp[1] = p1;
-                arrp[2] = p2;
-                BSpline bsp = BSpline.Construct();
-                bsp.ThroughPoints(arrp, 2, false);
-                // im der Ebene
-                GeoPoint2D[] arrp2D = new GeoPoint2D[3];
-                arrp2D[0] = pl.PositionOf(p0);
-                arrp2D[1] = pl.PositionOf(p1);
-                arrp2D[2] = pl.PositionOf(p2);
-                BSpline2D bsp2D = new BSpline2D(arrp2D, 2, false);
-                //in der (u,v) System
-                GeoPoint2D[] pnts = new GeoPoint2D[50];
-                for (int i = 0; i < pnts.Length; i++)
-                {
-                    GeoPoint bp = (bsp as ICurve).PointAt(i * 1.0 / (pnts.Length - 1));
-                    GeoPoint2D zp = this.PositionOf(bp);
-                    //Der Winkel zurückgeliefert bei PointAt() liegt zwischen -Pi und Pi
-                    //aber im (u,v) System variert u zwischen null und 2Pi
-                    pnts[i].x = 2 * Math.PI + zp.x;
-                    pnts[i].y = zp.y;
-                    //pnts[i] = zp;
-                }
-                BSpline2D.AdjustPeriodic(pnts, 2 * Math.PI, 0);
-                BSpline2D c2d = new BSpline2D(pnts, 2, false);
-                DualSurfaceCurve dsc = new DualSurfaceCurve(bsp, this, c2d, pl, bsp2D);
-                return new IDualSurfaceCurve[] { dsc };
                 // return base.GetPlaneIntersection(pl, umin, umax, vmin, vmax);
             }
             #endregion

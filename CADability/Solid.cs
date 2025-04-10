@@ -2,6 +2,7 @@
 using CADability.Attribute;
 using CADability.Substitutes;
 using CADability.UserInterface;
+using MathNet.Numerics;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices.ComTypes;
@@ -1234,6 +1235,14 @@ namespace CADability.GeoObject
 
         bool ICommandHandler.OnCommand(string MenuId)
         {
+            // make a collision detection of the solid with the other solids here. Maybe this object was constructed without ever beeing used as a command target
+            // so the collision detection in the constructor would be unnecessary.
+            for (int i = other.Count-1; i >=0; --i)
+            {
+                CollisionDetection cd = new CollisionDetection(solid.Shells[0], other[i].Shells[0]);
+                if (!cd.GetResult(Precision.eps, out _)) other.RemoveAt(i);
+            }
+
             switch (MenuId)
             {
                 case "MenuId.Solid.RemoveFromAll":

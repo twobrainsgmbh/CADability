@@ -2797,6 +2797,7 @@ namespace CADability.GeoObject
         }
         ICurve[] ICurve.Split(double Position1, double Position2)
         {
+            if (Math.Abs(Position1 - Position2) < Precision.eps) return new ICurve[0];
             GeoPoint[] newPoles = new GeoPoint[poles.Length * 2 - 1];
             double[] newWeights = new double[weights.Length * 2 - 1];
             double[] newKnots = new double[knots.Length * 2 - 1];

@@ -112,6 +112,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="DirectMenuEntry.cs" />
+    <Compile Include="SelectSecondSolidAction.cs" />
     <Compile Include="ShellExtensions.cs" />
     <Compile Include="Surfaces.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
