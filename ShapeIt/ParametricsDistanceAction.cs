@@ -123,6 +123,19 @@ namespace ShapeIt
             feedback = new Feedback();
         }
 
+        public ParametricsDistanceAction(IEnumerable<Face> part1, GeoPoint point1, GeoPoint touchingPoint, IFrame frame) : base()
+        {
+            //distanceFromHere = fromHere;
+            //distanceToHere = toHere;
+            forwardFaces = new HashSet<Face>();
+            backwardFaces = new HashSet<Face>(part1);
+            shell = backwardFaces.First().Owner as Shell;
+            this.point1 = point1;
+            this.touchingPoint = touchingPoint;
+            // feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, forwardFaces.First(), backwardFaces.First(), null, point2 - point1, touchingPoint, frame.ActiveView, FeedbackArrow.ArrowFlags.secondRed);
+            feedback = new Feedback();
+        }
+
         public override string GetID()
         {
             return "Constr.Parametrics.DistanceTo";
@@ -147,7 +160,7 @@ namespace ShapeIt
             feedback.ShadowFaces.Add(feedbackResult);
             List<InputObject> actionInputs = new List<InputObject>();
 
-            if (axis != null) // we have no object for 
+            if (forwardFaces.Count == 0) // we have no other object for distance meassuring yet
             {
                 GeoObjectInput toObjectInput = new GeoObjectInput("DistanceTo.ToObject"); // to which object do we calculate the distance of the axis
                 toObjectInput.FacesOnly = true;
@@ -186,8 +199,8 @@ namespace ShapeIt
             SeparatorInput separator = new SeparatorInput("Parametrics.AssociateParametric");
             actionInputs.Add(separator);
             nameInput = new StringInput("Parametrics.ParametricsName");
-            nameInput.SetStringEvent += NameInput_SetStringEvent;
-            nameInput.GetStringEvent += NameInput_GetStringEvent;
+            nameInput.SetStringEvent += (string val) => parametricsName = val;
+            nameInput.GetStringEvent += () => parametricsName ?? string.Empty;
             nameInput.Optional = true;
             actionInputs.Add(nameInput);
 
@@ -205,17 +218,6 @@ namespace ShapeIt
             feedback.Detach();
             feedback.Attach(CurrentMouseView);
             base.OnViewsChanged();
-        }
-
-        private string NameInput_GetStringEvent()
-        {
-            if (parametricsName == null) return string.Empty;
-            else return parametricsName;
-        }
-
-        private void NameInput_SetStringEvent(string val)
-        {
-            parametricsName = val;
         }
 
         private bool OnMouseOverMoreFaces(GeoObjectInput sender, IGeoObject[] theGeoObjects, bool up, HashSet<Face> moreFaces)
@@ -293,12 +295,34 @@ namespace ShapeIt
         private bool ToObject_MouseOverGeoObjectsEvent(GeoObjectInput sender, IGeoObject[] geoObjects, bool up)
         {   // we need to implement more cases here, resulting in faceToMove, faceToKeep (maybe null) and a reference point from where to calculate foot-points for the offset vector
 
-            Projection.PickArea pa = CurrentMouseView.Projection.GetPickSpace(new Rectangle(sender.currentMousePoint.X - 5, sender.currentMousePoint.Y - 5, 10, 10));
-            if (axis != null && DistanceFromAxis(geoObjects))
+            //Projection.PickArea pa = CurrentMouseView.Projection.GetPickSpace(new Rectangle(sender.currentMousePoint.X - 5, sender.currentMousePoint.Y - 5, 10, 10));
+            //if (axis != null && DistanceFromAxis(geoObjects))
+            //{
+            //    return true;
+            //}
+            //return false;
+
+            Face found = null;
+            GeoPoint sp = GeoPoint.Invalid, ep = GeoPoint.Invalid;
+            Face other = backwardFaces.First();
+            for (int i = 0; i < geoObjects.Length; i++)
             {
-                return true;
+                if (geoObjects[i] is Face fc)
+                {
+                    if (Surfaces.ParallelDistance(other.Surface, BoundingRect.HalfInfinitBoundingRect, fc.Surface, BoundingRect.HalfInfinitBoundingRect, 
+                        touchingPoint, out GeoPoint2D uv1, out GeoPoint2D uv2))
+                    {
+                        found = fc;
+                        sp = other.Surface.PointAt(uv1);
+                        ep = fc.Surface.PointAt(uv2);
+                        break;
+                    }
+                }
             }
-            return false;
+            if (found != null && up) 
+            { 
+            }
+            return found != null;
         }
 
         private int ModeInput_GetChoiceEvent()

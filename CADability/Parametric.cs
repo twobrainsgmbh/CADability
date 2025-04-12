@@ -23,7 +23,9 @@ namespace CADability
         private readonly Dictionary<Edge, Edge> edgeDict; // original to cloned edges
         private readonly Dictionary<Vertex, Vertex> vertexDict; // original to cloned vertices
         private readonly HashSet<Edge> edgesToRecalculate; // when all surface modifications are done, these edges have to be recalculated
-        private readonly HashSet<Vertex> verticesToRecalculate; // these vertices need to be recalculated, because the underlying surfaces changed
+        private readonly Dictionary<Vertex, GeoPoint> verticesToRecalculate; // these vertices need to be recalculated, because the underlying surfaces changed
+                                                                // The vertices are later recalculated by intersection of surfaces. When it is arbitrary, we provide
+                                                                // a good starting point, which results from the movement or rotation
         private readonly HashSet<Face> modifiedFaces; // these faces have been (partially) modified, do not modify twice
         private readonly HashSet<Face> constrainedFaces; // these faces must be adapted to their adjacent faces
         private readonly Dictionary<Edge, ICurve> tangentialEdgesModified; // tangential connection between two faces which both have been modified
@@ -41,7 +43,7 @@ namespace CADability
             edgesToRecalculate = new HashSet<Edge>();
             modifiedFaces = new HashSet<Face>();
             constrainedFaces = new HashSet<Face>();
-            verticesToRecalculate = new HashSet<Vertex>();
+            verticesToRecalculate = new Dictionary<Vertex, GeoPoint>(); ;
             tangentialEdgesModified = new Dictionary<Edge, ICurve>();
             affectedObjects = new HashSet<object>();
         }
@@ -51,7 +53,7 @@ namespace CADability
         /// </summary>
         /// <param name="faces">The faces to modify (offset)</param>
         /// <param name="offset">the offset by which the faces are offset</param>
-        internal void OffsetFaces(IEnumerable<Face> faces, double offset)
+        public void OffsetFaces(IEnumerable<Face> faces, double offset)
         {
             foreach (Face face in faces)
             {
@@ -70,8 +72,8 @@ namespace CADability
                             tangentialEdgesModified[edge] = c3d;
                         }
                     }
-                    verticesToRecalculate.Add(edge.Vertex1);
-                    verticesToRecalculate.Add(edge.Vertex2);
+                    verticesToRecalculate[edge.Vertex1] = edge.Vertex1.Position + offset * faceToMove.Surface.GetNormal(faceToMove.Surface.PositionOf(edge.Vertex1.Position)).Normalized;
+                    verticesToRecalculate[edge.Vertex2] = edge.Vertex2.Position + offset * faceToMove.Surface.GetNormal(faceToMove.Surface.PositionOf(edge.Vertex2.Position)).Normalized;
                     edgesToRecalculate.UnionWith(edge.Vertex1.AllEdges);
                     edgesToRecalculate.UnionWith(edge.Vertex2.AllEdges);
                 }
@@ -135,8 +137,8 @@ namespace CADability
                         {   // should we move nontangential connected faces or not. both cases make sense. Now decided by parameter
                             nextLevel[otherFace] = offset; // only if offset is not the extrusion direction of the otherFace
                         }
-                        verticesToRecalculate.Add(edge.Vertex1);
-                        verticesToRecalculate.Add(edge.Vertex2);
+                        verticesToRecalculate[edge.Vertex1] = edge.Vertex1.Position + item.Value; // the offset of the face
+                        verticesToRecalculate[edge.Vertex2] = edge.Vertex2.Position + item.Value; // the offset of the face
                         edgesToRecalculate.UnionWith(edge.Vertex1.AllEdges);
                         edgesToRecalculate.UnionWith(edge.Vertex2.AllEdges);
                     }
@@ -209,13 +211,19 @@ namespace CADability
                         {
                             modifiedSurface = new SphericalSurface(sph.Location, newRadius * sph.XAxis.Normalized, newRadius * sph.YAxis.Normalized, newRadius * sph.ZAxis.Normalized);
                         }
+                        foreach (Vertex vtx in face.Vertices)
+                        {
+                            if (!verticesToRecalculate.ContainsKey(vtx))
+                            {   // add vertices with new positions
+                                verticesToRecalculate[vtx] = modifiedSurface.PointAt(face.Surface.PositionOf(vtx.Position));
+                            }
+                        }
                         face.Surface = modifiedSurface;
                         affectedObjects.Add(face);
-                        verticesToRecalculate.UnionWith(face.Vertices);
                         modifiedFaces.Add(face);
                         alreadyModified.Add(face);
                     }
-                    foreach (Vertex vtx in verticesToRecalculate)
+                    foreach (Vertex vtx in verticesToRecalculate.Keys)
                     {
                         edgesToRecalculate.UnionWith(vtx.AllEdges);
                     }
@@ -348,8 +356,8 @@ namespace CADability
                         {   // should we move nontangential connected faces or not. both cases make sense. Now decided by parameter
                             nextLevel[otherFace] = rotate; // only if offset is not the extrusion direction of the otherFace
                         }
-                        verticesToRecalculate.Add(edge.Vertex1);
-                        verticesToRecalculate.Add(edge.Vertex2);
+                        verticesToRecalculate[edge.Vertex1] = rotate * edge.Vertex1.Position;
+                        verticesToRecalculate[edge.Vertex2] = rotate * edge.Vertex2.Position;
                         edgesToRecalculate.UnionWith(edge.Vertex1.AllEdges);
                         edgesToRecalculate.UnionWith(edge.Vertex2.AllEdges);
                     }
@@ -391,10 +399,13 @@ namespace CADability
                 ISurfaceOfArcExtrusion modifiedSurface = faceToModify.Surface.Clone() as ISurfaceOfArcExtrusion;
                 modifiedSurface.ModifyAxis(axis.PointAt(0.5));
                 modifiedSurface.Radius = newRadius;
+                foreach (Vertex vtx in faceToModify.Vertices)
+                {
+                    if (!verticesToRecalculate.ContainsKey(vtx)) verticesToRecalculate[vtx] = (modifiedSurface as ISurface).PointAt(faceToModify.Surface.PositionOf(vtx.Position));
+                }
                 faceToModify.Surface = modifiedSurface as ISurface;
                 affectedObjects.Add(faceToModify);
-                verticesToRecalculate.UnionWith(faceToModify.Vertices);
-                foreach (Vertex vtx in verticesToRecalculate)
+                foreach (Vertex vtx in verticesToRecalculate.Keys)
                 {
                     edgesToRecalculate.UnionWith(vtx.AllEdges);
                 }
@@ -487,10 +498,13 @@ namespace CADability
                         ISurfaceOfArcExtrusion modifiedSurface = faceToModify.Surface.Clone() as ISurfaceOfArcExtrusion;
                         modifiedSurface.ModifyAxis(newAxis.PointAt(newAxis.PositionOf(newAxis.PointAt(0.5))));
                         modifiedSurface.Radius = newRadius;
+                        foreach (Vertex vtx in faceToModify.Vertices)
+                        {
+                            if (!verticesToRecalculate.ContainsKey(vtx)) verticesToRecalculate[vtx] = (modifiedSurface as ISurface).PointAt(faceToModify.Surface.PositionOf(vtx.Position));
+                        }
                         faceToModify.Surface = modifiedSurface as ISurface;
                         affectedObjects.Add(faceToModify);
-                        verticesToRecalculate.UnionWith(faceToModify.Vertices);
-                        foreach (Vertex vtx in verticesToRecalculate)
+                        foreach (Vertex vtx in verticesToRecalculate.Keys)
                         {
                             edgesToRecalculate.UnionWith(vtx.AllEdges);
                         }
@@ -559,10 +573,13 @@ namespace CADability
                     {
                         (modifiedSurface as ICylinder).Axis = new Axis(Geometry.DropPL((modifiedSurface as ICylinder).Axis.Location, newAxis.StartPoint, newAxis.StartDirection), newAxis.StartDirection);
 
+                        foreach (Vertex vtx in faceToModify.Vertices)
+                        {
+                            if (!verticesToRecalculate.ContainsKey(vtx)) verticesToRecalculate[vtx] = (modifiedSurface as ISurface).PointAt(faceToModify.Surface.PositionOf(vtx.Position));
+                        }
                         faceToModify.Surface = modifiedSurface as ISurface;
                         affectedObjects.Add(faceToModify);
-                        verticesToRecalculate.UnionWith(faceToModify.Vertices);
-                        foreach (Vertex vtx in verticesToRecalculate)
+                        foreach (Vertex vtx in verticesToRecalculate.Keys)
                         {
                             edgesToRecalculate.UnionWith(vtx.AllEdges);
                         }
@@ -638,9 +655,12 @@ namespace CADability
                 ISurface modified = Surfaces.ModifyTangential(toModify.Surface, otherSurfaces);
                 if (modified != null)
                 {
+                    foreach (Vertex vtx in toModify.Vertices)
+                    {
+                        if (!verticesToRecalculate.ContainsKey(vtx)) verticesToRecalculate[vtx] = modified.PointAt(toModify.Surface.PositionOf(vtx.Position));
+                    }
                     toModify.Surface = modified;
                     affectedObjects.Add(toModify);
-                    verticesToRecalculate.UnionWith(toModify.Vertices);
                     edgesToRecalculate.UnionWith(toModify.AllEdges);
                 }
             }
@@ -668,8 +688,9 @@ namespace CADability
                 ModifyConstrainedFaces();
                 HashSet<Face> involvedFaces = new HashSet<Face>();
                 HashSet<Vertex> irrelevantVertices = new HashSet<Vertex>();
-                foreach (Vertex vertex in verticesToRecalculate)
+                foreach (KeyValuePair< Vertex,GeoPoint> item in verticesToRecalculate)
                 {
+                    Vertex vertex = item.Key;
                     bool done = false;
                     // first lets see, whether two tangential surfaces are involved with this vertex. Then we need to intersect the tangential edge with the third surface
                     HashSet<Edge> tm = new HashSet<Edge>(vertex.AllEdges);
@@ -723,7 +744,7 @@ namespace CADability
                     Face[] faces = vertex.InvolvedFaces.ToArray();
                     if (!done && faces.Length >= 3)
                     {   // here we would need to be more selective
-                        GeoPoint ip = vertex.Position;
+                        GeoPoint ip = item.Value; // vertex.Position;
                         // maybe two faces have an identical surface (a split periodic surface)
                         double mindist = double.MaxValue;
                         foreach (Edge edg in vertex.AllEdges)
@@ -739,7 +760,7 @@ namespace CADability
                                     fc.Surface.Intersect(edg.Curve3D, fc.Domain, out GeoPoint[] ips, out GeoPoint2D[] uvOnFaces, out double[] uOnCurve);
                                     for (int i = 0; i < ips.Length; i++)
                                     {
-                                        double d = ips[i] | vertex.Position;
+                                        double d = ips[i] | item.Value; // item.value is the position of the moved or rotated vertex
                                         if (d < mindist)
                                         {
                                             mindist = d;
@@ -869,7 +890,8 @@ namespace CADability
                 }
                 else
                 {
-                    // return false;
+                    clonedShell.RecalcVertices(); // not sure, why this is necessary, but it is sometimes
+                    return clonedShell.CheckConsistency();
                 }
                 return true;
             }

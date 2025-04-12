@@ -26,6 +26,7 @@ namespace ShapeIt
         private static NumberFormatInfo numberFormatInfo;
         public static ColorDef blackParts = new ColorDef("blackArrows", Color.Black);
         public static ColorDef redParts = new ColorDef("blackArrows", Color.Red);
+        private static LineWidth arrowLineWidth = new LineWidth("arrow", 0.0);
 
         public static void SetNumberFormat(IFrame frame)
         {
@@ -218,6 +219,7 @@ namespace ShapeIt
                 for (int i = 0; i < res.Count; i++)
                 {
                     if (res[i] is IColorDef cd && cd.ColorDef == null) cd.ColorDef = blackParts;
+                    if (res[i] is ILineWidth lw) lw.LineWidth = arrowLineWidth;
                 }
             }
             return res;

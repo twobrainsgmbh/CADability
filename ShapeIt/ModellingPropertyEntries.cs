@@ -69,6 +69,7 @@ namespace ShapeIt
         private int dragWidth = 5; // Delta to to check for start dragging the selection rectangle
         private System.Drawing.Point mouseCurrentPosition; // when dragging a selection rectangle, the second point
         private bool isDragging = false; // the user is dragging a selection rectangle
+        private LineWidth edgeLineWidth; // for edge display, we want a thicker line width
 
         public ModellingPropertyEntries(IFrame cadFrame) : base("Modelling.Properties")
         {
@@ -88,6 +89,8 @@ namespace ShapeIt
             selectionTabForced = false;
 
             cadFrame.ProcessContextMenuEvent += ProcessContextMenu;
+
+            edgeLineWidth = new LineWidth("selectedEdge", 0.7);
 
             feedback = new Feedback();
             feedback.Attach(cadFrame.ActiveView);
@@ -390,7 +393,21 @@ namespace ShapeIt
                     feedback.Clear();
                     if (selected)
                     {
-                        feedback.ShadowFaces.AddRange(accumulatedObjects);
+                        if (accumulatingType == typeof(Edge))
+                        {
+                            GeoObjectList toSelect = new GeoObjectList();
+                            foreach (IGeoObject item in accumulatedObjects)
+                            {
+                                IGeoObject clone = item.Clone();
+                                if (clone is ILineWidth lw) lw.LineWidth = edgeLineWidth;
+                                toSelect.Add(clone);
+                            }
+                            feedback.ShadowFaces.AddRange(toSelect);
+                        }
+                        else
+                        {
+                            feedback.ShadowFaces.AddRange(accumulatedObjects);
+                        }
                     }
                     feedback.Refresh();
                     return true;
@@ -406,6 +423,7 @@ namespace ShapeIt
                 {
                     collection.Add(accumulatedObjects[i].GetShowProperties(cadFrame));
                 }
+                if (accumulatingType == typeof(Edge)) title.Add(GetEdgeProperties(accumulatedObjects.OfType<ICurve>().ToList()));
                 if (accumulatingType == typeof(ICurve)) title.Add(GetCurvesProperties(accumulatedObjects.OfType<ICurve>().ToList()));
                 if (accumulatingType == typeof(Face)) title.Add(GetFacesProperties(accumulatedObjects.OfType<Face>().ToList(), vw));
             }
@@ -599,9 +617,19 @@ namespace ShapeIt
             return res.ToArray();
         }
 
-        private void Title_PropertyEntryChangedStateEvent(IPropertyEntry sender, StateChangedArgs args)
+        private IPropertyEntry[] GetEdgeProperties(List<ICurve> curves)
         {
-            throw new NotImplementedException();
+            List<IPropertyEntry> res = new List<IPropertyEntry>();
+            List<Edge> edges = new List<Edge>(curves.Select(c => (c as IGeoObject).Owner as Edge));
+            DirectMenuEntry makeFillet = new DirectMenuEntry("MenuId.Fillet"); // too bad, no icon yet, 
+            makeFillet.ExecuteMenu = (frame) =>
+            {
+                frame.SetAction(new Constr3DFillet(edges));
+                StopAccumulating();
+                return true;
+            };
+            res.Add(makeFillet);
+            return res.ToArray();
         }
 
         private IPropertyEntry[] GetCurvesProperties(List<ICurve> curves)
@@ -1084,11 +1112,18 @@ namespace ShapeIt
         {
             SelectEntry edgeMenus = new SelectEntry("MenuId.Edge", true); // the container for all edge related menus or properties
             HashSet<Edge> edges = Shell.ConnectedSameGeometryEdges(new Edge[] { edg });
+            GeoObjectList selection = new GeoObjectList();
+            foreach (Edge e in edges)
+            {
+                IGeoObject cloned = (e.Curve3D as IGeoObject).Clone();
+                if (cloned is ILineWidth lw) lw.LineWidth = edgeLineWidth;
+                selection.Add(cloned);
+            }
             edgeMenus.IsSelected = (selected, frame) =>
             {   // show the provided edge and the "same geometry connected" edges as feedback
                 feedback.Clear();
-                if (selected) feedback.FrontFaces.AddRange(edges.Select((edge) => edge.Curve3D as IGeoObject));
-                vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                if (selected) feedback.ShadowFaces.AddRange(selection);
+                feedback.Refresh();
                 return true;
             };
 
@@ -1097,13 +1132,14 @@ namespace ShapeIt
             {
                 accumulatedObjects.Add(edg.Curve3D as IGeoObject);
                 isAccumulating = true;
+                ComposeModellingEntries(new GeoObjectList(), vw, null);
                 return true;
             };
             selectMoreEdges.IsSelected = (selected, frame) =>
             {   // show the provided face and the "same geometry connected" faces as feedback
                 feedback.Clear();
-                if (selected) feedback.FrontFaces.Add(edg.Curve3D as IGeoObject);
-                vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                if (selected) feedback.ShadowFaces.AddRange(selection);
+                feedback.Refresh();
                 return true;
             };
             edgeMenus.Add(selectMoreEdges);
@@ -1115,6 +1151,21 @@ namespace ShapeIt
 
             if (!edg.IsTangentialEdge())
             {
+                DirectMenuEntry makeFillet = new DirectMenuEntry("MenuId.Fillet");
+                makeFillet.ExecuteMenu = (frame) =>
+                {
+                    cadFrame.SetAction(new Constr3DFillet(edges));
+                    return true;
+                };
+                makeFillet.IsSelected = (selected, frame) =>
+                {
+                    feedback.Clear();
+                    if (selected) feedback.ShadowFaces.AddRange(selection);
+                    feedback.Refresh();
+                    return true;
+                };
+                edgeMenus.Add(makeFillet);
+
                 (Axis rotationAxis1, GeoVector fromHere1, GeoVector toHere1) = ParametricsAngleAction.GetRotationAxis(edg.PrimaryFace, edg.SecondaryFace, clickBeam);
                 if (rotationAxis1.IsValid)
                 {
@@ -1215,7 +1266,7 @@ namespace ShapeIt
             {   // show the provided face and the "same geometry connected" faces as feedback
                 feedback.Clear();
                 if (selected) feedback.FrontFaces.AddRange(faces.ToArray());
-                vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
+                feedback.Refresh();
                 return true;
             };
             faceEntries.Add(selectMoreFaces);
@@ -1265,7 +1316,7 @@ namespace ShapeIt
                     DirectMenuEntry gauge = new DirectMenuEntry("MenuId.Gauge");
                     gauge.ExecuteMenu = (frame) =>
                     {
-                        ParametricsOffsetAction po = new ParametricsOffsetAction(frontSide, backSide, cadFrame, thickness);
+                        ParametricsOffsetAction po = new ParametricsOffsetAction(frontSide, backSide, cadFrame, fc, touchingPoint, thickness);
                         selectAction.Frame.SetAction(po);
                         return true;
                     };
@@ -1305,6 +1356,26 @@ namespace ShapeIt
                     };
                     faceEntries.Add(center);
                 }
+                // a menu to allow the distance to another face or edge be selected in the action
+                DirectMenuEntry faceDistTo = new DirectMenuEntry("MenuId.FaceDistanceTo");
+                faceDistTo.ExecuteMenu = (frame) =>
+                {
+                    ParametricPositionAction pp = new ParametricPositionAction(faces, fc, touchingPoint);
+                    selectAction.Frame.SetAction(pp);
+                    return true;
+                };
+                faceDistTo.IsSelected = (selected, frame) =>
+                {
+                    feedback.Clear();
+                    if (selected)
+                    {
+                        feedback.FrontFaces.Add(fc);
+                    }
+                    feedback.Refresh();
+                    return true;
+                };
+                faceEntries.Add(faceDistTo);
+
                 // what distances on the face can we find
                 int n = owningShell.GetFaceDistances(fc, touchingPoint, out List<Face> distanceTo, out List<double> distance, out List<GeoPoint> pointsFrom, out List<GeoPoint> pointsTo);
                 for (int j = 0; j < n; j++)
@@ -1890,7 +1961,17 @@ namespace ShapeIt
             {
                 // set this planar face as drawing plane
                 DirectMenuEntry dp = new DirectMenuEntry("MenuId.SetDrawingPlane");
-                dp.ExecuteMenu = (frame) => { vw.Projection.DrawingPlane = pls.Plane; return true; };
+                dp.ExecuteMenu = (frame) => 
+                {
+                    Plane drawingPlane = pls.Plane;
+                    GeoPoint2D loc = pls.PositionOf(pls.Plane.Location);
+                    if (!face.Contains(ref loc,true))
+                    {
+                        drawingPlane.Location = pls.PointAt(pls.PositionOf(touchingPoint));
+                    }
+                    vw.Projection.DrawingPlane = drawingPlane;
+                    return true; 
+                };
                 dp.IsSelected = (selected, frame) =>
                     {
                         feedback.Clear();
@@ -2020,8 +2101,12 @@ namespace ShapeIt
         private void OnPreProcessKeyDown(KeyEventArgs keyEventArgs)
         {
             if (propertyPage.GetCurrentSelection() is IHandleKey handleKey)
-            {
+            {   // the selected item has priority to handle the keystroke
                 if (handleKey.HandleKeyCommand(keyEventArgs)) keyEventArgs.SuppressKeyPress = true;
+            }
+            if (!keyEventArgs.SuppressKeyPress)
+            {
+                this.subEntries
             }
         }
     }

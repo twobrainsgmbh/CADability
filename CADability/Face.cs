@@ -163,6 +163,16 @@ namespace CADability.GeoObject
         IGeoObject GetFace(int[] id, int index);
     }
 
+    internal class FaceReference : ICloneable
+    {
+        public FaceReference(Face face) { Face = face; }
+        public Face Face { get; }
+
+        public object Clone()
+        {
+            return this; // don't clone the face, this would result in an infinite loop
+        }
+    }
     /// <summary>
     /// A face is a finite piece of a surface. It is bounded by a <see cref="SimpleShape"/> in the 2-dimensional u/v space
     /// of the surface. A face is also a <see cref="IGeoObject"/>. The bounding curves of a face are implemented as <see cref="Edge"/>s.

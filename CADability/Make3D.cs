@@ -1767,16 +1767,16 @@ namespace CADability.GeoObject
         {
             throw new NotImplementedException();
         }
-        public static IGeoObject[] MakeFillet(Edge[] edges, double radius, out IGeoObject[] affectedShellsOrSolids)
+        public static Shell MakeFillet(Edge[] edges, double radius, out Shell affectedShell)
         {
             Shell sh = edges[0].PrimaryFace.Owner as Shell;
             if (sh != null)
             {
                 Shell res = BRepOperation.RoundEdges(sh, edges, radius);
-                affectedShellsOrSolids = new IGeoObject[] { sh };
-                if (res != null) return new IGeoObject[] { res };
+                affectedShell = sh;
+                if (res != null) return res;
             }
-            affectedShellsOrSolids = null;
+            affectedShell = null;
             return null;
         }
         public static IGeoObject[] MakeChamfer(Face primaryFace, Edge[] edges, double primaryDist, double secondaryDist, out IGeoObject[] affectedShellsOrSolids)

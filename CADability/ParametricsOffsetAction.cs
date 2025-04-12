@@ -9,7 +9,7 @@ namespace CADability.Actions
     /// This action modifies two parts of the solid: frontSide and backSide, which are parallel. Typically used to modify the thickness or gauge of a part.
     /// Parametric.OffsetFaces method according to the provided input
     /// </summary>
-    public class ParametricsOffsetAction : ConstructAction
+    internal class ParametricsOffsetAction : ConstructAction
     {
         private HashSet<Face> frontSide;
         private HashSet<Face> backSide;

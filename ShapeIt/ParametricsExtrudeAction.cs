@@ -236,20 +236,6 @@ namespace ShapeIt
             Refresh();
         }
 
-        private IGeoObject ToGeoObject(object o)
-        {
-            if (o is IGeoObject go) { return go; }
-            if (o is Edge edg) { return edg.Curve3D as IGeoObject; }
-            if (o is Vertex vtx)
-            {
-                CADability.GeoObject.Point pnt = CADability.GeoObject.Point.Construct();
-                pnt.Location = vtx.Position;
-                pnt.Symbol = PointSymbol.Cross;
-                return pnt;
-            }
-            return null;
-        }
-
         public override void OnViewsChanged()
         {
             feedback.Detach();
@@ -509,8 +495,8 @@ namespace ShapeIt
             //feedback.FrontFaces.AddRange(forwardMovingFaces);
             //feedback.BackFaces.AddRange(backwardMovingFaces);
             feedback.ShadowFaces.Add(feedbackResult);
-            feedback.FrontFaces.Add(ToGeoObject(measureFromHere));
-            feedback.BackFaces.Add(ToGeoObject(measureToHere));
+            feedback.FrontFaces.Add(Helper.ToGeoObject(measureFromHere));
+            feedback.BackFaces.Add(Helper.ToGeoObject(measureToHere));
             feedback.Arrows.AddRange(feedbackDimension);
             feedback.Arrows.AddRange(arrows);
             if (crossSection != null) feedback.SelectedObjects.Add(crossSection);

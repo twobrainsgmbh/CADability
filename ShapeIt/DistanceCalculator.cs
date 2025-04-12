@@ -266,5 +266,33 @@ namespace ShapeIt
             if (swapped) return (endPoint, startPoint);
             else return (startPoint, endPoint);
         }
+
+        internal static bool DistanceBetweenFaceAndEdge(Face face, GeoPoint faceTouchingPoint, Edge edge, GeoPoint edgeTouchingPoint, out GeoPoint2D onFace, out double onEdge)
+        {
+            onFace = GeoPoint2D.Invalid;
+            onEdge = double.NaN;
+
+            // TODO: many cases need to be implemented
+            if (face.Surface is PlaneSurface ps)
+            {   // distance to line or arc
+
+            } else if (face.Surface is CylindricalSurface cyl)
+            {
+                if (edge.Curve3D is Line line)
+                {
+                    double dist = Geometry.DistLL(cyl.Location, cyl.Axis, line.StartPoint, line.StartDirection, out double par1, out double par2);
+                    if (dist>cyl.RadiusX)
+                    {   // we must be outside the cylinder, or are there valid other cases?
+                        GeoPoint sp = cyl.Location + par1 * cyl.Axis;
+                        GeoPoint ep = line.StartPoint + par2 * line.StartDirection;
+                        GeoPoint2D[] ip2d = cyl.GetLineIntersection(ep, sp - ep);
+                        onFace = ip2d.MinBy(p2d => cyl.PointAt(p2d) | faceTouchingPoint);
+                        onEdge = par2;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
     }
 }

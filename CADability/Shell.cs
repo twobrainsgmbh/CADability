@@ -7287,5 +7287,79 @@ namespace CADability.GeoObject
                 toAdd = next;
             }
         }
+        /// <summary>
+        /// Set marker (as UserData) on the faces, so that we can later, when the shell has been modified, find corresponding faces and edges
+        /// </summary>
+        public void RememberFaces()
+        {
+            foreach (Face face in Faces)
+            {
+                face.UserData.Add("CADability.RememberFace", new FaceReference(face));
+            }
+        }
+        /// <summary>
+        /// Returns a dictionary from the <paramref name="other"/> shell to this shell of corresponding faces. If a face had been split, only a single face is in the 
+        /// value part of the dictionary entry
+        /// </summary>
+        /// <param name="other"></param>
+        /// <returns></returns>
+        public Dictionary<Face,Face> GetRememberedDictionary(Shell other)
+        {
+            Dictionary<Face, Face> result = new Dictionary<Face, Face>();
+            foreach (Face face in Faces)
+            {
+                FaceReference fr = face.UserData.GetData("CADability.RememberFace") as FaceReference;
+                if (fr!=null) result[fr.Face] = face;
+            }
+            return result;
+        }
+        /// <summary>
+        /// Remove all UserData added by <see cref="RememberFaces"/>()
+        /// </summary>
+        public void ForgetRememberedFaces()
+        {
+            foreach (Face face in Faces)
+            {
+                face.UserData.Remove("CADability.RememberFace");
+            }
+        }
+        /// <summary>
+        /// Returns a dictionary from the <paramref name="other"/> shell to this shell of corresponding faces. The value of this dictionary is a list, which may contain
+        /// one or more faces (e.g. if faces have been splitted)
+        /// </summary>
+        /// <param name="other"></param>
+        /// <returns></returns>
+        public Dictionary<Face, List<Face>> GetRememberedMultiDictionary(Shell other)
+        {
+            Dictionary<Face, List<Face>> result = new Dictionary<Face, List<Face>>();
+            foreach (Face face in Faces)
+            {
+                FaceReference fr = face.UserData.GetData("CADability.RememberFace") as FaceReference;
+                if (fr != null) 
+                {
+                    if (!result.TryGetValue(fr.Face, out List<Face> list)) result[fr.Face] = list = new List<Face>();
+                    list.Add(face);
+                }
+            }
+            return result;
+        }
+        public Edge GetCorrespondingEdge(Edge original, Dictionary<Face, List<Face>> dictionary)
+        {
+            Face f1 = original.PrimaryFace;
+            Face f2 = original.SecondaryFace;
+            List<Face> ff1 = dictionary[f1];
+            List<Face> ff2 = dictionary[f2];
+            if (ff1 == null || ff1.Count == 0 || ff2 == null || ff2.Count == 0) return null;
+            HashSet<Edge> commonEdges = new HashSet<Edge>();
+            foreach (Face l1 in ff1)
+            {
+                foreach (Edge e1 in l1.Edges)
+                {
+                    if (ff2.Contains(e1.OtherFace(l1))) commonEdges.Add(e1);
+                }
+            }
+            GeoPoint cnt = original.Curve3D.PointAt(0.5);
+            return commonEdges.MinBy(e => e.Curve3D.PointAt(0.5) | cnt);
+        }
     }
 }

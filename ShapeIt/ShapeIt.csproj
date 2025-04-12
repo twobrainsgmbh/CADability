@@ -96,6 +96,7 @@
     <Compile Include="DistanceCalculator.cs" />
     <Compile Include="Feedback.cs" />
     <Compile Include="FeedbackArrow.cs" />
+    <Compile Include="Helper.cs" />
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -104,10 +105,12 @@
     </Compile>
     <Compile Include="MateFacesAction.cs" />
     <Compile Include="ModellingPropertyEntries.cs" />
+    <Compile Include="ParametricPositionAction.cs" />
     <Compile Include="ParametricsAngleAction.cs" />
     <Compile Include="ParametricsCenterAction.cs" />
     <Compile Include="ParametricsDistanceAction.cs" />
     <Compile Include="ParametricsExtrudeAction.cs" />
+    <Compile Include="ParametricsOffsetAction.cs" />
     <Compile Include="ParametricsRadiusAction.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
