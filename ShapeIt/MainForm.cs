@@ -17,6 +17,7 @@ using static ShapeIt.MainForm;
 using System.IO;
 using CADability.Actions;
 using System.Drawing.Imaging;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace ShapeIt
 {
@@ -311,12 +312,25 @@ namespace ShapeIt
         }
         public override bool OnCommand(string MenuId)
         {
+            // forward to modellingPropertyEntries first
+            if (modellingPropertyEntries.OnCommand(MenuId)) return true;
             if (MenuId == "MenuId.App.Exit")
             {   // this command cannot be handled by CADability.dll
                 Application.Exit();
                 return true;
             }
             else return base.OnCommand(MenuId);
+        }
+        public override bool OnUpdateCommand(string MenuId, CommandState CommandState)
+        {
+            // forward to modellingPropertyEntries first
+            if (modellingPropertyEntries.OnUpdateCommand(MenuId, CommandState)) return true;
+            return base.OnUpdateCommand(MenuId, CommandState);
+        }
+        public override void OnSelected(MenuWithHandler selectedMenuItem, bool selected)
+        {
+            modellingPropertyEntries.OnSelected(selectedMenuItem, selected);
+            base.OnSelected(selectedMenuItem, selected);
         }
     }
 }

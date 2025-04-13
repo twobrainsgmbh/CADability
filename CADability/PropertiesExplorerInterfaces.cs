@@ -134,6 +134,12 @@ namespace CADability.UserInterface
         /// Clicking on the entry calls<see cref="IPropertyEntry.ButtonClicked(PropertyEntryButton)"/> with the flag <see cref="PropertyEntryButton.directMenu", displayed as right arrow/>
         /// </summary>
         DirectMenu = 1 << 20,
+        /// <summary>
+        /// This entry may have a shortcut. The shortcut is provided in the <see cref="IPropertyEntry.Label"/> as [[sF]] at the end of the text.
+        /// The Syntax is [[xY]], where x is 's' for shift, 'c' for ctrl 'a' for alt or missing and Y is the key. There may also be two modifiers [[scF]] for Shift+Ctrl+F.
+        /// Even when this flag is provided there may be no shortcut if the label text doesn't contain one
+        /// </summary>
+        Shortcut = 1 << 21,
     }
     /// <summary>
     /// Describes a single line in a tab page in the control center. Must be implemented by displayable properties like GeoPointProperty.

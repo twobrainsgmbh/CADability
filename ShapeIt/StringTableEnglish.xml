@@ -31,6 +31,99 @@
 	<data name="Construct.MateFaces">
 		<label>Mating</label>
 	</data>
+	<data name="MenuId.Edge">
+		<label>Edge</label>
+		<info>submenu for the edge</info>
+	</data>
+	<data name="MenuId.Face">
+		<label>Face</label>
+		<info>submenu for the face</info>
+	</data>
+	<data name="MenuId.Shell">
+		<label>Shell</label>
+		<info>submenu for the shell</info>
+	</data>
+	<data name="MenuId.Solid">
+		<label>Solid</label>
+		<info>submenu for the solid</info>
+	</data>
+	<data name="MenuId.Solid.RemoveFrom">
+		<label>Subtract from Solid (Specify)</label>
+		<info>This solid will be subtracted from another solid you will specify in the next step</info>
+	</data>
+	<data name="MenuId.Solid.RemoveFromAll">
+		<label>Subtract from Overlapping</label>
+		<info>Subtracts this solid from all overlapping or intersecting solids</info>
+	</data>
+	<data name="MenuId.Solid.RemoveAll">
+		<label>Subtract Overlapping</label>
+		<info>Subtracts all overlapping or intersecting solids from this solid</info>
+	</data>
+	<data name="MenuId.Solid.UniteWith">
+		<label>Unite this solid with ...</label>
+	</data>
+	<data name="MenuId.Solid.UniteWithAll">
+		<label>Unite with overlapping</label>
+		<info>Unites this solid with all overlapping or intersecting solids into a single body</info>
+	</data>
+	<data name="MenuId.Solid.IntersectWith">
+		<label>Intersect with Solid (Specify)</label>
+		<info>Creates a new solid from the overlapping volume of this solid another solid to be specified</info>
+	</data>
+	<data name="MenuId.Solid.IntersectWith">
+		<label>Intersect with Overlapping</label>
+		<info>Creates a new solid from the overlapping volume of this solid and all intersecting solids</info>
+	</data>
+	<data name="MenuId.Solid.SplitWith">
+		<label>Split with Solid (Specify)</label>
+		<info>Splits this solids with a solid to specify into separate parts, creating individual bodies for the overlapping and non-overlapping regions</info>
+	</data>
+	<data name="MenuId.Solid.SplitWithAll">
+		<label>Split with overlapping</label>
+		<info>Splits intersecting solids into separate parts, creating individual bodies for the overlapping and non-overlapping regions</info>
+	</data>
+	<data name="MenuId.Parametrics.Cylinder.Radius">
+		<label>Change radius</label>
+		<info>Change radius of cylindrical features</info>
+	</data>
+	<data name="MenuId.Parametrics.Cylinder.Diameter">
+		<label>Change radius</label>
+		<info>Change radius of cylindrical features</info>
+	</data>
+	<data name="Constr.Parametrics.Cylinder.Radius">
+		<label>Change radius</label>
+		<info>Change radius of cylindrical features</info>
+	</data>
+	<data name="Constr.Parametrics.Cylinder.Diameter">
+		<label>Change diameter</label>
+		<info>Change diameter of cylindrical features</info>
+	</data>
+	<data name="Parametrics.Cylinder.Radius">
+		<label>Radius</label>
+		<info>Change radius of this feature</info>
+	</data>
+	<data name="Parametrics.Cylinder.Diameter">
+		<label>Diameter</label>
+		<info>Change diameter of this feature</info>
+	</data>
+	<data name="Parametrics.AssociateParametric">
+		<label>Use as parameter for the solid</label>
+	</data>
+	<data name="Parametrics.AssociateParametric">
+		<label>Use as parameter for the solid</label>
+	</data>
+	<data name="Parametrics.ParametricsName">
+		<label>Name</label>
+		<info>Name for the parameter. If provided, this will be a property of the solid</info>
+	</data>
+	<data name="Parametrics.PreserveValue">
+		<label>Preserve Value</label>
+		<info>If enabled, the parameter's value will remain unchanged when other parameters of the solid are modified</info>
+	</data>
+	<data name="MenuId.ParametricProperty.Preserve">
+		<label>Preserve Value</label>
+		<info>If enabled, the parameter's value will remain unchanged when other parameters of the solid are modified</info>
+	</data>
 
 	<!-- 
 	-->

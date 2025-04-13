@@ -5906,22 +5906,6 @@
 		<label>Abstand ändern zu...</label>
 		<info>den Abstand zu einem anderen Objekt dieses Körpers oder dieser Schale ändern</info>
 	</data>
-	<data name="MenuId.Edge">
-		<label>Kante</label>
-		<info>Untermenü für die Kante</info>
-	</data>
-	<data name="MenuId.Face">
-		<label>Fläche</label>
-		<info>Untermenü für die Fläche</info>
-	</data>
-	<data name="MenuId.Shell">
-		<label>Schale</label>
-		<info>Untermenü für die Schale</info>
-	</data>
-	<data name="MenuId.Solid">
-		<label>Körper</label>
-		<info>Untermenü für den Körper</info>
-	</data>
 	<data name="DistanceTo.Mode">
 		<label>Richtung</label>
 		<info>Richtung der Änderung</info>
@@ -6089,76 +6073,6 @@
 		<label>Opake Darstellung</label>
 		<info>Dieses Objekt opak (nicht transparent) darstellen</info>
 	</data>
-	<data name="MenuId.Solid.RemoveFrom">
-		<label>Vom Körper abziehen (spezifizieren)</label>
-		<info>Dieser Körper wird von einem anderen Körper abgezogen, den Sie im nächsten Schritt spezifizieren</info>
-	</data>
-	<data name="MenuId.Solid.RemoveFromAll">
-		<label>Von überlappenden Körpern abziehen</label>
-		<info>Zieht diesen Körper von allen überlappenden oder sich schneidenden Körpern ab</info>
-	</data>
-	<data name="MenuId.Solid.RemoveAll">
-		<label>Überlappende Körper abziehen</label>
-		<info>Zieht alle überlappenden oder sich schneidenden Körper von diesem Körper ab</info>
-	</data>
-	<data name="MenuId.Solid.UniteWith">
-		<label>Diesen Körper vereinen mit ...</label>
-	</data>
-	<data name="MenuId.Solid.UniteWithAll">
-		<label>Mit überlappenden Körpern vereinen</label>
-		<info>Vereint diesen Körper mit allen überlappenden oder sich schneidenden Körpern zu einem einzigen Körper</info>
-	</data>
-	<data name="MenuId.Solid.IntersectWith">
-		<label>Mit Körper schneiden (spezifizieren)</label>
-		<info>Erstellt einen neuen Körper aus dem überlappenden Volumen dieses Körpers und eines anderen, zu spezifizierenden Körpers</info>
-	</data>
-	<data name="MenuId.Solid.SplitWith">
-		<label>Mit Körper teilen (spezifizieren)</label>
-		<info>Teilt diesen Körper mit einem zu spezifizierenden Körper in separate Teile, wobei individuelle Körper für die überlappenden und nicht überlappenden Bereiche erstellt werden</info>
-	</data>
-	<data name="MenuId.Solid.SplitWithAll">
-		<label>Mit überlappenden Körpern teilen</label>
-		<info>Teilt sich schneidende Körper in separate Teile, wobei individuelle Körper für die überlappenden und nicht überlappenden Bereiche erstellt werden</info>
-	</data>
-	<data name="MenuId.Parametrics.Cylinder.Radius">
-		<label>Radius ändern</label>
-		<info>Radius von zylindrischen Details ändern</info>
-	</data>
-	<data name="MenuId.Parametrics.Cylinder.Diameter">
-		<label>Durchmesser ändern</label>
-		<info>Durchmesser von zylindrischen Details ändern</info>
-	</data>
-	<data name="Constr.Parametrics.Cylinder.Radius">
-		<label>Radius ändern</label>
-		<info>Radius von zylindrischen Details ändern</info>
-	</data>
-	<data name="Constr.Parametrics.Cylinder.Diameter">
-		<label>Durchmesser ändern</label>
-		<info>Durchmesser von zylindrischen Details ändern</info>
-	</data>
-	<data name="Parametrics.Cylinder.Radius">
-		<label>Radius</label>
-		<info>Radius dieses Details ändern</info>
-	</data>
-	<data name="Parametrics.Cylinder.Diameter">
-		<label>Durchmesser</label>
-		<info>Durchmesser dieses Details ändern</info>
-	</data>
-	<data name="Parametrics.AssociateParametric">
-		<label>Als Parameter für den Körper verwenden</label>
-	</data>
-	<data name="Parametrics.ParametricsName">
-		<label>Name</label>
-		<info>Name für den Parameter. Wenn angegeben, wird dies eine Eigenschaft des Körpers</info>
-	</data>
-	<data name="Parametrics.PreserveValue">
-		<label>Wert beibehalten</label>
-		<info>Wenn aktiviert, bleibt der Wert des Parameters unverändert, wenn andere Parameter des Körpers geändert werden</info>
-	</data>
-	<data name="MenuId.ParametricProperty.Preserve">
-		<label>Wert beibehalten</label>
-		<info>Wenn aktiviert, bleibt der Wert des Parameters unverändert, wenn andere Parameter des Körpers geändert werden</info>
-	</data>
 	<data name="TextToValue.Failed">
 		<label>Ungültige Eingabe</label>
 	</data>
@@ -6200,5 +6114,9 @@
 	<data name="MenuId.SetDrawingPlane">
 		<label>Zeichenebene festlegen</label>
 		<info>Die Oberfläche dieser Fläche als Zeichenebene verwenden</info>
+	</data>
+	<data name="Shortcuts.Modifier">
+		<label>|Strg|Alt|Shift</label>
+		<info>die Bezeichnung der Tastatursymbole für die Shortcut Modifier</info>
 	</data>
 </root>

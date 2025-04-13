@@ -41,8 +41,8 @@ namespace ShapeIt
         public MenuWithHandler[] Menu { private get; set; }
         public SelectEntry(string resourceId, bool hasSubEntries = false) : base(resourceId)
         {
-            if (hasSubEntries) flags = PropertyEntryType.Selectable | PropertyEntryType.GroupTitle | PropertyEntryType.HasSubEntries;
-            else flags = PropertyEntryType.Selectable;
+            flags = PropertyEntryType.Selectable | PropertyEntryType.Shortcut;
+            if (hasSubEntries) flags = flags | PropertyEntryType.GroupTitle | PropertyEntryType.HasSubEntries;
         }
         /// <summary>
         /// Supply your code here to react on selection and deselection of this entry
@@ -67,10 +67,59 @@ namespace ShapeIt
             base.UnSelected(nowSelected);
         }
         public Func<Keys, bool> TestShortcut { get; set; } = (key) => false;
-
+        private IPropertyEntry FindParent(IPropertyEntry fromHere, IPropertyEntry findThis)
+        {
+            if (fromHere.Flags.HasFlag(PropertyEntryType.HasSubEntries))
+            {
+                for (int i = 0; i < fromHere.SubItems.Length; i++)
+                {
+                    if (fromHere.SubItems[i] == findThis) return fromHere;
+                    IPropertyEntry found = FindParent(fromHere.SubItems[i],findThis);
+                    if (found != null) return found;
+                }
+            }
+            return null;
+        }
         public virtual bool HandleKeyCommand(KeyEventArgs keyEvent)
         {
-            return TestShortcut(keyEvent.KeyCode);
+            if (TestShortcut(keyEvent.KeyCode)) return true;
+            if (Label.EndsWith("]]"))
+            {
+                bool ctrl = keyEvent.KeyCode.HasFlag(Keys.ControlKey);
+                char key = (char)keyEvent.KeyCode;
+                int pos1 = Label.IndexOf("[[");
+                if (pos1 > 0)
+                {
+                    int pos2 = Label.IndexOf("]]");
+                    if (pos2 > pos1)
+                    {
+                        string shortCut = Label.Substring(pos1 + 2, pos2 - pos1 - 2);
+                        if (shortCut.Contains("s") == keyEvent.KeyCode.HasFlag(Keys.Shift) &&
+                            shortCut.Contains("c") == keyEvent.KeyCode.HasFlag(Keys.Control) &&
+                            shortCut.Contains("a") == keyEvent.KeyCode.HasFlag(Keys.Alt) &&
+                            shortCut.Contains(key))
+                        {
+                            // matches the keystroke
+                            // IPropertyEntry pe = this.Parent as IPropertyEntry ; // this is unfortenately not correct implemented!!!
+                            // so as a workaround we find the ModellingPropertyEntries and go down the tree
+                            IPropertyEntry pe = propertyPage.FindFromHelpLink("Modelling.Properties");
+                            if (pe != null) { pe = FindParent(pe, this); }
+                            if (pe != null)
+                            {
+                                for (int i = 0; i < pe.SubItems.Length; i++)
+                                {
+                                    this.propertyPage.OpenSubEntries(pe.SubItems[i], pe.SubItems[i] == this);
+                                }
+                            }
+                            this.propertyPage.SelectEntry(this);
+                            keyEvent.Handled = true;
+                            return true;
+                        }
+
+                    }
+                }
+            }
+            return false;
         }
         /// <summary>
         /// Simply check the first character of the Label Text
@@ -79,13 +128,17 @@ namespace ShapeIt
         /// <returns></returns>
         public virtual bool SelectOnThisKeyStroke(KeyEventArgs keyEvent)
         {
-            if (!string.IsNullOrEmpty(LabelText) 
+            if (!string.IsNullOrEmpty(LabelText)
                 && ((int)keyEvent.KeyData == (int)LabelText[0] || (int)keyEvent.KeyData == (int)LabelText.ToUpper()[0]))
                 return true;
             else return false;
         }
 
         public override MenuWithHandler[] ContextMenu => Menu;
+        public override void Added(IPropertyPage pp)
+        {
+            base.Added(pp);
+        }
     }
     /// <summary>
     /// A simple line in the property grid of a property page. It shows the text of the resourceId which can be overwritten
@@ -99,7 +152,7 @@ namespace ShapeIt
         /// <summary>
         /// Marks this entry as selectable and having a directMenu button and behaviour
         /// </summary>
-        public override PropertyEntryType Flags => PropertyEntryType.Selectable | PropertyEntryType.DirectMenu;
+        public override PropertyEntryType Flags => PropertyEntryType.Selectable | PropertyEntryType.DirectMenu | PropertyEntryType.Shortcut;
         public DirectMenuEntry(string resourceId, bool useMenu = true) : base(resourceId)
         {
         }

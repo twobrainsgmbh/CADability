@@ -54,7 +54,7 @@ namespace ShapeIt
             throw new NotImplementedException();
         }
     }
-    internal class ModellingPropertyEntries : PropertyEntryImpl
+    internal class ModellingPropertyEntries : PropertyEntryImpl, ICommandHandler
     {
         private List<IPropertyEntry> subEntries = new List<IPropertyEntry>(); // the list of property entries in this property page
         private IFrame cadFrame; // the frame (root object of cadability)
@@ -70,6 +70,7 @@ namespace ShapeIt
         private System.Drawing.Point mouseCurrentPosition; // when dragging a selection rectangle, the second point
         private bool isDragging = false; // the user is dragging a selection rectangle
         private LineWidth edgeLineWidth; // for edge display, we want a thicker line width
+        private HashSet<IGeoObject> selectedObjects = new HashSet<IGeoObject>();
 
         public ModellingPropertyEntries(IFrame cadFrame) : base("Modelling.Properties")
         {
@@ -437,8 +438,23 @@ namespace ShapeIt
                 List<Edge> edges = new List<Edge>();
                 List<ICurve> curves = new List<ICurve>(); // curves, but not axis
                 Dictionary<Solid, List<Face>> solidToFaces = new Dictionary<Solid, List<Face>>();
+
+                selectedObjects.Clear();
                 for (int i = 0; i < objectsUnderCursor.Count; i++)
                 {
+                    {   // add top level objects to selectedObjects to be able to copy to clipboard.
+                        // it would be better to use the object of the current selection, but it is not easily available
+                        IGeoObjectOwner owner = objectsUnderCursor[i].Owner;
+                        IGeoObject current = objectsUnderCursor[i];
+                        while (owner != null && !(owner is Model))
+                        {
+                            if (owner is Edge edge) owner = edge.Owner.Owner;
+                            else if (owner is IGeoObject go) owner = go.Owner;
+                            else owner = null;
+                            if (owner is IGeoObject g) current = g;
+                        }
+                        if (owner is Model) selectedObjects.Add(current);
+                    }
                     if (objectsUnderCursor[i] is Solid sld)
                     {
                         solids.Add(sld);
@@ -735,6 +751,7 @@ namespace ShapeIt
             if ((curve as IGeoObject).Owner is Model)
             {
                 lmh.Add(ModifyMenu(curve as IGeoObject));
+                lmh.Add((curve as IGeoObject).GetShowProperties(cadFrame));
             }
             if (curve.IsClosed && curve.GetPlanarState() == PlanarState.Planar)
             {
@@ -1961,16 +1978,16 @@ namespace ShapeIt
             {
                 // set this planar face as drawing plane
                 DirectMenuEntry dp = new DirectMenuEntry("MenuId.SetDrawingPlane");
-                dp.ExecuteMenu = (frame) => 
+                dp.ExecuteMenu = (frame) =>
                 {
                     Plane drawingPlane = pls.Plane;
                     GeoPoint2D loc = pls.PositionOf(pls.Plane.Location);
-                    if (!face.Contains(ref loc,true))
+                    if (!face.Contains(ref loc, true))
                     {
                         drawingPlane.Location = pls.PointAt(pls.PositionOf(touchingPoint));
                     }
                     vw.Projection.DrawingPlane = drawingPlane;
-                    return true; 
+                    return true;
                 };
                 dp.IsSelected = (selected, frame) =>
                     {
@@ -2106,8 +2123,100 @@ namespace ShapeIt
             }
             if (!keyEventArgs.SuppressKeyPress)
             {
-                this.subEntries
+                ProcessShortcut(this, keyEventArgs);
             }
+        }
+
+        private bool ProcessShortcut(IPropertyEntry propertyEntry, KeyEventArgs keyEventArgs)
+        {
+            if (propertyEntry is IHandleKey handleKey)
+            {
+                if (handleKey.HandleKeyCommand(keyEventArgs))
+                {
+                    keyEventArgs.Handled = true; // what about SuppressKeyPress?
+                    return true;
+                }
+            }
+            if (propertyEntry.Flags.HasFlag(PropertyEntryType.HasSubEntries) && propertyEntry.IsOpen)
+            {
+                for (int i = 0; i < propertyEntry.SubItems.Length; i++)
+                {
+                    if (ProcessShortcut(propertyEntry.SubItems[i], keyEventArgs)) return true;
+                }
+            }
+            return false;
+        }
+
+        public bool OnCommand(string MenuId)
+        {
+            switch (MenuId)
+            {
+                case "MenuId.Edit.Copy":
+                    {
+                        GeoObjectList toCopy;
+                        if (isAccumulating)
+                        {
+                            toCopy = new GeoObjectList(accumulatedObjects);
+                        }
+                        else
+                        {
+                            toCopy = new GeoObjectList(selectedObjects);
+                        }
+                        cadFrame.UIService.SetClipboardData(toCopy, true);
+                    }
+                    return true;
+                case "MenuId.Edit.Paste":
+                    Clear();
+                    object data = Frame.UIService.GetClipboardData(typeof(GeoObjectList));
+                    if (data is GeoObjectList l)
+                    {
+                        if (l != null && l.Count > 0)
+                            using (Frame.Project.Undo.UndoFrame)
+                            {
+                                foreach (IGeoObject go in l)
+                                {
+                                    if (go.Style != null && go.Style.Name == "CADability.EdgeStyle")
+                                    {
+                                        go.Style = Frame.Project.StyleList.Current;
+                                    }
+                                    AttributeListContainer.UpdateObjectAttrinutes(Frame.Project, go);
+                                    go.UpdateAttributes(Frame.Project);
+                                    Frame.ActiveView.Model.Add(go);
+                                }
+                            }
+                        if (l != null) ComposeModellingEntries(l, cadFrame.ActiveView, null);
+                    }
+                    return true;
+                default: return false;
+            }
+        }
+
+        public bool OnUpdateCommand(string MenuId, CommandState CommandState)
+        {
+            switch (MenuId)
+            {
+                case "MenuId.Edit.Copy":
+                    {
+                        if (isAccumulating)
+                        {
+                            CommandState.Enabled = accumulatedObjects.Count > 0;
+                        }
+                        else
+                        {
+                            CommandState.Enabled = selectedObjects.Any();
+                        }
+                    }
+                    return true;
+                case "MenuId.Edit.Paste":
+                    CommandState.Enabled = Frame.UIService.HasClipboardData(typeof(GeoObjectList));
+                    return true;
+                default: return false;
+            }
+        }
+
+        public void OnSelected(MenuWithHandler selectedMenu, bool selected)
+        {
+            throw new NotImplementedException();
         }
     }
 }

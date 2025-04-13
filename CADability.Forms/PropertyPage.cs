@@ -2,7 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Linq;
 using System.Reflection;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
 namespace CADability.Forms
@@ -31,7 +35,7 @@ namespace CADability.Forms
         private bool dragMiddlePosition = false;  // true, when the user moves the middle position (between label and value) with the pressed mouse button
         private Timer delay;
         private PropertiesExplorer propertiesExplorer;
-
+        private Dictionary<char, string> keyboardModifier;
         public event PreProcessKeyDown OnPreProcessKeyDown;
 
         public PropertyPage(string titleId, int iconId, PropertiesExplorer propExplorer)
@@ -53,6 +57,12 @@ namespace CADability.Forms
             toolTip = new ToolTip();
             toolTip.InitialDelay = 500;
             propertiesExplorer = propExplorer;
+            string[] keyboardModifierStrings = StringTable.GetSplittedStrings("Shortcuts.Modifier");
+            if (keyboardModifierStrings.Length < 3) keyboardModifierStrings = new string[] { "Ctrl", "Alt", "Shift" };
+            keyboardModifier = new Dictionary<char, string>();
+            keyboardModifier['c'] = keyboardModifierStrings[0];
+            keyboardModifier['a'] = keyboardModifierStrings[1];
+            keyboardModifier['s'] = keyboardModifierStrings[2];
         }
         private Rectangle ItemArea(int index)
         {
@@ -85,6 +95,156 @@ namespace CADability.Forms
             int left = entries[index].IndentLevel * buttonWidth + buttonWidth + 1; // left side of the label text
             return new Rectangle(left, area.Top, area.Right - left, area.Height);
         }
+        private GraphicsPath RoundedRect(Rectangle bounds, int radius)
+        {   // by ChatGPT
+            int diameter = radius * 2;
+            var path = new GraphicsPath();
+
+            // Wenn Radius = 0, einfaches Rechteck
+            if (radius == 0)
+            {
+                path.AddRectangle(bounds);
+                return path;
+            }
+
+            Rectangle arc = new Rectangle(bounds.Location, new Size(diameter, diameter));
+
+            // Top-Left
+            path.AddArc(arc, 180, 90);
+
+            // Top-Right
+            arc.X = bounds.Right - diameter;
+            path.AddArc(arc, 270, 90);
+
+            // Bottom-Right
+            arc.Y = bounds.Bottom - diameter;
+            path.AddArc(arc, 0, 90);
+
+            // Bottom-Left
+            arc.X = bounds.Left;
+            path.AddArc(arc, 90, 90);
+
+            path.CloseFigure();
+            return path;
+        }
+        private void DrawShortcut(Graphics g, Rectangle area, Font font, string modifier, char key)
+        {   // by ChatGPT
+            const int keycapPadding = 0;
+            const int spacing = 0;
+            int cornerRadius = area.Height / 4;
+
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+            // Teile Modifier auf
+            var parts = string.IsNullOrWhiteSpace(modifier)
+                ? new List<string>()
+                : modifier.Split('+').Select(m => m.Trim()).ToList();
+
+            parts.Add(key.ToString());
+
+            // Textgrößen berechnen
+            var sizes = parts.Select(p =>
+                TextRenderer.MeasureText(p, font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding)
+            ).ToList();
+
+            int totalWidth = spacing * (parts.Count - 1) +
+                             sizes.Sum(sz => sz.Width + keycapPadding * 2);
+
+            // Rechtsbündiger Startpunkt
+            int x = area.Right - totalWidth;
+            int y = area.Y + (area.Height - font.Height) / 2;
+
+            for (int i = 0; i < parts.Count; i++)
+            {
+                string text = parts[i];
+                Size sz = sizes[i];
+
+                Rectangle keyRect = new Rectangle(
+                    x,
+                    y,
+                    sz.Width + keycapPadding * 2,
+                    sz.Height + 2
+                );
+
+                using (GraphicsPath path = RoundedRect(keyRect, cornerRadius))
+                {
+                    using (Brush fill = new SolidBrush(Color.White))
+                        g.FillPath(fill, path);
+
+                    using (Pen border = new Pen(SystemColors.ControlDark))
+                        g.DrawPath(border, path);
+
+                    TextRenderer.DrawText(
+                        g,
+                        text,
+                        font,
+                        keyRect,
+                        SystemColors.ControlText,
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding
+                    );
+                }
+
+                x += keyRect.Width + spacing;
+            }
+        }
+        /// <summary>
+        /// Splits the label text into the visible text portion and the shortcut parts.
+        /// The shortcut syntax is expected to appear at the end of the label in the format [[<modifier1><modifier2><key>]].
+        /// Each modifier is optional and must be one of 's', 'c' or 'a' (for Shift, Ctrl, Alt respectively).
+        /// The key should be an uppercase letter. If any component is missing, '\0' is returned for it.
+        /// </summary>
+        /// <param name="labelText">The full label text, e.g. "LabelText [[scX]]"</param>
+        /// <returns>
+        /// A tuple: (text, firstModifier, secondModifier, key)
+        /// where text is the label text without the shortcut portion,
+        /// and missing modifier(s) and key are represented as '\0'.
+        /// </returns>
+        private (string text, char firstModifier, char secondModifier, char key) SplitLabelText(string labelText)
+        {
+            // Regex pattern:
+            // ^(.*?)           -> Capture group 1: Everything from the start up to the shortcut part (non-greedy)
+            // (?:\s*\[\[       -> Non-capturing group for optional preceding whitespace and literal "[["
+            // (?:(?<modifier1>[sca])?  -> Optional first modifier (s, c, or a)
+            // (?<modifier2>[sca])?     -> Optional second modifier (s, c, or a)
+            // (?<key>[A-Z])?           -> Optional key (a single uppercase letter)
+            // \]\])\s*$        -> Closing "]]" and any trailing whitespace until the end of string
+            var regex = new Regex(@"^(.*?)(?:\s*\[\[(?:(?<modifier1>[sca])?(?<modifier2>[sca])?(?<key>[A-Z])?)\]\])\s*$");
+
+            char firstModifier = '\0';
+            char secondModifier = '\0';
+            char key = '\0';
+
+            var match = regex.Match(labelText);
+            if (match.Success)
+            {
+                // Extract the visible label text (without the shortcut part)
+                string textPart = match.Groups[1].Value;
+
+                // If the first modifier group is found and has a value, use it
+                if (match.Groups["modifier1"].Success && match.Groups["modifier1"].Value.Length > 0)
+                {
+                    firstModifier = match.Groups["modifier1"].Value[0];
+                }
+                // Likewise for the second modifier
+                if (match.Groups["modifier2"].Success && match.Groups["modifier2"].Value.Length > 0)
+                {
+                    secondModifier = match.Groups["modifier2"].Value[0];
+                }
+                // Extract the key if available
+                if (match.Groups["key"].Success && match.Groups["key"].Value.Length > 0)
+                {
+                    key = match.Groups["key"].Value[0];
+                }
+
+                return (textPart.TrimEnd(), firstModifier, secondModifier, key);
+            }
+            else
+            {
+                // If no shortcut pattern is found, return the label text intact and null-characters for modifiers and key.
+                return (labelText, '\0', '\0', '\0');
+            }
+        }
         private void PaintItem(int index, Graphics graphics)
         {
             int left = 1;
@@ -115,14 +275,20 @@ namespace CADability.Forms
             Rectangle labelRect;
             if (showValue) labelRect = new Rectangle(left, area.Top, middle - left, area.Height);
             else labelRect = new Rectangle(left, area.Top, area.Right - left, area.Height);
-            if (graphics.MeasureString(entries[index].Label, Font).Width > labelRect.Width) labelNeedsExtension[index] = true;
+            string labelText = entries[index].Label;
+            char firstModifier = '\0';
+            char secondModifier = '\0';
+            char shortCutKey = '\0';
+            if (entries[index].Flags.HasFlag(PropertyEntryType.Shortcut))
+                (labelText, firstModifier, secondModifier, shortCutKey) = SplitLabelText(labelText);
+            if (graphics.MeasureString(labelText, Font).Width > labelRect.Width) labelNeedsExtension[index] = true;
             if (index == selected)
             {
                 graphics.FillRectangle(SystemBrushes.Highlight, labelRect);
                 if (entries[index].Flags.HasFlag(PropertyEntryType.Bold))
-                    graphics.DrawString(entries[index].Label, new Font(Font, FontStyle.Bold), SystemBrushes.HighlightText, labelRect, stringFormat);
+                    graphics.DrawString(labelText, new Font(Font, FontStyle.Bold), SystemBrushes.HighlightText, labelRect, stringFormat);
                 else
-                    graphics.DrawString(entries[index].Label, Font, SystemBrushes.HighlightText, labelRect, stringFormat);
+                    graphics.DrawString(labelText, Font, SystemBrushes.HighlightText, labelRect, stringFormat);
             }
             else if (entries[index].Flags.HasFlag(PropertyEntryType.Seperator))
             {
@@ -131,16 +297,29 @@ namespace CADability.Forms
                 graphics.DrawLine(SystemPens.ControlLight, labelRect.Left, ym, labelRect.Right, ym); // the horizontal separator line
                 StringFormat seperatorFormat = stringFormat.Clone() as StringFormat;
                 seperatorFormat.Alignment = StringAlignment.Center;
-                graphics.DrawString(entries[index].Label, Font, SystemBrushes.ControlText, labelRect, seperatorFormat);
+                graphics.DrawString(labelText, Font, SystemBrushes.ControlText, labelRect, seperatorFormat);
             }
             else
             {
                 if (entries[index].Flags.HasFlag(PropertyEntryType.Highlight))
-                    graphics.DrawString(entries[index].Label, Font, new SolidBrush(Color.Red), labelRect, stringFormat);
+                    graphics.DrawString(labelText, Font, new SolidBrush(Color.Red), labelRect, stringFormat);
                 else if (entries[index].Flags.HasFlag(PropertyEntryType.Bold))
-                    graphics.DrawString(entries[index].Label, new Font(Font, FontStyle.Bold), SystemBrushes.ControlText, labelRect, stringFormat);
+                    graphics.DrawString(labelText, new Font(Font, FontStyle.Bold), SystemBrushes.ControlText, labelRect, stringFormat);
                 else
-                    graphics.DrawString(entries[index].Label, Font, SystemBrushes.ControlText, labelRect, stringFormat);
+                    graphics.DrawString(labelText, Font, SystemBrushes.ControlText, labelRect, stringFormat);
+            }
+            // shortcut
+            if (entries[index].Flags.HasFlag(PropertyEntryType.Shortcut) && shortCutKey != '\0')
+            {
+                Font smallerFont = new Font(Font.FontFamily, Font.Size * 0.9f, Font.Style);
+                Size scsz = graphics.MeasureString("X", smallerFont).ToSize(); // height of shortcut text
+                Rectangle scArea = new Rectangle(labelRect.Right - buttonWidth - 2, labelRect.Top + (labelRect.Height - scsz.Height) / 2 - 2, 1, scsz.Height); // width doesn't matter
+                // U+2303 (Ctrl), U+2325 (Alt), U+21E7 (Shift)
+                StringBuilder shortcutModifier = new StringBuilder();
+                if (firstModifier != '\0') shortcutModifier.Append(keyboardModifier[firstModifier] + "+");
+                if (secondModifier != '\0') shortcutModifier.Append(keyboardModifier[secondModifier] + "+");
+                if (shortcutModifier.ToString().EndsWith("+")) shortcutModifier.Remove(shortcutModifier.Length - 1, 1);
+                DrawShortcut(graphics, scArea, smallerFont, shortcutModifier.ToString(), shortCutKey);
             }
             if (showValue)
             {
@@ -346,7 +525,8 @@ namespace CADability.Forms
                         DelayShowToolTip(toDisplay, mp);
                     }
                     currentToolTip = toDisplay;
-                } else if (delay!=null)
+                }
+                else if (delay != null)
                 {   // delay is already running, but the mouse is still moving. So we modify the point, where the tooltip should appear
                     delay.Tag = new object[] { toDisplay, PointToClient(MousePosition) };
                 }
@@ -416,10 +596,10 @@ namespace CADability.Forms
             string toDisplay = oa[0] as string;
             Point mp = (Point)oa[1];
             Point currentMousePosition = PointToClient(MousePosition);
-            if (currentMousePosition.Y < mp.Y+2*Font.Height) // 
+            if (currentMousePosition.Y < mp.Y + 2 * Font.Height) // 
             {   // I don't know, why this happens, because the tooltip is generated with the correct mouse position.
                 // it only happens, when the cursor enters the item from below
-                mp.Y = currentMousePosition.Y  - 2 * Font.Height;
+                mp.Y = currentMousePosition.Y - 2 * Font.Height;
             }
             toolTip.Show(toDisplay, this, mp);
             delay.Stop();
@@ -945,7 +1125,7 @@ namespace CADability.Forms
         #region quick adaption to IPropertyTreeView, remove later
         public IView ActiveView => Frame.ActiveView;
         public IPropertyEntry GetParent(IShowProperty child)
-        {
+        {   // this is a work around, because Parent is not correct implemented. It is always the property page, but it is also used in that way
             return (child as IPropertyEntry).Parent as IPropertyEntry;
         }
         public IFrame GetFrame()
