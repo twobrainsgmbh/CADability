@@ -2524,7 +2524,7 @@ VERTEX_POINT: C:\Zeichnungen\STEP\Ligna - Staab - Halle 1.stp (85207)
 									break;
 								default:
 								case "green":
-									clr = Color.Green;
+									clr = Color.Lime;
 									break;
 								case "blue":
 									clr = Color.Blue;
