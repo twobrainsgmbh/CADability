@@ -1,6 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
 	<language id="deutsch" default="true">deutsch</language>
+	<data name="Language.Selected.Values">
+		<label>deutsch</label>
+	</data>
 	<data name="Line.Object">
 		<label>Linie</label>
 		<info>Die Eigenschaften der Linie</info>
@@ -6015,45 +6018,7 @@
 	<data name="MenuId.More">
 		<label>Mehr</label>
 	</data>
-	<data name="MenuId.SelectMoreEdges">
-		<label>Weitere Kanten auswählen</label>
-		<info>Weitere Kanten für verschiedene Aufgaben auswählen</info>
-	</data>
-	<data name="MenuId.SelectMoreFaces">
-		<label>Weitere Flächen auswählen</label>
-		<info>Weitere Flächen für verschiedene Aufgaben auswählen</info>
-	</data>
-	<data name="MenuId.Gauge">
-		<label>Dicke (Stärke)</label>
-		<info>Die Dicke des Körpers ändern</info>
-	</data>
-	<data name="MenuId.ParametricProperty.Remove">
-		<label>Eigenschaft entfernen</label>
-		<info>Diese parametrische Eigenschaft von der Schale entfernen</info>
-	</data>
-	<data name="Solid.ParametricProperties">
-		<label>Parametrik</label>
-		<info>Die parametrischen Einträge der Schale</info>
-	</data>
-	<data name="MenuId.FaceDistance">
-		<label>Abstand zur Fläche</label>
-		<info>Abstand zu einer anderen Fläche</info>
-	</data>
-	<data name="Solid.NewFeatureName">
-		<label>Detail</label>
-	</data>
-	<data name="MenuId.Feature">
-		<label>Detail</label>
-	</data>
-	<data name="MenuId.Feature.Position">
-		<label>Position</label>
-	</data>
-	<data name="MenuId.Feature.Name">
-		<label>Name</label>
-	</data>
-	<data name="MenuId.Feature.Remove">
-		<label>Entfernen</label>
-	</data>
+
 	<data name="MenuId.SplitByPlane">
 		<label>Durch Ebene aufteilen</label>
 	</data>
@@ -6118,5 +6083,17 @@
 	<data name="Shortcuts.Modifier">
 		<label>|Strg|Alt|Shift</label>
 		<info>die Bezeichnung der Tastatursymbole für die Shortcut Modifier</info>
+	</data>
+	<data name="Debug.Hashcode">
+		<label>Debug:HashCode</label>
+		<info>Debug Version only</info>
+	</data>
+	<data name="MenuId.Constr.Solid.ScrewPath">
+		<label>Pfad verschrauben</label>
+		<info></info>
+	</data>
+	<data name="MenuId.DrawingPlane.OfCurve">
+		<label>Ebene einer Kurve</label>
+		<info>Ebene einer Kurve, z.B. eines Kreisbogens</info>
 	</data>
 </root>

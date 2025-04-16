@@ -220,6 +220,7 @@ namespace CADability
         private Vertex v1, v2;
         private bool oriented; // obsolete, if false (forwardOnPrimaryFace, forwardOnSecondaryFace) have not yet been calculated
         enum EdgeKind { unknown, sameSurface, tangential, sharp }
+        private EdgeKind kind = EdgeKind.unknown;
         internal BRepOperation.EdgeInfo edgeInfo; // only used for BRepOperation
         // TODO: überprüfen, ob isPartOf und startAtOriginal, endAtOriginal noch gebraucht wird (evtl. zu einem Objekt machen)
         // TODO: ist owner nicht immer primaryFace?
@@ -819,7 +820,7 @@ namespace CADability
         {
             hashCode = hashCodeCounter++; // 
 #if DEBUG
-            if (hashCode == 712 || hashCode == 713)
+            if (hashCode == 6719 || hashCode == 6720)
             {
             }
 #endif
@@ -1980,8 +1981,24 @@ namespace CADability
             // so we now use only black
             if (go != null)
             {
-                paintTo3D.SetColor(Color.Black);
-                go.PaintTo3D(paintTo3D);
+                if (kind == EdgeKind.unknown)
+                {
+                    if (secondaryFace != null)
+                    {
+                        if (primaryFace.Surface.SameGeometry(primaryFace.Domain, secondaryFace.Surface, secondaryFace.Domain, Precision.eps, out ModOp2D _)) kind = EdgeKind.sameSurface;
+                        else kind = EdgeKind.sharp; // we could also implement tangential looking at normal vectors, but how would we differentiate?
+                    }
+                    else
+                    {
+                        kind = EdgeKind.sharp;
+                    }
+                }
+                // don't paint same surface edges, like on a split cylinder
+                if (kind != EdgeKind.sameSurface)
+                {
+                    paintTo3D.SetColor(Color.Black);
+                    go.PaintTo3D(paintTo3D);
+                }
             }
             //if (edgeKind == EdgeKind.unknown)
             //{

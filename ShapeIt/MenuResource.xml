@@ -284,11 +284,6 @@
 				<MenuItem MenuId="MenuId.Snap.Surface" IconNr="208" Usage="3D"/>
 			</Popup>
 		</Popup>
-		<Popup MenuId="MenuId.Help" MergeType="Add" MergeOrder="51">
-			<MenuItem MenuId="MenuId.Help.Index" IconNr="97" Shortcut="F1" />"
-			<MenuItem MenuId="SEPARATOR" />
-			<MenuItem MenuId="MenuId.App.About" IconNr="99" />
-		</Popup>
 	</MainMenu>
 
 	<Popup MenuId="MenuId.SelectedObjects" Shortcuts="true">

@@ -14,7 +14,7 @@ using Point = System.Drawing.Point;
 
 namespace CADability
 {
-    class PaintToSTL : IDisposable, IPaintTo3D
+    public class PaintToSTL : IDisposable, IPaintTo3D
     {
         string fileName;
         double precision;
@@ -147,7 +147,7 @@ namespace CADability
             get { return PaintCapabilities.Standard; }
         }
 
-        internal void Init()
+        public void Init()
         {
             stream = File.CreateText(fileName);
             stream.WriteLine("solid " + fileName);

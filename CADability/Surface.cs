@@ -5319,6 +5319,11 @@ namespace CADability.GeoObject
             ModOp2D mop;
             if (SameGeometry(thisBounds, other, otherBounds, Precision.eps, out mop)) return new IDualSurfaceCurve[0]; // surfaces are identical, no intersection
             ICurve[] cvs = BoxedSurfaceEx.Intersect(thisBounds, other, otherBounds, seeds, extremePositions);
+            if (cvs.Length==0 && seeds.Count==2)
+            {
+                InterpolatedDualSurfaceCurve idscv = new InterpolatedDualSurfaceCurve(this, thisBounds, other, otherBounds, seeds[0], seeds[1]);
+                return new IDualSurfaceCurve[] { idscv };
+            }
             DualSurfaceCurve[] res = new DualSurfaceCurve[cvs.Length];
             for (int i = 0; i < res.Length; i++)
             {

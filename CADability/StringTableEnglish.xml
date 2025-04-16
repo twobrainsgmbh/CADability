@@ -5992,45 +5992,6 @@
 	<data name="MenuId.More">
 		<label>More</label>
 	</data>
-	<data name="MenuId.SelectMoreEdges">
-		<label>Select more edges</label>
-		<info>Select more edges for various tasks</info>
-	</data>
-	<data name="MenuId.SelectMoreFaces">
-		<label>Select more faces</label>
-		<info>Select more faces for various tasks</info>
-	</data>
-	<data name="MenuId.Gauge">
-		<label>Gauge (Thickness)</label>
-		<info>Change gauge of the solid</info>
-	</data>
-	<data name="MenuId.ParametricProperty.Remove">
-		<label>Remove property</label>
-		<info>Remove this parametric property from the shell</info>
-	</data>
-	<data name="Solid.ParametricProperties">
-		<label>Parametrics</label>
-		<info>The parametric entries of the shell</info>
-	</data>
-	<data name="MenuId.FaceDistance">
-		<label>Distance to Face</label>
-		<info>Distance to another face</info>
-	</data>
-	<data name="Solid.NewFeatureName">
-		<label>Feature</label>
-	</data>
-	<data name="MenuId.Feature">
-		<label>Feature</label>
-	</data>
-	<data name="MenuId.Feature.Position">
-		<label>Position</label>
-	</data>
-	<data name="MenuId.Feature.Name">
-		<label>Name</label>
-	</data>
-	<data name="MenuId.Feature.Remove">
-		<label>Remove</label>
-	</data>
 	<data name="MenuId.SplitByPlane">
 		<label>Split by plane</label>
 	</data>

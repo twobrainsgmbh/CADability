@@ -3340,6 +3340,7 @@ namespace CADability
             Set<Face> overlappingCommonFaces = CollectOverlappingCommonFaces(usedByOverlapping); // same oriented overlapping faces yield their common parts
             Set<Face> oppositeCommonFaces = CollectOppositeCommonFaces(discardedFaces); // opposite oriented overlapping faces yield their common parts
             VertexConnectionSet nonManifoldEdges = new VertexConnectionSet();
+            HashSet<Face> nonManifoldCandidates = new HashSet<Face>(); // faces, which are only added because they contain nonManifoldEdges.
             foreach (KeyValuePair<Face, Set<Edge>> kv in faceToIntersectionEdges)
             {   // faceToIntersectionEdges contains all faces, which are intersected by faces of the relative other shell, as well as those intersection edges
                 Face faceToSplit = kv.Key;
@@ -3526,7 +3527,11 @@ namespace CADability
                     // all intersection edges are identical or reverse to original edges. If they ware all identical, we can still use this face
                     if (originalEdges.Count == faceToSplit.AllEdgesCount && !usedByOverlapping.Contains(faceToSplit) && !faceToCommonFaces.ContainsSameFace(faceToSplit, precision))
                     {
-                        if (hasNonManifoldEdge) trimmedFaces.Add(faceToSplit); // this face must be used, although it might be part of an open shell (hasNonManifoldEdge is very rare)
+                        if (hasNonManifoldEdge)
+                        {
+                            trimmedFaces.Add(faceToSplit); // this face must be used, although it might be part of an open shell (hasNonManifoldEdge is very rare)
+                            nonManifoldCandidates.Add(faceToSplit); // we dont try to fix open shells with these faces
+                        }
                         if (!intersectionEdgeRemovedByCommonFace) discardedFaces.Remove(faceToSplit); // allow this face be used for the final shells if needed
                     }
                     continue; // nothing to do here
@@ -3996,15 +4001,19 @@ namespace CADability
                     }
                     else
                     {
-                        if (TryFixMissingFaces(shell))
+                        // Try to fix missing faces. This helps to close shells, but it is actually a bug in the above code.
+                        // when some of the faces are nonmanifold faces, we don't try to fix, because we know, these faces are uncertain candidates
+                        try
                         {
-                            shell.CombineConnectedFaces(); // two connected faces which have the same surface are merged into one face
-                            if (operation == Operation.union) shell.ReverseOrientation(); // both had been reversed and the intersection had been calculated
-                            res.Add(shell);
-                        }
-                        shell.RecalcVertices();
-                        shell.TryConnectOpenEdges();
-
+                            if (!nonManifoldCandidates.Intersect(shell.Faces).Any() && TryFixMissingFaces(shell))
+                            {
+                                shell.CombineConnectedFaces(); // two connected faces which have the same surface are merged into one face
+                                if (operation == Operation.union) shell.ReverseOrientation(); // both had been reversed and the intersection had been calculated
+                                res.Add(shell);
+                            }
+                            shell.RecalcVertices();
+                            shell.TryConnectOpenEdges();
+                        } catch (Exception) { }
                     }
                 }
             }
@@ -5469,6 +5478,34 @@ namespace CADability
         private Dictionary<Face, Set<Edge>> Common(Face face1, Face face2, ModOp2D secondToFirst)
         {
             bool reverseSecond = secondToFirst.Determinant < 0;
+            //if (reverseSecond)
+            //{   // a very common case: the faces are identical but reversed
+            //    SimpleShape s1 = face1.Area;
+            //    SimpleShape s2 = face2.Area;
+            //    bool identical = true;
+            //    s2 = s2.GetModified(secondToFirst);
+            //    foreach (ICurve2D segment in s1.Segments)
+            //    {
+            //        if (!s2.IsPointOnBorder(segment.EndPoint,Precision.eps))
+            //        {
+            //            identical = false;
+            //            break;
+            //        }
+            //    }
+            //    foreach (ICurve2D segment in s2.Segments)
+            //    {
+            //        if (!s1.IsPointOnBorder(segment.EndPoint, Precision.eps))
+            //        {
+            //            identical = false;
+            //            break;
+            //        }
+            //    }
+            //    CompoundShape cs = SimpleShape.Subtract(s1, s2);
+            //    if (cs.Empty)
+            //    {
+
+            //    }
+            //}
             Dictionary<Face, Set<Edge>> res = new Dictionary<Face, Set<Edge>>();
             Set<Edge> toUse = new Set<Edge>();
             Set<Edge> ie1 = new Set<Edge>(); // empty set

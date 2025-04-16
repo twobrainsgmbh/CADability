@@ -168,14 +168,6 @@ namespace ShapeIt
             CadFrame.ControlCenter.RemovePropertyPage("View");
             Assembly ThisAssembly = Assembly.GetExecutingAssembly();
             System.IO.Stream str;
-            using (str = ThisAssembly.GetManifestResourceStream("ShapeIt.MenuResource.xml"))
-            {
-                XmlDocument menuDocument = new XmlDocument();
-                menuDocument.Load(str);
-                MenuResource.SetMenuResource(menuDocument);
-                ResetMainMenu(null);
-            }
-
             using (str = ThisAssembly.GetManifestResourceStream("ShapeIt.StringTableDeutsch.xml"))
             {
                 XmlDocument stringXmlDocument = new XmlDocument();
@@ -188,6 +180,26 @@ namespace ShapeIt
                 XmlDocument stringXmlDocument = new XmlDocument();
                 stringXmlDocument.Load(str);
                 StringTable.AddStrings(stringXmlDocument);
+            }
+            using (str = ThisAssembly.GetManifestResourceStream("ShapeIt.MenuResource.xml"))
+            {
+                XmlDocument menuDocument = new XmlDocument();
+                menuDocument.Load(str);
+#if DEBUG
+                // inject an additional menu "Debug", which we can use to directly execute some debugging code
+                XmlNode mainMenu = menuDocument.SelectSingleNode("Menus/MainMenu");
+                if (mainMenu != null)
+                {
+                    // Create a new MenuItem element.
+                    XmlElement debugMenuItem = menuDocument.CreateElement("MenuItem");
+                    // Set the MenuId attribute to "MenuId.Debug".
+                    debugMenuItem.SetAttribute("MenuId", "MenuId.Debug");
+                    // Append the new MenuItem element to the MainMenu node.
+                    mainMenu.AppendChild(debugMenuItem);
+                }
+#endif
+                MenuResource.SetMenuResource(menuDocument);
+                ResetMainMenu(null);
             }
 
             lastSaved = DateTime.Now;
@@ -319,6 +331,13 @@ namespace ShapeIt
                 Application.Exit();
                 return true;
             }
+#if DEBUG
+            else if (MenuId == "MenuId.Debug")
+            {
+                Debug();
+                return true;
+            }
+#endif
             else return base.OnCommand(MenuId);
         }
         public override bool OnUpdateCommand(string MenuId, CommandState CommandState)
@@ -332,5 +351,27 @@ namespace ShapeIt
             modellingPropertyEntries.OnSelected(selectedMenuItem, selected);
             base.OnSelected(selectedMenuItem, selected);
         }
+#if DEBUG
+        /// <summary>
+        /// Here we can add some debug code
+        /// </summary>
+        private void Debug()
+        {
+            CADability.GeoObject.Solid sld1 = null;
+            CADability.GeoObject.Solid sld2 = null;
+            foreach (CADability.GeoObject.IGeoObject go in CadFrame.Project.GetActiveModel().AllObjects)
+            {
+                if (go is CADability.GeoObject.Solid sld)
+                {
+                    if (sld1 == null) sld1 = sld;
+                    else sld2 = sld;
+                }
+            }
+            if (sld1 != null && sld2 != null)
+            {
+                CADability.GeoObject.Solid[] res = CADability.GeoObject.Solid.Subtract(sld1, sld2);
+            }
+        }
+#endif
     }
 }

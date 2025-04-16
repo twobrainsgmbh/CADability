@@ -124,6 +124,57 @@
 		<label>Preserve Value</label>
 		<info>If enabled, the parameter's value will remain unchanged when other parameters of the solid are modified</info>
 	</data>
+	<data name="MenuId.Export.STL">
+		<label>Export STL file [[E]]</label>
+		<info>Export this Solid in the STL file format</info>
+	</data>
+	<data name="MenuId.Debug">
+		<label>Debug</label>
+		<info>Debug</info>
+	</data>
+	<data name="MenuId.Feature.Split">
+		<label>Split Feature</label>
+		<info>Split the feature from the solid or make the cutout to a solid</info>
+	</data>
+	<data name="MenuId.SelectMoreEdges">
+		<label>Select more edges</label>
+		<info>Select more edges for various tasks</info>
+	</data>
+	<data name="MenuId.SelectMoreFaces">
+		<label>Select more faces</label>
+		<info>Select more faces for various tasks</info>
+	</data>
+	<data name="MenuId.Gauge">
+		<label>Gauge (Thickness)</label>
+		<info>Change gauge of the solid</info>
+	</data>
+	<data name="MenuId.ParametricProperty.Remove">
+		<label>Remove property</label>
+		<info>Remove this parametric property from the shell</info>
+	</data>
+	<data name="Solid.ParametricProperties">
+		<label>Parametrics</label>
+		<info>The parametric entries of the shell</info>
+	</data>
+	<data name="MenuId.FaceDistance">
+		<label>Distance to Face</label>
+		<info>Distance to another face</info>
+	</data>
+	<data name="Solid.NewFeatureName">
+		<label>Feature</label>
+	</data>
+	<data name="MenuId.Feature">
+		<label>Feature</label>
+	</data>
+	<data name="MenuId.Feature.Position">
+		<label>Position</label>
+	</data>
+	<data name="MenuId.Feature.Name">
+		<label>Name</label>
+	</data>
+	<data name="MenuId.Feature.Remove">
+		<label>Remove</label>
+	</data>
 
 	<!-- 
 	-->

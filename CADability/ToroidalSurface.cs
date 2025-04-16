@@ -1807,7 +1807,7 @@ namespace CADability.GeoObject
                     double d = tangentialIntersections[i] | tangentialIntersections[i + 1];
                     if (Math.Abs(d - this.MinorRadius) < Precision.eps)
                     {   // there is a tangential intersection between this line and the torus
-                        // the pair of point is alway fist point on the circle, second on the line
+                        // the pair of point is alway first point on the circle, second on the line
                         double pos = line.PositionOf(tangentialIntersections[i + 1]);
                         if (pos > -Precision.eps && pos < 1 + Precision.eps)
                         {
@@ -1826,15 +1826,18 @@ namespace CADability.GeoObject
                 List<GeoPoint> lips = new List<GeoPoint>();
                 for (int i = 0; i < apnts.Length; ++i)
                 {
-                    Surfaces.NewtonIntersect(this, uvExtent, curve, ref apnts[i]); // polynom root don't yield exactt results. We make it better here
-                    double uu = curve.PositionOf(apnts[i]);
-                    GeoPoint2D uv = this.PositionOf(apnts[i]);
-                    SurfaceHelper.AdjustPeriodic(this, uvExtent, ref uv);
-                    if (uu > -Precision.eps && uu < 1 + Precision.eps && uvExtent.ContainsEps(uv, -0.01))
+                    if (Surfaces.NewtonIntersect(this, uvExtent, curve, ref apnts[i])) // polynom root don't yield exactt results. We make it better here
                     {
-                        lips.Add(apnts[i]);
-                        luOnCurve3Ds.Add(uu);
-                        luvOnFaces.Add(uv);
+                        double uu = curve.PositionOf(apnts[i]);
+                        GeoPoint2D uv = this.PositionOf(apnts[i]);
+                        SurfaceHelper.AdjustPeriodic(this, uvExtent, ref uv);
+                        double dist = apnts[i] | PointAt(uv);
+                        if (uu > -Precision.eps && uu < 1 + Precision.eps && uvExtent.ContainsEps(uv, -0.01) && dist < 10 * Precision.eps)
+                        {
+                            lips.Add(apnts[i]);
+                            luOnCurve3Ds.Add(uu);
+                            luvOnFaces.Add(uv);
+                        }
                     }
                 }
                 if (tangentialFound.IsValid)
@@ -2571,7 +2574,7 @@ namespace CADability.GeoObject
                         double v1 = Math.Asin(Math.Max(Math.Min((unitPlane.Location.z / minorRadius), 1), -1)); // -pi/2 ... +pi/2
                         double v2 = Math.PI - v1;
                         if (v1 < 0) v2 = -Math.PI - v1;
-                        if (Math.Abs(v1 - v2) < 1e-6)
+                        if (Math.Abs(v1 - v2) < 1e-5)
                         {   // single solution
                             double v = Math.PI / 2.0;
                             if (v1 < 0) v = -v;

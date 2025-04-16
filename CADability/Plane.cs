@@ -948,7 +948,7 @@ namespace CADability
             Location = ToGlobal(c);
         }
 
-        internal GeoPoint2D Intersect(Axis SourceBeam)
+        public GeoPoint2D Intersect(Axis SourceBeam)
         {
             return this.Project(Intersect(SourceBeam.Location, SourceBeam.Direction));
         }
