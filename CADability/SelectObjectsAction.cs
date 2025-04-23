@@ -1882,8 +1882,7 @@ namespace CADability.Actions
         /// </summary>
         public override bool OnDelete()
         {
-            OnCommand("MenuId.Object.Delete");
-            return true;
+            return OnCommand("MenuId.Object.Delete");
         }
         private void DecomposeAll()
         {   // wir wollen alle zerlegbaren Objekte einstufig zerlegen
@@ -1976,6 +1975,7 @@ namespace CADability.Actions
                     return true;
                 case "MenuId.Object.Delete":
                     {
+                        if (selectedObjects.Count == 0) return false;
                         GeoObjectList sel = selectedObjects.Clone();
                         ClearSelectedObjects(); // die Reihenfolge ist hier wichtig, sonst ist das Controlcenter überfordert
                         using (Frame.Project.Undo.UndoFrame)
@@ -2295,7 +2295,7 @@ namespace CADability.Actions
                     return true;
                 case "MenuId.Edit.Cut":
                     {
-                        int x = selectedObjects.Count;
+                        if (selectedObjects.Count == 0) return false;
                         Frame.UIService.SetClipboardData(selectedObjects, true);
                         GeoObjectList lst = new GeoObjectList(selectedObjects);
                         ClearSelectedObjects();
@@ -2304,6 +2304,7 @@ namespace CADability.Actions
                     }
                 case "MenuId.Edit.Copy":
 
+                    if (selectedObjects.Count == 0) return false;
                     Frame.UIService.SetClipboardData(selectedObjects, true);
                     //Clipboard.SetDataObject(selectedObjects, true);
                     return true;

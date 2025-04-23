@@ -96,7 +96,7 @@
           "hash": "rlwggD3jVjWKftSnoXiOgCnGH4qY965hR+m8FOrUCQc="
         }
       },
-      "is_incremental": false,
+      "is_incremental": true,
       "version": ""
     },
     {
@@ -108,7 +108,7 @@
           "hash": "l8VEitcbVMJc4dQImUEG+TrfGF8FPJHuBlY5IE9IZgk="
         }
       },
-      "is_incremental": false,
+      "is_incremental": true,
       "version": ""
     },
     {
@@ -120,7 +120,7 @@
           "hash": "oYBN0NjZIx6/lWzIx/7RAwvZzv2G4uYBiPjUSgk9F+8="
         }
       },
-      "is_incremental": false,
+      "is_incremental": true,
       "version": ""
     },
     {
@@ -201,10 +201,10 @@
       "output": {
         ".html": {
           "relative_path": "api/CADability.Forms.PropertyPage.html",
-          "hash": "LlekqL6hH/SQ+fSOJhfrUuYTkjign9Zssxs/h8PkkuE="
+          "hash": "NGXXkpbCdZAGHx60pDOOTpkWGofJ12SMxF8pOaUlqqI="
         }
       },
-      "is_incremental": false,
+      "is_incremental": true,
       "version": ""
     },
     {
@@ -228,7 +228,7 @@
           "hash": "LPgETfrZKett17AS32IKBykY/GFBf3beHQTBRCDpk8c="
         }
       },
-      "is_incremental": false,
+      "is_incremental": true,
       "version": ""
     },
     {
@@ -275,7 +275,7 @@
           "can_incremental": true,
           "incrementalPhase": "build",
           "total_file_count": 15,
-          "skipped_file_count": 13
+          "skipped_file_count": 15
         },
         "TocDocumentProcessor": {
           "can_incremental": false,

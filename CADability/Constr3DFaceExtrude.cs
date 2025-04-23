@@ -716,7 +716,7 @@ namespace CADability.Actions
                             if (vectorOffset.IsNullVector() && insert && Frame.GetBooleanSetting("Construct.3D_Delete2DBase", false))
                             {
                                 if (geoObjectOrgList[i] != null) // evtl. Einzelobjekt (Object oder Path) als Original rauslöschen
-                                    ownerList[i].Remove(geoObjectOrgList[i] as IGeoObject);
+                                    ownerList[i]?.Remove(geoObjectOrgList[i]);
                                 else
                                 { // die Einzelelemente des CreateFromModel identifizieren
                                     for (int j = 0; j < pathCreatedFromModelList[i].Count; ++j)

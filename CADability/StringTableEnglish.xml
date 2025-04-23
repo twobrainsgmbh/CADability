@@ -6014,37 +6014,6 @@
 	<data name="TextToValue.Failed">
 		<label>Invalid input</label>
 	</data>
-	<data name="Parametrics.InvalidPropertyValue">
-		<label>Ensure the value is within valid limits to maintain design integrity</label>
-	</data>
-	<data name="MenuId.ExtrusionLength">
-		<label>Dimension</label>
-		<info>Set the length or width dimension of an extrusion in this direction</info>
-	</data>
-	<data name="Extrude.Distance">
-		<label>Extrusion Dimension</label>
-		<info>Set the length or width dimension of an extrusion in this direction</info>
-	</data>
-	<data name="Extrude.MeassureForwardObject">
-		<label>Meassure to</label>
-		<info>Meassuer to this object</info>
-	</data>
-	<data name="Extrude.MeassureBackwardObject">
-		<label>Meassure from</label>
-		<info>Meassure from this object</info>
-	</data>
-	<data name="Vertex.Displayname">
-		<label>Vertex</label>
-		<info>A vertex of this shape</info>
-	</data>
-	<data name="Edge.Displayname">
-		<label>Edge</label>
-		<info>An edge of this shape</info>
-	</data>
-	<data name="Face.Displayname">
-		<label>Face</label>
-		<info>A face of this shape</info>
-	</data>
 	<data name="MenuId.Plane.OfCurve">
 		<label>Plane of Curve</label>
 		<info>Plane of planar curve, e.g. a circular arc</info>
@@ -6057,6 +6026,26 @@
 		<label>|Ctrl|Alt|Shift</label>
 		<info>the keyboard symbols for the modifier keys</info>
 	</data>
+	<data name="Constr.Parametrics.Angle">
+		<label>Angle between Faces</label>
+		<info>???</info>
+	</data>
+	<data name="Parametrics.Angle.FaceToRotate">
+		<label>Face to rotate</label>
+		<info>???</info>
+	</data>
+	<data name="Parametrics.Angle.MoreFacesToRotate">
+		<label>More faces to rotate</label>
+		<info>???</info>
+	</data>
+	<data name="Parametrics.Angle.Reference">
+		<label>Reference Face for Angle</label>
+		<info>???</info>
+	</data>
+	<data name="Parametrics.Angle.Angle">
+		<label>Rotation Angle</label>
+		<info>???</info>
+	</data>	
 	<!--
 	-->
 </root>

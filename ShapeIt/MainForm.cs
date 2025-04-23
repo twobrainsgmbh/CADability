@@ -18,6 +18,7 @@ using System.IO;
 using CADability.Actions;
 using System.Drawing.Imaging;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using System.Xml.Linq;
 
 namespace ShapeIt
 {
@@ -28,6 +29,7 @@ namespace ShapeIt
         private DateTime lastSaved; // time, when the current file has been saved the last time, see OnIdle
         private bool modifiedSinceLastAutosave = false;
         bool projectionChanged = false; // to handle projection changes in OnIdle
+        bool crashChecked = false;
 
         private Control FindControlByName(Control parent, string name)
         {
@@ -151,6 +153,7 @@ namespace ShapeIt
             if (toOpen == null) CadFrame.GenerateNewProject();
             else CadFrame.Project = toOpen;
             this.Text = "ShapeIt with CADability";
+            Settings.GlobalSettings.SetValue("Construct.3D_Delete2DBase", false); // we start face extrus with newly generated face, which has no owner
             bool exp = Settings.GlobalSettings.GetBoolValue("Experimental.TestNewContextMenu", false);
             bool tst = Settings.GlobalSettings.GetBoolValue("ShapeIt.Initialized", false);
             Settings.GlobalSettings.SetValue("ShapeIt.Initialized", true);
@@ -212,7 +215,11 @@ namespace ShapeIt
                     path = Path.Combine(path, "ShapeIt");
                     DirectoryInfo dirInfo = Directory.CreateDirectory(path);
                     string currentFileName = CadFrame.Project.FileName;
-                    if (string.IsNullOrEmpty(CadFrame.Project.FileName)) path = Path.Combine(path, "crash_" + DateTime.Now.ToString("yyMMddHHmm") + ".cdb.json");
+                    if (string.IsNullOrEmpty(CadFrame.Project.FileName))
+                    {
+                        path = Path.Combine(path, "crash_" + DateTime.Now.ToString("yyMMddHHmm") + ".cdb.json");
+                        currentFileName = "unknown";
+                    }
                     else
                     {
                         string crashFileName = Path.GetFileNameWithoutExtension(CadFrame.Project.FileName);
@@ -220,6 +227,7 @@ namespace ShapeIt
                         path = Path.Combine(path, crashFileName + "_X.cdb.json");
                     }
                     CadFrame.Project.WriteToFile(path);
+                    File.WriteAllText(Path.Combine(Path.GetTempPath(), @"ShapeIt\Crash.txt"), currentFileName + "\n" + path);
                 }
                 catch (Exception) { };
             };
@@ -242,6 +250,32 @@ namespace ShapeIt
             projectionChanged = true;
         }
 
+        protected override void OnShown(EventArgs e)
+        {
+            // check for crash
+            if (!crashChecked)
+            {
+                crashChecked = true;
+                string crashPath = Path.Combine(Path.GetTempPath(), @"ShapeIt\Crash.txt");
+                if (File.Exists(crashPath))
+                {
+                    string[] lines = File.ReadAllLines(Path.Combine(Path.GetTempPath(), @"ShapeIt\Crash.txt"));
+                    if (lines.Length == 2)
+                    {
+                        string ask = StringTable.GetFormattedString("ShapeIt.RestoreAfterCrash", lines[0]);
+                        if (CadFrame.UIService.ShowMessageBox(ask, "ShapeIt", CADability.Substitutes.MessageBoxButtons.YesNo) == CADability.Substitutes.DialogResult.Yes)
+                        {
+                            CadFrame.Project = Project.ReadFromFile(lines[1]);
+                            CadFrame.Project.FileName = lines[0];
+                            
+                            this.Text = "ShapeIt -- " + lines[0];
+                        }
+                    }
+                    File.Delete(crashPath);
+                }
+            }
+            base.OnActivated(e);
+        }
         /// <summary>
         /// Filter the escape key for the modelling property page
         /// </summary>
@@ -359,17 +393,21 @@ namespace ShapeIt
         {
             CADability.GeoObject.Solid sld1 = null;
             CADability.GeoObject.Solid sld2 = null;
+            CADability.GeoObject.Solid sld3 = null;
             foreach (CADability.GeoObject.IGeoObject go in CadFrame.Project.GetActiveModel().AllObjects)
             {
                 if (go is CADability.GeoObject.Solid sld)
                 {
                     if (sld1 == null) sld1 = sld;
-                    else sld2 = sld;
+                    else if (sld2 == null) sld2 = sld;
+                    else sld3 = sld;
                 }
             }
-            if (sld1 != null && sld2 != null)
+            if (sld1 != null && sld2 != null && sld3 != null)
             {
-                CADability.GeoObject.Solid[] res = CADability.GeoObject.Solid.Subtract(sld1, sld2);
+                CADability.GeoObject.Solid res = CADability.GeoObject.Solid.Unite(sld3, sld2);
+                res = CADability.GeoObject.Solid.Unite(sld1, res);
+                res.Shells[0].CheckConsistency();
             }
         }
 #endif

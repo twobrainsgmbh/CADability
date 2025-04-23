@@ -273,6 +273,12 @@ namespace CADability.UserInterface
         string GetErrorText();
     }
     public delegate void PreProcessKeyDown(KeyEventArgs keyEventArgs);
+    /// <summary>
+    /// notifies the event receiver, that the selection has changed
+    /// </summary>
+    /// <param name="unselected">the previous selected item</param>
+    /// <param name="selected">the itam, which just has been selected</param>
+    public delegate void SelectionChanged(IPropertyEntry unselected, IPropertyEntry selected);
     public interface IPropertyPage
     {
         void BringToFront();
@@ -297,6 +303,7 @@ namespace CADability.UserInterface
         bool ContainsEntry(IPropertyEntry entryWithTextBox);
         bool IsOnTop();
         event PreProcessKeyDown OnPreProcessKeyDown;
+        event SelectionChanged OnSelectionChanged;
     }
 
     public interface IUIService

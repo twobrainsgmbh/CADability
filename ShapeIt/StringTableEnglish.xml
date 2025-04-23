@@ -124,9 +124,9 @@
 		<label>Preserve Value</label>
 		<info>If enabled, the parameter's value will remain unchanged when other parameters of the solid are modified</info>
 	</data>
-	<data name="MenuId.Export.STL">
-		<label>Export STL file [[E]]</label>
-		<info>Export this Solid in the STL file format</info>
+	<data name="MenuId.Export.Solid">
+		<label>Export STL or STEP file [[E]]</label>
+		<info>Export this Solid in the STL or STEP file format</info>
 	</data>
 	<data name="MenuId.Debug">
 		<label>Debug</label>
@@ -174,6 +174,40 @@
 	</data>
 	<data name="MenuId.Feature.Remove">
 		<label>Remove</label>
+	</data>
+	<data name="Parametrics.InvalidPropertyValue">
+		<label>Ensure the value is within valid limits to maintain design integrity</label>
+	</data>
+	<data name="MenuId.ExtrusionLength">
+		<label>Dimension</label>
+		<info>Set the length or width dimension of an extrusion in this direction</info>
+	</data>
+	<data name="Extrude.Distance">
+		<label>Extrusion Dimension</label>
+		<info>Set the length or width dimension of an extrusion in this direction</info>
+	</data>
+	<data name="Extrude.MeassureForwardObject">
+		<label>Meassure to</label>
+		<info>Meassuer to this object</info>
+	</data>
+	<data name="Extrude.MeassureBackwardObject">
+		<label>Meassure from</label>
+		<info>Meassure from this object</info>
+	</data>
+	<data name="Vertex.Displayname">
+		<label>Vertex</label>
+		<info>A vertex of this shape</info>
+	</data>
+	<data name="Edge.Displayname">
+		<label>Edge</label>
+		<info>An edge of this shape</info>
+	</data>
+	<data name="Face.Displayname">
+		<label>Face</label>
+		<info>A face of this shape</info>
+	</data>
+	<data name="ShapeIt.RestoreAfterCrash">
+		<label>Restore file "{0}" ?</label>
 	</data>
 
 	<!-- 

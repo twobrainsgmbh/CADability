@@ -28,7 +28,7 @@
     <PublisherName>Gerhard</PublisherName>
     <WebPage>publish.htm</WebPage>
     <AutorunEnabled>true</AutorunEnabled>
-    <ApplicationRevision>4</ApplicationRevision>
+    <ApplicationRevision>5</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
@@ -93,6 +93,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DistanceCalculator.cs" />
+    <Compile Include="EdgeInOctTree.cs" />
     <Compile Include="Feedback.cs" />
     <Compile Include="FeedbackArrow.cs" />
     <Compile Include="Helper.cs" />
@@ -116,6 +117,7 @@
     <Compile Include="DirectMenuEntry.cs" />
     <Compile Include="SelectSecondSolidAction.cs" />
     <Compile Include="ShellExtensions.cs" />
+    <Compile Include="SolidPlaneIntersectionPathAction.cs" />
     <Compile Include="Surfaces.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

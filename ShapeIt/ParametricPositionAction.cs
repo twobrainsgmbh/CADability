@@ -51,7 +51,7 @@ namespace ShapeIt
         {
             base.TitleId = "Constr.Parametrics.BrepMove";
             feedbackResult = shell.Clone() as Shell;
-            // feedback.ShadowFaces.Add(feedbackResult);
+            // feedback.ShadowFaces.Add(feedbackResult); Don't show the whole solid, it is distracting
             feedback.FrontFaces.AddRange(facesToMove);
             List<InputObject> actionInputs = new List<InputObject>();
 
@@ -137,7 +137,6 @@ namespace ShapeIt
                     {
                         feedback.BackFaces.Add(toMeassureToModified);
                         feedback.Arrows.AddRange(FeedbackArrow.MakeLengthArrow(shell, startPoint, endPoint + offset, null, endPoint - startPoint, touchingPoint, CurrentMouseView, FeedbackArrow.ArrowFlags.secondRed));
-                        feedback.ShadowFaces.Add(feedbackResult);
                     }
                     feedback.Refresh(); // show face or edge
                 }

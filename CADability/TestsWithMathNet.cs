@@ -338,7 +338,7 @@ namespace CADability
                 uvOnSurface = new GeoPoint2D(mres.MinimizingPoint[0], mres.MinimizingPoint[1]);
                 uOnCurve = mres.MinimizingPoint[2];
                 ip = lastip;
-                return true;
+                return mres.ReasonForExit==ExitCondition.Converged;
             }
             catch
             {

@@ -37,6 +37,7 @@ namespace CADability.Forms
         private PropertiesExplorer propertiesExplorer;
         private Dictionary<char, string> keyboardModifier;
         public event PreProcessKeyDown OnPreProcessKeyDown;
+        public event SelectionChanged OnSelectionChanged;
 
         public PropertyPage(string titleId, int iconId, PropertiesExplorer propExplorer)
         {
@@ -127,7 +128,7 @@ namespace CADability.Forms
             path.CloseFigure();
             return path;
         }
-        private void DrawShortcut(Graphics g, Rectangle area, Font font, string modifier, char key)
+        private void DrawShortcut(Graphics g, Rectangle area, Font font, string modifier, string key)
         {   // by ChatGPT
             const int keycapPadding = 0;
             const int spacing = 0;
@@ -141,7 +142,7 @@ namespace CADability.Forms
                 ? new List<string>()
                 : modifier.Split('+').Select(m => m.Trim()).ToList();
 
-            parts.Add(key.ToString());
+            parts.Add(key);
 
             // Textgrößen berechnen
             var sizes = parts.Select(p =>
@@ -200,49 +201,50 @@ namespace CADability.Forms
         /// where text is the label text without the shortcut portion,
         /// and missing modifier(s) and key are represented as '\0'.
         /// </returns>
-        private (string text, char firstModifier, char secondModifier, char key) SplitLabelText(string labelText)
+        private (string text, char firstModifier, char secondModifier, string key) SplitLabelText(string labelText)
         {
             // Regex pattern:
-            // ^(.*?)           -> Capture group 1: Everything from the start up to the shortcut part (non-greedy)
-            // (?:\s*\[\[       -> Non-capturing group for optional preceding whitespace and literal "[["
-            // (?:(?<modifier1>[sca])?  -> Optional first modifier (s, c, or a)
-            // (?<modifier2>[sca])?     -> Optional second modifier (s, c, or a)
-            // (?<key>[A-Z])?           -> Optional key (a single uppercase letter)
-            // \]\])\s*$        -> Closing "]]" and any trailing whitespace until the end of string
-            var regex = new Regex(@"^(.*?)(?:\s*\[\[(?:(?<modifier1>[sca])?(?<modifier2>[sca])?(?<key>[A-Z])?)\]\])\s*$");
+            // ^(.*?)                       -> Capture group 1: Alles bis zum Shortcut-Teil (non-greedy)
+            // (?:\s*\[\[                   -> Non-capturing: optionales Leerzeichen + literal "[["
+            //   (?:(?<modifier1>[sca])?    -> Optionaler erster Modifier (s, c oder a)
+            //     (?<modifier2>[sca])?     -> Optionaler zweiter Modifier
+            //     (?<key>                  -> Capture group "key":
+            //         Esc|Del              ->   "Esc" oder "Del"
+            //         |F\d{1,2}            ->   Funktionstasten F1–F99 (praktisch F1–F12)
+            //         |[A-Z]               ->   einzelner Großbuchstabe
+            //     )
+            //   )
+            // \]\])\s*$                    -> literal "]]" + optionales Leerzeichen bis zum String-Ende
+            var regex = new Regex(
+                @"^(.*?)(?:\s*\[\[(?:(?<modifier1>[sca])?(?<modifier2>[sca])?(?<key>Esc|Del|F\d{1,2}|[A-Z]))\]\])\s*$"
+            );
 
             char firstModifier = '\0';
             char secondModifier = '\0';
-            char key = '\0';
+            string key = string.Empty;
 
             var match = regex.Match(labelText);
             if (match.Success)
             {
-                // Extract the visible label text (without the shortcut part)
-                string textPart = match.Groups[1].Value;
+                // Textteil ohne Shortcut
+                string textPart = match.Groups[1].Value.TrimEnd();
 
-                // If the first modifier group is found and has a value, use it
+                // Falls vorhanden, Modifier auslesen
                 if (match.Groups["modifier1"].Success && match.Groups["modifier1"].Value.Length > 0)
-                {
                     firstModifier = match.Groups["modifier1"].Value[0];
-                }
-                // Likewise for the second modifier
                 if (match.Groups["modifier2"].Success && match.Groups["modifier2"].Value.Length > 0)
-                {
                     secondModifier = match.Groups["modifier2"].Value[0];
-                }
-                // Extract the key if available
-                if (match.Groups["key"].Success && match.Groups["key"].Value.Length > 0)
-                {
-                    key = match.Groups["key"].Value[0];
-                }
 
-                return (textPart.TrimEnd(), firstModifier, secondModifier, key);
+                // Key auslesen (kann nun z.B. "Esc" oder "F5" sein)
+                if (match.Groups["key"].Success && match.Groups["key"].Value.Length > 0)
+                    key = match.Groups["key"].Value;
+
+                return (textPart, firstModifier, secondModifier, key);
             }
             else
             {
-                // If no shortcut pattern is found, return the label text intact and null-characters for modifiers and key.
-                return (labelText, '\0', '\0', '\0');
+                // Kein Shortcut gefunden: Rückgabe mit leerem key
+                return (labelText, '\0', '\0', string.Empty);
             }
         }
         private void PaintItem(int index, Graphics graphics)
@@ -278,7 +280,7 @@ namespace CADability.Forms
             string labelText = entries[index].Label;
             char firstModifier = '\0';
             char secondModifier = '\0';
-            char shortCutKey = '\0';
+            string shortCutKey = String.Empty;
             if (entries[index].Flags.HasFlag(PropertyEntryType.Shortcut))
                 (labelText, firstModifier, secondModifier, shortCutKey) = SplitLabelText(labelText);
             if (graphics.MeasureString(labelText, Font).Width > labelRect.Width) labelNeedsExtension[index] = true;
@@ -309,7 +311,7 @@ namespace CADability.Forms
                     graphics.DrawString(labelText, Font, SystemBrushes.ControlText, labelRect, stringFormat);
             }
             // shortcut
-            if (entries[index].Flags.HasFlag(PropertyEntryType.Shortcut) && shortCutKey != '\0')
+            if (entries[index].Flags.HasFlag(PropertyEntryType.Shortcut) && shortCutKey != String.Empty)
             {
                 Font smallerFont = new Font(Font.FontFamily, Font.Size * 0.9f, Font.Style);
                 Size scsz = graphics.MeasureString("X", smallerFont).ToSize(); // height of shortcut text
@@ -965,6 +967,8 @@ namespace CADability.Forms
                     }
                     propertiesExplorer.Selected(entries[selected]);
                 }
+                OnSelectionChanged?.Invoke((wasSelected >= 0 && wasSelected < entries.Length) ? entries[wasSelected] : null,
+                    (selected >= 0 && selected < entries.Length) ? entries[selected] : null);
             }
         }
         IPropertyEntry IPropertyPage.Selected

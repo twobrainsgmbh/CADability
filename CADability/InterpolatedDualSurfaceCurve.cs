@@ -2396,7 +2396,7 @@ namespace CADability
             if (approxPolynom == null) InitApproxPolynom();
             double pos1 = approxPolynom.PositionOf(p, out double md);
             
-            if ((PointAt(pos1) | p) < (PointAt(ppos) | p)) 
+            if ((pos1 != double.MaxValue) && (PointAt(pos1) | p) < (PointAt(ppos) | p)) 
                 return pos1;
             
             return ppos;

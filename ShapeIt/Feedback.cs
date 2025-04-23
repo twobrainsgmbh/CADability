@@ -19,11 +19,15 @@ namespace ShapeIt
         public GeoObjectList SelectedObjects = new GeoObjectList(); // List of selected objects to be displayed, when a entry is selected, displayed as brim
         public GeoObjectList Arrows = new GeoObjectList(); // List of highlighted objects to be displayed, when a entry is selected
         public Rectangle selectionRectangle = Rectangle.Empty;
+        public List<IHotSpot> hotSpots = new List<IHotSpot>();
+        public IHotSpot selectedHotSpot;
         private IPaintTo3DList frontFacesDisplayList = null;
         private IPaintTo3DList backFacesDisplayList = null;
         private IPaintTo3DList shadowFacesDisplayList = null;
         private IPaintTo3DList selectedObjectsDisplayList = null;
         private IPaintTo3DList arrowsDisplayList = null;
+        private int handleSize;
+        private Color handleColor;
 
         Color frontColor, backColor, selectColor, shadowColor;
         public Feedback()
@@ -38,6 +42,8 @@ namespace ShapeIt
             if (view != null) Detach();
             view = vw;
             vw.SetPaintHandler(PaintBuffer.DrawingAspect.Select, OnRepaint);
+            handleSize = view.Canvas.Frame.GetIntSetting("Select.HandleSize", 3); // Größe der Handles
+            handleColor = view.Canvas.Frame.GetColorSetting("Select.HandleColor", Color.DarkBlue); // die Farbe für die Handles
         }
         public void Detach()
         {
@@ -51,6 +57,8 @@ namespace ShapeIt
             ShadowFaces.Clear();
             SelectedObjects.Clear();
             Arrows.Clear();
+            // hotSpots.Clear(); // hotspots are removed regularly
+            // selectedHotSpot = null;
             // reset the display lists, so they will be recreated when the next OnRepaintSelect is called
             frontFacesDisplayList = null;
             backFacesDisplayList = null;
@@ -175,6 +183,20 @@ namespace ShapeIt
                 PaintToSelect.Line2D(selectionRectangle.Left, selectionRectangle.Top, selectionRectangle.Left, selectionRectangle.Bottom);
 
             }
+            foreach (IHotSpot hsp in hotSpots)
+            {
+                GeoPoint p = hsp.GetHotspotPosition();
+                PointF pf = view.Projection.ProjectF(p);
+                PaintTo3D.PaintHandle(PaintToSelect, pf, handleSize, handleColor);
+            }
+            if (selectedHotSpot != null)
+            {
+                GeoPoint p = selectedHotSpot.GetHotspotPosition();
+                PointF pf = view.Projection.ProjectF(p);
+                if (handleSize > 1) PaintTo3D.PaintHandle(PaintToSelect, pf, handleSize - 1, handleColor);
+                if (handleSize > 2) PaintTo3D.PaintHandle(PaintToSelect, pf, handleSize - 2, handleColor);
+            }
+
         }
     }
 }

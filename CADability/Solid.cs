@@ -1237,11 +1237,12 @@ namespace CADability.GeoObject
         {
             // make a collision detection of the solid with the other solids here. Maybe this object was constructed without ever beeing used as a command target
             // so the collision detection in the constructor would be unnecessary.
-            for (int i = other.Count-1; i >=0; --i)
-            {
-                CollisionDetection cd = new CollisionDetection(solid.Shells[0], other[i].Shells[0]);
-                if (!cd.GetResult(Precision.eps, out _)) other.RemoveAt(i);
-            }
+            // Collision detection is not reliable when the two solid only share a common face, i.e. we want to glue it together
+            //for (int i = other.Count-1; i >=0; --i)
+            //{
+            //    CollisionDetection cd = new CollisionDetection(solid.Shells[0], other[i].Shells[0]);
+            //    if (!cd.GetResult(Precision.eps, out _)) other.RemoveAt(i);
+            //}
 
             switch (MenuId)
             {
@@ -1344,6 +1345,39 @@ namespace CADability.GeoObject
                                     if (res1 != null) newfragments.AddRange(res1);
                                     if (res2 != null) newfragments.AddRange(res2);
                                     if (res3 != null) newfragments.AddRange(res3);
+                                }
+                                else
+                                {
+                                    newfragments.Add(fragments[i]);
+                                }
+                            }
+                            fragments = newfragments;
+                        }
+                        IGeoObjectOwner owner = solid.Owner;
+                        owner.Remove(solid);
+                        foreach (Solid sld in other)
+                        {
+                            owner.Remove(sld);
+                        }
+                        for (int i = 0; i < fragments.Count; i++)
+                        {
+                            owner.Add(fragments[i]);
+                        }
+                    }
+                    break;
+                case "MenuId.Solid.IntersectWithAll":
+                    {
+                        List<Solid> fragments = new List<Solid>();
+                        fragments.Add(solid);
+                        foreach (Solid sld in other)
+                        {
+                            List<Solid> newfragments = new List<Solid>();
+                            for (int i = 0; i < fragments.Count; i++)
+                            {
+                                Solid[] res = Solid.Intersect(fragments[i], sld);
+                                if (res != null && res.Length > 0)
+                                {
+                                    newfragments.AddRange(res);
                                 }
                                 else
                                 {

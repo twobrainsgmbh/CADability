@@ -2629,6 +2629,7 @@ namespace CADability
             }
             foreach (KeyValuePair<Edge, Tuple<ICurve, Face>> item in rawFillets)
             {   // fillets contains only the junctions up to here
+                item.Value.Item2.CopyAttributes(item.Key.PrimaryFace); // use the color of the primary face
                 fillets.Add(item.Value.Item2);
             }
 #if DEBUG

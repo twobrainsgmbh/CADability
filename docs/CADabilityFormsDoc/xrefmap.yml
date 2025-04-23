@@ -4386,6 +4386,12 @@ references:
   commentId: E:CADability.Forms.PropertyPage.OnPreProcessKeyDown
   fullName: CADability.Forms.PropertyPage.OnPreProcessKeyDown
   nameWithType: PropertyPage.OnPreProcessKeyDown
+- uid: CADability.Forms.PropertyPage.OnSelectionChanged
+  name: OnSelectionChanged
+  href: api/CADability.Forms.PropertyPage.html#CADability_Forms_PropertyPage_OnSelectionChanged
+  commentId: E:CADability.Forms.PropertyPage.OnSelectionChanged
+  fullName: CADability.Forms.PropertyPage.OnSelectionChanged
+  nameWithType: PropertyPage.OnSelectionChanged
 - uid: CADability.Forms.PropertyPage.OnSizeChanged(System.EventArgs)
   name: OnSizeChanged(EventArgs)
   href: api/CADability.Forms.PropertyPage.html#CADability_Forms_PropertyPage_OnSizeChanged_System_EventArgs_

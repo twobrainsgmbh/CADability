@@ -74,19 +74,26 @@ namespace ShapeIt
                 for (int i = 0; i < fromHere.SubItems.Length; i++)
                 {
                     if (fromHere.SubItems[i] == findThis) return fromHere;
-                    IPropertyEntry found = FindParent(fromHere.SubItems[i],findThis);
+                    IPropertyEntry found = FindParent(fromHere.SubItems[i], findThis);
                     if (found != null) return found;
                 }
             }
             return null;
+        }
+        private string KeyCodeToString(Keys key)
+        {
+            key = (Keys)((int)key & 0xFFFF);
+            string res = key.ToString();
+            if (res == "Escape") return "Esc";
+            if (res == "Delete") return "Del";
+            return res;
         }
         public virtual bool HandleKeyCommand(KeyEventArgs keyEvent)
         {
             if (TestShortcut(keyEvent.KeyCode)) return true;
             if (Label.EndsWith("]]"))
             {
-                bool ctrl = keyEvent.KeyCode.HasFlag(Keys.ControlKey);
-                char key = (char)keyEvent.KeyCode;
+                string key = KeyCodeToString(keyEvent.KeyCode);
                 int pos1 = Label.IndexOf("[[");
                 if (pos1 > 0)
                 {
@@ -94,9 +101,19 @@ namespace ShapeIt
                     if (pos2 > pos1)
                     {
                         string shortCut = Label.Substring(pos1 + 2, pos2 - pos1 - 2);
-                        if (shortCut.Contains("s") == keyEvent.KeyCode.HasFlag(Keys.Shift) &&
-                            shortCut.Contains("c") == keyEvent.KeyCode.HasFlag(Keys.Control) &&
-                            shortCut.Contains("a") == keyEvent.KeyCode.HasFlag(Keys.Alt) &&
+                        bool shift = false, ctrl = false, alt = false;
+                        for (int i = 0; i < 2; i++)
+                        {
+                            switch (shortCut[0])
+                            {
+                                case 's': shift = true; shortCut = shortCut.Remove(0, 1); break;
+                                case 'c': ctrl = true; shortCut = shortCut.Remove(0, 1); break;
+                                case 'a': alt = true; shortCut = shortCut.Remove(0, 1); break;
+                            }
+                        }
+                        if (shift == keyEvent.KeyCode.HasFlag(Keys.Shift) &&
+                            ctrl == keyEvent.KeyCode.HasFlag(Keys.Control) &&
+                            alt == keyEvent.KeyCode.HasFlag(Keys.Alt) &&
                             shortCut.Contains(key))
                         {
                             // matches the keystroke
@@ -112,6 +129,7 @@ namespace ShapeIt
                                 }
                             }
                             this.propertyPage.SelectEntry(this);
+                            if (this is DirectMenuEntry dm) dm.ExecuteMenu(this.Frame);
                             keyEvent.Handled = true;
                             return true;
                         }

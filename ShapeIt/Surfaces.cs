@@ -44,8 +44,8 @@ namespace ShapeIt
                     {
                         GeoPoint2D axloc = pls1.PositionOf(cyl.Axis.Location);
                         GeoVector2D axdir = pls1.PositionOf(cyl.Axis.Location + cyl.Axis.Direction) - axloc;
-                        GeoPoint2D p1 = axloc + domain2.Bottom * axdir;
-                        GeoPoint2D p2 = axloc + domain2.Top * axdir; // p1->p2 the cylinder axis projected onto the plane
+                        GeoPoint2D p1 = axloc ;
+                        GeoPoint2D p2 = axloc + axdir; // p1->p2 the cylinder axis projected onto the plane
                         ClipRect clr = new ClipRect(domain1);
                         if (clr.ClipLine(ref p1, ref p2))
                         {
@@ -59,7 +59,7 @@ namespace ShapeIt
                                 SurfaceHelper.AdjustPeriodic(surface2, domain2, ref ips[i]);
                                 if (domain2.ContainsEps(ips[i], Precision.eps))
                                 {
-                                    GeoPoint p = surface1.PointAt(ips[i]);
+                                    GeoPoint p = surface2.PointAt(ips[i]);
                                     if ((preferredPoint | p) < mindist)
                                     {
                                         mindist = preferredPoint | p;

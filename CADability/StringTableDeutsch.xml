@@ -6041,37 +6041,6 @@
 	<data name="TextToValue.Failed">
 		<label>Ungültige Eingabe</label>
 	</data>
-	<data name="Parametrics.InvalidPropertyValue">
-		<label>Stellen Sie sicher, dass der Wert innerhalb der gültigen Grenzen liegt, um die Designintegrität zu wahren</label>
-	</data>
-	<data name="MenuId.ExtrusionLength">
-		<label>Abmessung</label>
-		<info>Länge oder Breite einer Extrusion in dieser Richtung festlegen</info>
-	</data>
-	<data name="Extrude.Distance">
-		<label>Extrusionsabmessung</label>
-		<info>Länge oder Breite einer Extrusion in dieser Richtung festlegen</info>
-	</data>
-	<data name="Extrude.MeassureForwardObject">
-		<label>Messen bis</label>
-		<info>Bis zu diesem Objekt messen</info>
-	</data>
-	<data name="Extrude.MeassureBackwardObject">
-		<label>Messen von</label>
-		<info>Von diesem Objekt messen</info>
-	</data>
-	<data name="Vertex.Displayname">
-		<label>Ecke</label>
-		<info>Eine Ecke dieser Form</info>
-	</data>
-	<data name="Edge.Displayname">
-		<label>Kante</label>
-		<info>Eine Kante dieser Form</info>
-	</data>
-	<data name="Face.Displayname">
-		<label>Fläche</label>
-		<info>Eine Fläche dieser Form</info>
-	</data>
 	<data name="MenuId.Plane.OfCurve">
 		<label>Ebene der Kurve</label>
 		<info>Ebene einer planaren Kurve, z.B. eines Kreisbogens</info>
