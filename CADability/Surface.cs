@@ -5291,15 +5291,26 @@ namespace CADability.GeoObject
                                             // previous line was wrong, comment was right: we must check, whether tarc and oarc overlap
                                             // These are two 2d arcs on the same planeso at least two start/endpoints must be within the other arc
                                             int inside = 0;
+                                            double overlap = 0.0;
                                             double tp = tarc.PositionOf(oarc.StartPoint);
+                                            overlap += 0.5 - Math.Abs(tp - 0.5);
                                             if (tp >= 0 && tp <= 1) ++inside;
                                             tp = tarc.PositionOf(oarc.EndPoint);
+                                            overlap += 0.5 - Math.Abs(tp - 0.5);
                                             if (tp >= 0 && tp <= 1) ++inside;
                                             tp = oarc.PositionOf(tarc.StartPoint);
+                                            overlap += 0.5 - Math.Abs(tp - 0.5);
                                             if (tp >= 0 && tp <= 1) ++inside;
                                             tp = oarc.PositionOf(tarc.EndPoint);
+                                            overlap += 0.5 - Math.Abs(tp - 0.5);
                                             if (tp >= 0 && tp <= 1) ++inside;
-                                            if (inside >= 2) dscs.Add(new DualSurfaceCurve(c3d, this, tc2d, other, oc2d));
+                                            // it still might be, that the two arcs touch at all endpoints but describe different halfs of a circle
+                                            // if all tp are 0 or 1, the resulting overlap will be 0
+                                            if (overlap<10*Precision.eps)
+                                            {   // either full identical or opposite arcs
+                                                tp = tarc.PositionOf(oarc.PointAt(0.5));
+                                            }
+                                            if (inside >= 2 && tp>0 && tp<1) dscs.Add(new DualSurfaceCurve(c3d, this, tc2d, other, oc2d));
                                             // else: did choose wrong part of arc, no common intersection curve
                                         }
                                     }
@@ -5319,7 +5330,7 @@ namespace CADability.GeoObject
             ModOp2D mop;
             if (SameGeometry(thisBounds, other, otherBounds, Precision.eps, out mop)) return new IDualSurfaceCurve[0]; // surfaces are identical, no intersection
             ICurve[] cvs = BoxedSurfaceEx.Intersect(thisBounds, other, otherBounds, seeds, extremePositions);
-            if (cvs.Length==0 && seeds.Count==2)
+            if (cvs.Length == 0 && seeds.Count == 2)
             {
                 InterpolatedDualSurfaceCurve idscv = new InterpolatedDualSurfaceCurve(this, thisBounds, other, otherBounds, seeds[0], seeds[1]);
                 return new IDualSurfaceCurve[] { idscv };

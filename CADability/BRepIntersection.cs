@@ -4062,7 +4062,7 @@ namespace CADability
                         }
                         else
                         {
-                            if (Math.Abs(face.Surface.GetDistance(edge.Curve3D.PointAt(0.5))) < 10 * Precision.eps)
+                            if (edge.Curve3D!=null && Math.Abs(face.Surface.GetDistance(edge.Curve3D.PointAt(0.5))) < 10 * Precision.eps)
                             {   // the middle point of the edge is also close to this face
                                 GeoPoint2D uv1 = face.Surface.PositionOf(edge.Vertex1.Position);
                                 GeoPoint2D uv2 = face.Surface.PositionOf(edge.Vertex2.Position);

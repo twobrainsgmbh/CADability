@@ -100,6 +100,7 @@
 			<MenuItem MenuId="MenuId.Scroll" IconNr="173" />
 			<MenuItem MenuId="MenuId.Zoom" IconNr="174" />
 			<MenuItem MenuId="MenuId.ZAxisUp" IconNr="175" Usage="3D"/>
+			<MenuItem MenuId="MenuId.ShowHidden" />
 			<Popup MenuId="MenuId.Projection.Direction" IconNr="184" Usage="3D">
 				<MenuItem MenuId="MenuId.Projection.Direction.FromTop" IconNr="181" />
 				<MenuItem MenuId="MenuId.Projection.Direction.FromFront" IconNr="180" />

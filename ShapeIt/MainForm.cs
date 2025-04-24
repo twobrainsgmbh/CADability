@@ -403,11 +403,10 @@ namespace ShapeIt
                     else sld3 = sld;
                 }
             }
-            if (sld1 != null && sld2 != null && sld3 != null)
+            if (sld1 != null && sld2 != null )
             {
-                CADability.GeoObject.Solid res = CADability.GeoObject.Solid.Unite(sld3, sld2);
-                res = CADability.GeoObject.Solid.Unite(sld1, res);
-                res.Shells[0].CheckConsistency();
+                CADability.GeoObject.Solid[] res = CADability.GeoObject.Solid.Intersect(sld1, sld2);
+                res[0].Shells[0].CheckConsistency();
             }
         }
 #endif

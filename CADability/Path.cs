@@ -5,6 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.Serialization;
 using System.Threading;
 
@@ -30,7 +31,7 @@ namespace CADability.GeoObject
     /// </summary>
     [Serializable()]
     public class Path : IGeoObjectImpl, IColorDef, ILinePattern, ILineWidth, ICurve,
-        IGeoObjectOwner, ISerializable, IDeserializationCallback, IExtentedableCurve
+        IGeoObjectOwner, ISerializable, IDeserializationCallback, IExtentedableCurve, IJsonSerialize, IJsonSerializeDone
     {
         public enum ModificationMode
         {
@@ -195,6 +196,9 @@ namespace CADability.GeoObject
         //			}
         //			inPlane = new PlaneRef(pln);
         //		}
+        /// <summary>
+        /// Needed for JsonSerialize
+        /// </summary>
         protected Path()
         {
             planarState = PlanarState.Unknown;
@@ -2214,6 +2218,26 @@ namespace CADability.GeoObject
             info.AddValue("LineWidth", lineWidth);
             info.AddValue("LinePattern", linePattern);
         }
+
+        public override void GetObjectData(IJsonWriteData data)
+        {
+            base.GetObjectData(data);
+            data.AddProperty("SubCurves", subCurves);
+            if (colorDef != null) data.AddProperty("ColorDef", colorDef);
+            if (lineWidth != null) data.AddProperty("LineWidth", lineWidth);
+            if (linePattern != null) data.AddProperty("LinePattern", linePattern);
+        }
+
+        public override void SetObjectData(IJsonReadData data)
+        {
+            base.SetObjectData(data);
+            subCurves = data.GetProperty<ICurve[]>("SubCurves");
+            colorDef = data.GetPropertyOrDefault<ColorDef>("ColorDef");
+            lineWidth = data.GetPropertyOrDefault<LineWidth>("LineWidth");
+            linePattern = data.GetPropertyOrDefault<LinePattern>("LinePattern");
+            data.RegisterForSerializationDoneCallback(this);
+        }
+
         #endregion
         #region IDeserializationCallback Members
         void IDeserializationCallback.OnDeserialization(object sender)
@@ -2245,6 +2269,25 @@ namespace CADability.GeoObject
             Recalc(); // die Längen und isClosed wenigstens berechnen
             if (Constructed != null) Constructed(this);
         }
+        public void SerializationDone(JsonSerialize jsonSerialize)
+        {
+            for (int i = 0; i < subCurves.Length; ++i)
+            {
+                IGeoObject go = subCurves[i] as IGeoObject;
+                if (go != null)
+                {
+                    if (go.Owner != null) go.Owner.Remove(go);
+                    go.Owner = this;
+                    // nicht nachvollziehbar: die events sind schon gesetzt
+                    // deshalb erst entfernen, dann neu setzen:
+                    go.DidChangeEvent -= new ChangeDelegate(SubCurveDidChange);
+                    go.WillChangeEvent -= new ChangeDelegate(SubCurveWillChange);
+                    go.DidChangeEvent += new ChangeDelegate(SubCurveDidChange);
+                    go.WillChangeEvent += new ChangeDelegate(SubCurveWillChange);
+                }
+            }
+        }
+
         #endregion
         #region IOcasWire Members
 

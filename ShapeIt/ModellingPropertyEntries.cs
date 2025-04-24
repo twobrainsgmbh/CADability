@@ -520,7 +520,14 @@ namespace ShapeIt
                 }
             }
 #endif
-
+            for (int i = objectsUnderCursor.Count-1; i >=0; --i)
+            {   // don't select parts of a path (doesn't refect nested path objects!)
+                if (objectsUnderCursor[i] is Path path)
+                {
+                    objectsUnderCursor.Remove(i);
+                    objectsUnderCursor.AddUnique(path);
+                }
+            }
             if (isAccumulating && accumulatedObjects.Count > 0)
             {
                 // we are in accumulation mode. 
@@ -706,13 +713,17 @@ namespace ShapeIt
                     if (facesShell != null)
                     {
                         HashSet<Face> connectedFaces = Shell.ConnectedSameGeometryFaces(faces); // add all faces which have the same surface and are connected
-                        if (facesShell.FeatureFromFaces(connectedFaces, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
+                        try
                         {
-                            // there is a feature. Multiple different features are not considered, we would need FeaturesFromFaces
-                            // which would return more than one feature
-                            IPropertyEntry fp = GetFeatureProperties(vw, featureFaces, connection, isGap);
-                            if (fp != null && fp.SubItems.Length > 0) subEntries.Add(fp);
+                            if (facesShell.FeatureFromFaces(connectedFaces, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
+                            {
+                                // there is a feature. Multiple different features are not considered, we would need FeaturesFromFaces
+                                // which would return more than one feature
+                                IPropertyEntry fp = GetFeatureProperties(vw, featureFaces, connection, isGap);
+                                if (fp != null && fp.SubItems.Length > 0) subEntries.Add(fp);
+                            }
                         }
+                        catch (Exception ex) { };
                     }
                 }
                 foreach (Face fc in faces)
@@ -857,6 +868,8 @@ namespace ShapeIt
         private IPropertyEntry[] GetCurvesProperties(List<ICurve> curves)
         {
             List<IPropertyEntry> res = new List<IPropertyEntry>();
+            // we may not use the curves direct, because adding them to a path would remove them from the model
+            for (int i = 0; i < curves.Count; i++) curves[i] = curves[i].Clone();
             // check the condition to make a ruled solid:
             // two closed curves not in the same plane
             List<Path> paths = Path.FromSegments(curves);
@@ -954,6 +967,22 @@ namespace ShapeIt
 
                 return true;
             };
+            DirectMenuEntry selectMoreCurves = new DirectMenuEntry("MenuId.SelectMoreCurves");
+            selectMoreCurves.ExecuteMenu = (frame) =>
+            {
+                accumulatedObjects.Add(curve as IGeoObject);
+                isAccumulating = true;
+                ComposeModellingEntries(new GeoObjectList(), vw, null);
+                return true;
+            };
+            selectMoreCurves.IsSelected = (selected, frame) =>
+            {   // show the provided face and the "same geometry connected" faces as feedback
+                feedback.Clear();
+                if (selected) feedback.ShadowFaces.Add(curve as IGeoObject);
+                feedback.Refresh();
+                return true;
+            };
+            curveMenus.Add(selectMoreCurves);
             if ((curve as IGeoObject).Owner is Model)
             {
                 SelectEntry modifyMenu = ModifyMenu(curve as IGeoObject);
@@ -2646,6 +2675,12 @@ namespace ShapeIt
                                 }
                             }
                         if (l != null) ComposeModellingEntries(l, cadFrame.ActiveView, null);
+                    }
+                    return true;
+                case "MenuId.ShowHidden":
+                    {
+                        Layer layer = cadFrame.Project.LayerList.CreateOrFind("CADability.Hidden");
+                        if (cadFrame.ActiveView is ModelView mv) mv.SetLayerVisibility(layer, true);
                     }
                     return true;
                 default: return false;

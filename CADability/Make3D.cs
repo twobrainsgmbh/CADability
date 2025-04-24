@@ -3032,6 +3032,18 @@ namespace CADability.GeoObject
                                 {
                                     fc.Set(surface, new Edge[] { s2[i], edges[i], s1[i], edges[i + 1] }, null, false);
                                 }
+                                for (int j = 0; j < fc.OutlineEdges.Length; j++)
+                                {
+                                    if (fc.OutlineEdges[j].Curve3D == null)
+                                    {   // a pole: the 2d curve mus be the connection of the previous edge end point with the next edge startpoint
+                                        int next = (j + 1) % fc.OutlineEdges.Length;
+                                        int prev = (j - 1 + fc.OutlineEdges.Length) % fc.OutlineEdges.Length;
+                                        ICurve2D pcurve2d = fc.OutlineEdges[prev].Curve2D(fc);
+                                        ICurve2D ncurve2d = fc.OutlineEdges[next].Curve2D(fc);
+                                        if (fc.OutlineEdges[j].PrimaryFace == fc) fc.OutlineEdges[j].PrimaryCurve2D = new Line2D(pcurve2d.EndPoint, ncurve2d.StartPoint);
+                                        else fc.OutlineEdges[j].SecondaryCurve2D = new Line2D(pcurve2d.EndPoint, ncurve2d.StartPoint);
+                                    }
+                                }
                             }
                             if (fc != null) faces.Add(fc.Clone() as Face); // erstmal clone, damit die edges unabhängig sind. Sonst gibts bei sewfaces einen fehler. Allerdings muss SewFaces gefixt werden
 #if DEBUG
