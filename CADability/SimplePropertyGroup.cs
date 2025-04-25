@@ -26,6 +26,10 @@ namespace CADability.UserInterface
         {
             this.subentries.AddRange(subEntries);
         }
+        public void Add(IEnumerable<IPropertyEntry> subEntries)
+        {
+            this.subentries.AddRange(subEntries);
+        }
         public void Remove(IPropertyEntry subEntry)
         {
             subentries.Remove(subEntry);

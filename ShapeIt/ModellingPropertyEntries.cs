@@ -286,6 +286,7 @@ namespace ShapeIt
                     }
                     PickArea pickArea;
                     bool multiple;
+                    bool onlyInside;
                     if (isDragging)
                     {
                         feedback.selectionRectangle = Rectangle.Empty;
@@ -297,14 +298,16 @@ namespace ShapeIt
                         if (winrect.Height == 0) winrect.Inflate(0, 1);
                         pickArea = vw.Projection.GetPickSpace(winrect);
                         multiple = true;
+                        onlyInside = mouseDownPosition.X < e.Location.X;
                     }
                     else
                     {
                         int pickRadius = selectAction.Frame.GetIntSetting("Select.PickRadius", 5);
                         pickArea = vw.Projection.GetPickSpace(new Rectangle(e.Location.X - pickRadius, e.Location.Y - pickRadius, pickRadius * 2, pickRadius * 2));
                         multiple = false;
+                        onlyInside = false;
                     }
-                    GeoObjectList objectsUnderCursor = GetObjectsUnderCursor(e.Location, vw, pickArea, multiple);
+                    GeoObjectList objectsUnderCursor = GetObjectsUnderCursor(e.Location, vw, pickArea, multiple, onlyInside);
                     ComposeModellingEntries(objectsUnderCursor, vw, pickArea);
                     IsOpen = true;
                     Refresh();
@@ -475,16 +478,21 @@ namespace ShapeIt
             base.Removed(pp);
         }
         #endregion
-        private GeoObjectList GetObjectsUnderCursor(System.Drawing.Point mousePoint, IView vw, PickArea pickArea, bool multiple)
+        private GeoObjectList GetObjectsUnderCursor(System.Drawing.Point mousePoint, IView vw, PickArea pickArea, bool multiple, bool onlyInside)
         {
             GeoObjectList objectsUnderCursor = new GeoObjectList();
             IEnumerable<Layer> visiblaLayers = new List<Layer>();
             if (vw is ModelView mv) visiblaLayers = mv.GetVisibleLayers();
             PickMode pm = multiple ? PickMode.children : PickMode.singleChild;
-            objectsUnderCursor = vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(visiblaLayers), pm, null); // returns all the faces curves or text objects under the cursor
+            HashSet<IGeoObject> objects = new HashSet<IGeoObject>();
+            objects.UnionWith(vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(visiblaLayers), pm, null)); // returns all the faces curves or text objects under the cursor
             pm = multiple ? PickMode.onlyEdges : PickMode.singleEdge;
-            objectsUnderCursor.AddRangeUnique(vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(visiblaLayers), pm, null)); // returns all edges under the cursor
-            return objectsUnderCursor;
+            objects.UnionWith(vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(visiblaLayers), pm, null)); // returns all edges under the cursor
+            if (onlyInside)
+            {
+                objects = new HashSet<IGeoObject>(objects.Where(go => go.HitTest(pickArea, true)));
+            }
+            return new GeoObjectList(objects);
         }
         private string GetCursor(System.Drawing.Point location, IView vw)
         {
@@ -520,7 +528,7 @@ namespace ShapeIt
                 }
             }
 #endif
-            for (int i = objectsUnderCursor.Count-1; i >=0; --i)
+            for (int i = objectsUnderCursor.Count - 1; i >= 0; --i)
             {   // don't select parts of a path (doesn't refect nested path objects!)
                 if (objectsUnderCursor[i] is Path path)
                 {
@@ -624,8 +632,8 @@ namespace ShapeIt
                 {
                     collection.Add(accumulatedObjects[i].GetShowProperties(cadFrame));
                 }
-                if (accumulatingType == typeof(Edge)) title.Add(GetEdgeProperties(accumulatedObjects.OfType<ICurve>().ToList()));
-                if (accumulatingType == typeof(ICurve)) title.Add(GetCurvesProperties(accumulatedObjects.OfType<ICurve>().ToList()));
+                if (accumulatingType == typeof(Edge)) title.Add(GetEdgesProperties(accumulatedObjects.OfType<ICurve>().ToList()));
+                if (accumulatingType == typeof(ICurve)) title.Add(GetCurvesProperties(accumulatedObjects.OfType<ICurve>().ToList(), vw));
                 if (accumulatingType == typeof(Face)) title.Add(GetFacesProperties(accumulatedObjects.OfType<Face>().ToList(), vw));
             }
             else
@@ -730,17 +738,33 @@ namespace ShapeIt
                 {   // add menus for dealing with face dimensions
                     AddFaceProperties(vw, fc, clickBeam);
                 }
-                foreach (Edge edg in edges)
+                if (edges.Count > 1)
                 {
-                    AddEdgeProperties(vw, edg, clickBeam);
+                    SelectEntry multipleEdges = new SelectEntry("MultipleEdges.Properties", true);
+                    multipleEdges.IsSelected = (selected, frame) =>
+                    {
+                        feedback.Clear();
+                        if (selected)
+                        {
+                            for (int i = 0; i < curves.Count; i++)
+                            {
+                                feedback.FrontFaces.AddRange(edges.Select(e => e.Curve3D as IGeoObject).ToList());
+                            }
+                        }
+                        feedback.Refresh();
+                        return true;
+                    };
+                    multipleEdges.Add(GetEdgesProperties(edges.Select(e => e.Curve3D).ToList()));
+                    foreach (Edge edg in edges)
+                    {
+                        multipleEdges.Add(GetEdgeProperties(vw, edg, clickBeam));
+                    }
+                    subEntries.Add(multipleEdges);
                 }
+                else if (edges.Any()) subEntries.Add(GetEdgeProperties(vw, edges.First(), clickBeam));
                 foreach (Solid sld in solids)
                 {
                     AddSolidProperties(vw, sld, solidToFaces.TryGetValue(sld, out List<Face> found) ? found : null);
-                }
-                if (curves.Count > 1)
-                {
-                    if (CanMakePath(curves)) AddMakePath(vw, curves);
                 }
                 bool suppresRuledSolid = false;
                 if (curves.Count == 2 && curves[0] is Path path1 && curves[1] is Path path2)
@@ -762,17 +786,38 @@ namespace ShapeIt
                                 {
                                     feedback.FrontFaces.Add(curves[i] as IGeoObject);
                                 }
-                                vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
-
+                                feedback.Refresh();
                             }
                             return true;
                         };
                         suppresRuledSolid = true;
                     }
                 }
-                for (int i = 0; i < curves.Count; i++)
+                switch (curves.Count)
                 {
-                    AddCurveProperties(vw, curves[i], suppresRuledSolid);
+                    case 0: break;
+                    case 1:
+                        subEntries.Add(GetCurveProperties(vw, curves[0], suppresRuledSolid));
+                        break;
+                    default: // which is >1, but only in C# Version 9
+                        SelectEntry multipleCurves = new SelectEntry("MultipleCurves.Properties", true);
+                        multipleCurves.IsSelected = (selected, frame) =>
+                        {
+                            feedback.Clear();
+                            if (selected)
+                            {
+                                feedback.FrontFaces.AddRange(curves.OfType<IGeoObject>());
+                            }
+                            feedback.Refresh();
+                            return true;
+                        };
+                        multipleCurves.Add(GetCurvesProperties(curves.ToList(),vw));
+                        foreach (ICurve crv in curves)
+                        {
+                            multipleCurves.Add(GetCurveProperties(vw, crv, true));
+                        }
+                        subEntries.Add(multipleCurves);
+                        break;
                 }
                 for (int i = 0; i < texts.Count; i++)
                 {
@@ -850,10 +895,31 @@ namespace ShapeIt
             return res.ToArray();
         }
 
-        private IPropertyEntry[] GetEdgeProperties(List<ICurve> curves)
+        private IPropertyEntry[] GetEdgesProperties(List<ICurve> curves)
         {
             List<IPropertyEntry> res = new List<IPropertyEntry>();
             List<Edge> edges = new List<Edge>(curves.Select(c => (c as IGeoObject).Owner as Edge));
+            DirectMenuEntry makeCurves = new DirectMenuEntry("MenuId.EdgesToCurves"); // too bad, no icon yet, 
+            makeCurves.ExecuteMenu = (frame) =>
+            {
+                GeoObjectList allEdgesAsCurves = new GeoObjectList(curves.Select(c => (c as IGeoObject).Clone())); // need to clone, since the curves ARE the actual edges!
+                Style stl = frame.Project.StyleList.GetDefault(Style.EDefaultFor.Curves);
+                if (stl != null)
+                {
+                    foreach (IGeoObject go in allEdgesAsCurves) go.SetNamedAttribute("Style", stl);
+                }
+                frame.Project.GetActiveModel().Add(allEdgesAsCurves);
+                ComposeModellingEntries(allEdgesAsCurves, frame.ActiveView, null);
+                return true;
+            };
+            makeCurves.IsSelected = (selected, frame) =>
+            {
+                feedback.Clear();
+                if (selected) feedback.FrontFaces.AddRange(curves.OfType<IGeoObject>());
+                feedback.Refresh();
+                return true;
+            };
+            res.Add(makeCurves);
             DirectMenuEntry makeFillet = new DirectMenuEntry("MenuId.Fillet"); // too bad, no icon yet, 
             makeFillet.ExecuteMenu = (frame) =>
             {
@@ -861,15 +927,28 @@ namespace ShapeIt
                 StopAccumulating();
                 return true;
             };
+            makeFillet.IsSelected = (selected, frame) =>
+            {
+                feedback.Clear();
+                if (selected) feedback.FrontFaces.AddRange(curves.OfType<IGeoObject>());
+                feedback.Refresh();
+                return true;
+            };
             res.Add(makeFillet);
             return res.ToArray();
         }
 
-        private IPropertyEntry[] GetCurvesProperties(List<ICurve> curves)
+        private IPropertyEntry[] GetCurvesProperties(List<ICurve> curves, IView vw)
         {
             List<IPropertyEntry> res = new List<IPropertyEntry>();
             // we may not use the curves direct, because adding them to a path would remove them from the model
             for (int i = 0; i < curves.Count; i++) curves[i] = curves[i].Clone();
+            if (curves.Count > 1)
+            {
+                if (CanMakePath(curves)) res.Add(GetMakePath(vw, curves));
+            }
+            MultiObjectsProperties mop = new MultiObjectsProperties(cadFrame, new GeoObjectList(curves.OfType<IGeoObject>()));
+            res.Add(mop.attributeProperties);
             // check the condition to make a ruled solid:
             // two closed curves not in the same plane
             List<Path> paths = Path.FromSegments(curves);
@@ -952,7 +1031,7 @@ namespace ShapeIt
         }
 
 
-        private void AddCurveProperties(IView vw, ICurve curve, bool suppresRuledSolid)
+        private IPropertyEntry GetCurveProperties(IView vw, ICurve curve, bool suppresRuledSolid)
         {
             SelectEntry curveMenus = new SelectEntry("MenuId.CurveMenus", true);
             curveMenus.LabelText = (curve as IGeoObject).Description;
@@ -1071,10 +1150,7 @@ namespace ShapeIt
                     curveMenus.Add(ruled);
                 }
             }
-            if (curveMenus.SubEntriesCount > 0)
-            {
-                subEntries.Add(curveMenus);
-            }
+            return curveMenus;
         }
 
         private void HotspotChanged(IHotSpot sender, HotspotChangeMode mode)
@@ -1247,7 +1323,7 @@ namespace ShapeIt
             return modifyMenu;
         }
 
-        private void AddMakePath(IView vw, List<ICurve> curves)
+        private IPropertyEntry GetMakePath(IView vw, List<ICurve> curves)
         {
             DirectMenuEntry mp = new DirectMenuEntry("MenuId.Object.MakePath");
             mp.IsSelected = (selected, frame) =>
@@ -1269,11 +1345,11 @@ namespace ShapeIt
                 {
                     List<Path> created = Path.FromSegments(curves);
                     vw.Model.Add(created.ToArray());
-                    selectAction.SetSelectedObjects(new GeoObjectList(created as IEnumerable<IGeoObject>));
+                    ComposeModellingEntries(new GeoObjectList(created as IEnumerable<IGeoObject>),vw,null);
                 }
                 return true;
             };
-            subEntries.Add(mp);
+            return mp;
         }
 
         private void AddSolidProperties(IView vw, Solid sld, List<Face> fromFaces)
@@ -1580,7 +1656,7 @@ namespace ShapeIt
             subEntries.Add(solidMenus);
         }
 
-        private void AddEdgeProperties(IView vw, Edge edg, Axis clickBeam)
+        private IPropertyEntry GetEdgeProperties(IView vw, Edge edg, Axis clickBeam)
         {
             SelectEntry edgeMenus = new SelectEntry("MenuId.Edge", true); // the container for all edge related menus or properties
             HashSet<Edge> edges = Shell.ConnectedSameGeometryEdges(new Edge[] { edg });
@@ -1679,7 +1755,7 @@ namespace ShapeIt
                     edgeMenus.Add(rotateMenu);
                 }
             }
-            subEntries.Add(edgeMenus);
+            return edgeMenus;
         }
 
         private void AddFaceProperties(IView vw, Face fc, Axis clickBeam)
