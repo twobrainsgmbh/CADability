@@ -20,7 +20,7 @@ namespace CADability.UserInterface
         }
         public void Add(IPropertyEntry subEntry)
         {
-            subentries.Add(subEntry);
+            if (subEntry!=null) subentries.Add(subEntry);
         }
         public void Add(IPropertyEntry[] subEntries)
         {

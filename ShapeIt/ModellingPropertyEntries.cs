@@ -30,8 +30,6 @@ namespace ShapeIt
         private List<IPropertyEntry> subEntries = new List<IPropertyEntry>(); // the list of property entries in this property page
         private IFrame cadFrame; // the frame (root object of cadability)
         private SelectObjectsAction selectAction; // the select action, which runs parallel to the modelling property page
-        private bool isAccumulating; // expect more clicks to add same objects of a certain type (edges, faces)
-        private List<IGeoObject> accumulatedObjects = new List<IGeoObject>(); // objects beeing accumulated
         private bool modelligIsActive; // if true, there is no normal or "old" CADability selection, but every mouseclick of the SelectObjectsAction is handled here
         private bool selectionTabForced;
         private Feedback feedback;
@@ -48,6 +46,7 @@ namespace ShapeIt
         private GeoPoint moveObjectsDownPoint;
         private bool downOnSelectedObjects;
         private ModOp accumulatedMovement; // when dragging objects this is the accumulation movement in respect to the original objects
+        private HashSet<IGeoObject> currentlySelected = new HashSet<IGeoObject>(); // all curves, edges, faces which are currently shown in the subentries
 
         private GeoObjectList selectedChildObjects = new GeoObjectList(); // when a face or feature is selected, it is listed here to maybe move it later
         private bool movingChildObject; // the current move operation is on a feature or a face, which is not in the model
@@ -68,7 +67,6 @@ namespace ShapeIt
             cadFrame.ActionTerminatedEvent += ActionTerminated;
             cadFrame.ActionStartedEvent += ActionStarted;
 
-            isAccumulating = false;
             cadFrame.ViewsChangedEvent += ViewsChanged;
             modelligIsActive = true;
             selectionTabForced = false;
@@ -308,7 +306,10 @@ namespace ShapeIt
                         onlyInside = false;
                     }
                     GeoObjectList objectsUnderCursor = GetObjectsUnderCursor(e.Location, vw, pickArea, multiple, onlyInside);
-                    ComposeModellingEntries(objectsUnderCursor, vw, pickArea);
+                    // when only a single click (not dragging a selections rectangle) then we also want to show the parent objects (i.e. the solid)
+                    // when the control key is pressed, we want to add or remove from the current selection
+                    bool addOrRemove = (cadFrame.UIService.ModifierKeys & Keys.Control) == Keys.Control;
+                    ComposeModellingEntries(objectsUnderCursor, vw, pickArea, !multiple && !addOrRemove, addOrRemove);
                     IsOpen = true;
                     Refresh();
                 }
@@ -336,8 +337,6 @@ namespace ShapeIt
                     if ((cadFrame.UIService.ModifierKeys & Keys.Control) == Keys.Control || movingChildObject)
                     {
                         cadFrame.Project.GetActiveModel().Add(movingObjects);
-                        accumulatedObjects.Clear();
-                        isAccumulating = false;
                         Clear();
                         ComposeModellingEntries(movingObjects, vw, null);
                     }
@@ -358,21 +357,6 @@ namespace ShapeIt
             }
         }
 
-        private void StopAccumulating()
-        {
-            IGeoObject[] capturedOjbects = accumulatedObjects.ToArray(); // a list captured for the undo method
-            cadFrame.Project.Undo.AddUndoStep(new ReversibleChange(() =>
-            {
-                accumulatedObjects.Clear();
-                accumulatedObjects.AddRange(capturedOjbects);
-                isAccumulating = true;
-                ComposeModellingEntries(new GeoObjectList(), cadFrame.ActiveView, null);
-                return true;
-            }));
-            isAccumulating = false;
-            accumulatedObjects.Clear();
-            Clear();
-        }
         internal bool OnEscape()
         {
             // the following was commented out, because the shortcuts on the direct menu do the same jab
@@ -483,11 +467,11 @@ namespace ShapeIt
             GeoObjectList objectsUnderCursor = new GeoObjectList();
             IEnumerable<Layer> visiblaLayers = new List<Layer>();
             if (vw is ModelView mv) visiblaLayers = mv.GetVisibleLayers();
-            PickMode pm = multiple ? PickMode.children : PickMode.singleChild;
             HashSet<IGeoObject> objects = new HashSet<IGeoObject>();
-            objects.UnionWith(vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(visiblaLayers), pm, null)); // returns all the faces curves or text objects under the cursor
-            pm = multiple ? PickMode.onlyEdges : PickMode.singleEdge;
+            PickMode pm = multiple ? PickMode.onlyEdges : PickMode.singleEdge; // first edges, they should have a higher priority in resourceIdOfEntryToSelect (see below)
             objects.UnionWith(vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(visiblaLayers), pm, null)); // returns all edges under the cursor
+            pm = multiple ? PickMode.children : PickMode.singleChild;
+            objects.UnionWith(vw.Model.GetObjectsFromRect(pickArea, new Set<Layer>(visiblaLayers), pm, null)); // returns all the faces curves or text objects under the cursor
             if (onlyInside)
             {
                 objects = new HashSet<IGeoObject>(objects.Where(go => go.HitTest(pickArea, true)));
@@ -504,7 +488,7 @@ namespace ShapeIt
             else return "Arrow";
         }
 
-        private void ComposeModellingEntries(GeoObjectList objectsUnderCursor, IView vw, PickArea pickArea)
+        private void ComposeModellingEntries(GeoObjectList objectsUnderCursor, IView vw, PickArea pickArea, bool alsoParent = true, bool addRemove = false)
         {   // a mouse left button up took place. Compose all the entries for objects, which can be handled by 
             // the object(s) under the mouse cursor
             Axis clickBeam = Axis.InvalidAxis;
@@ -514,198 +498,125 @@ namespace ShapeIt
                 clickBeam = new Axis(pickArea.FrontCenter, pickArea.Direction);
             }
             subEntries.Clear(); // build a new list of modelling properties
-
-#if DEBUG
-            for (int i = 0; i < objectsUnderCursor.Count; i++)
+            // complete the same surface faces and edges in objectsUnderCursor
+            for (int i = objectsUnderCursor.Count - 1; i > 0; --i)
             {
-                if (objectsUnderCursor[i].Owner is Shell dbgshl)
+                if (objectsUnderCursor[i] is ICurve crv)
                 {
-                    bool ok = dbgshl.CheckConsistency();
-                }
-                if (objectsUnderCursor[i] is Solid dbgsld)
-                {
-                    bool ok = dbgsld.Shells[0].CheckConsistency();
-                }
-            }
-#endif
-            for (int i = objectsUnderCursor.Count - 1; i >= 0; --i)
-            {   // don't select parts of a path (doesn't refect nested path objects!)
-                if (objectsUnderCursor[i] is Path path)
-                {
-                    objectsUnderCursor.Remove(i);
-                    objectsUnderCursor.AddUnique(path);
-                }
-            }
-            if (isAccumulating && accumulatedObjects.Count > 0)
-            {
-                // we are in accumulation mode. 
-                if (objectsUnderCursor.Count == 0 && pickArea != null) // pickArea==null: first call to setup the new menu
-                {   // clicked on empty space: clear accumulated objects, but you can undo this
-                    // The first call comes with an empty objectsUnderCursor list but also with
-                    StopAccumulating();
-                }
-                for (int i = 0; i < objectsUnderCursor.Count; i++)
-                {
-                    if (((accumulatedObjects[0] is ICurve && objectsUnderCursor[i] is ICurve) && (accumulatedObjects[0].Owner.GetType() == objectsUnderCursor[i].Owner.GetType())) // both are curves or both are edges
-                        || accumulatedObjects[0].GetType() == objectsUnderCursor[i].GetType())
-                    {   // if this object is already in the accumulated objects, remove it, else add it
-                        if (objectsUnderCursor[i] is Face face)
-                        {
-                            HashSet<Face> connectedFaces = Shell.ConnectedSameGeometryFaces(new Face[] { face }); // add all faces which have the same surface and are connected
-                            foreach (Face f in connectedFaces)
-                            {
-                                if (accumulatedObjects.Contains(f)) accumulatedObjects.Remove(f);
-                                else accumulatedObjects.Add(f);
-                            }
-                        }
-                        else
-                        {
-                            if (accumulatedObjects.Contains(objectsUnderCursor[i])) accumulatedObjects.Remove(objectsUnderCursor[i]);
-                            else accumulatedObjects.Add(objectsUnderCursor[i]);
-                        }
-                    }
-                }
-
-            }
-            // handle either accumulated objects or the objects under the cursor
-            if (accumulatedObjects.Count > 0)
-            {
-                // the first accumulated object tells which type of object we are accumulation
-                SelectEntry title = null;
-                SimplePropertyGroup collection = null;
-                Type accumulatingType = accumulatedObjects[0].GetType(); // Face, Edge, ICurve
-                if (accumulatedObjects[0] is ICurve)
-                {
-                    if (accumulatedObjects[0].Owner is Edge) accumulatingType = typeof(Edge);
-                    else accumulatingType = typeof(ICurve);
-                }
-                if (accumulatingType == typeof(Edge))
-                {
-                    title = new SelectEntry("Accumulating.Edges", true);
-                    collection = new SimplePropertyGroup("Accumulating.Edges.List");
-                }
-                else if (accumulatingType == typeof(ICurve))
-                {
-                    title = new SelectEntry("Accumulating.Curves", true);
-                    collection = new SimplePropertyGroup("Accumulating.Curves.List");
-                }
-                else if (accumulatingType == typeof(Face))
-                {
-                    title = new SelectEntry("Accumulating.Faces", true);
-                    collection = new SimplePropertyGroup("Accumulating.Faces.List");
-                    collection.LabelText = StringTable.GetFormattedString("Accumulating.Faces.List", accumulatedObjects.Count);
-                }
-                subEntries.Add(title);
-                title.Add(collection);
-                title.IsSelected = (selected, frame) =>
-                {
-                    feedback.Clear();
-                    if (selected)
+                    if ((crv as IGeoObject).Owner is Edge edg)
                     {
-                        if (accumulatingType == typeof(Edge))
-                        {
-                            GeoObjectList toSelect = new GeoObjectList();
-                            foreach (IGeoObject item in accumulatedObjects)
-                            {
-                                IGeoObject clone = item.Clone();
-                                if (clone is ILineWidth lw) lw.LineWidth = edgeLineWidth;
-                                toSelect.Add(clone);
-                            }
-                            feedback.ShadowFaces.AddRange(toSelect);
-                        }
-                        else
-                        {
-                            feedback.ShadowFaces.AddRange(accumulatedObjects);
-                        }
+                        HashSet<Edge> connectedSameGeometryEdges = Shell.ConnectedSameGeometryEdges(new Edge[] { edg });
+                        connectedSameGeometryEdges.ExceptWith(new Edge[] { edg });
+                        foreach (Edge ec in connectedSameGeometryEdges) objectsUnderCursor.AddUnique(ec.Curve3D as IGeoObject);
                     }
-                    feedback.Refresh();
-                    return true;
-                };
-                DirectMenuEntry stopAccumulating = new DirectMenuEntry("Accumulating.Stop");
-                stopAccumulating.ExecuteMenu = (frame) =>
-                {
-                    StopAccumulating();
-                    return true;
-                };
-                title.Add(stopAccumulating);
-                for (int i = 0; i < accumulatedObjects.Count; i++)
-                {
-                    collection.Add(accumulatedObjects[i].GetShowProperties(cadFrame));
                 }
-                if (accumulatingType == typeof(Edge)) title.Add(GetEdgesProperties(accumulatedObjects.OfType<ICurve>().ToList()));
-                if (accumulatingType == typeof(ICurve)) title.Add(GetCurvesProperties(accumulatedObjects.OfType<ICurve>().ToList(), vw));
-                if (accumulatingType == typeof(Face)) title.Add(GetFacesProperties(accumulatedObjects.OfType<Face>().ToList(), vw));
+                if (objectsUnderCursor[i] is Face fc)
+                {
+                    foreach (Face fs in fc.GetSameSurfaceConnected()) objectsUnderCursor.AddUnique(fs);
+                }
+            }
+            if (addRemove)
+            {   // remove those objects, which are already selected and add the objectsUnderCursor
+                HashSet<IGeoObject> common = new HashSet<IGeoObject>(currentlySelected.Intersect(objectsUnderCursor));
+                currentlySelected.UnionWith(objectsUnderCursor);
+                currentlySelected.ExceptWith(common);
             }
             else
-            {   // show actions for all vertices, edges, faces and curves in 
-                // distibute objects into their categories
-                List<Face> faces = new List<Face>();
-                List<Shell> shells = new List<Shell>(); // only Shells, which are not part of a Solid
-                List<Solid> solids = new List<Solid>();
-                List<Face> axis = new List<Face>(); // the axis of these faces, which may be cylindrical, conical or toroidal
-                List<Edge> edges = new List<Edge>();
-                List<ICurve> curves = new List<ICurve>(); // curves, but not axis
-                List<Text> texts = new List<Text>(); // Text objects, to extrude
-                Dictionary<Solid, List<Face>> solidToFaces = new Dictionary<Solid, List<Face>>();
-
-                selectedObjects.Clear();
-                for (int i = 0; i < objectsUnderCursor.Count; i++)
+            {   // the old selection is replaced by the new selection
+                currentlySelected.Clear();
+                currentlySelected.UnionWith(objectsUnderCursor);
+            }
+            // what to focus after the selection changed?
+            string resourceIdOfEntryToSelect = String.Empty; // may contain several ids
+            IPropertyEntry pe = propertyPage.GetCurrentSelection();
+            if (pe != null) resourceIdOfEntryToSelect = pe.ResourceId; // resource id of what is currently selected, if objectsUnderCursor was removed
+            // if we added a single object, then use this
+            if (objectsUnderCursor.Count > 0 && currentlySelected.Contains(objectsUnderCursor[0]))
+            {
+                if (objectsUnderCursor[0] is Face) resourceIdOfEntryToSelect = "MultipleFaces.Properties" + "|" + "MenuId.Face";
+                if (objectsUnderCursor[0] is ICurve crv)
                 {
-                    {   // add top level objects to selectedObjects to be able to copy to clipboard.
-                        // it would be better to use the object of the current selection, but it is not easily available
-                        IGeoObjectOwner owner = objectsUnderCursor[i].Owner;
-                        IGeoObject current = objectsUnderCursor[i];
-                        while (owner != null && !(owner is Model))
-                        {
-                            if (owner is Edge edge) owner = edge.Owner.Owner;
-                            else if (owner is IGeoObject go) owner = go.Owner;
-                            else owner = null;
-                            if (owner is IGeoObject g) current = g;
-                        }
-                        if (owner is Model) selectedObjects.Add(current);
-                    }
-                    if (objectsUnderCursor[i] is Solid sld)
+                    if ((crv as IGeoObject).Owner is Edge) resourceIdOfEntryToSelect = "MultipleEdges.Properties" + "|" + "MenuId.Edge";
+                    else resourceIdOfEntryToSelect = "MultipleCurves.Properties" + "|" + "MenuId.Curve";
+                }
+                if (objectsUnderCursor[0] is Text) resourceIdOfEntryToSelect = "MenuId.TextMenus";
+            }
+
+            // show actions for all vertices, edges, faces and curves in 
+            // distibute objects into their categories
+            List<Face> faces = new List<Face>();
+            List<Shell> shells = new List<Shell>(); // only Shells, which are not part of a Solid
+            List<Solid> solids = new List<Solid>();
+            List<Face> axis = new List<Face>(); // the axis of these faces, which may be cylindrical, conical or toroidal
+            List<Edge> edges = new List<Edge>();
+            List<ICurve> curves = new List<ICurve>(); // curves, but not axis
+            List<Text> texts = new List<Text>(); // Text objects, to extrude
+            Dictionary<Solid, List<Face>> solidToFaces = new Dictionary<Solid, List<Face>>();
+
+            selectedObjects.Clear();
+            foreach (IGeoObject go in currentlySelected)
+            {
+                {   // add top level objects to selectedObjects to be able to copy to clipboard.
+                    // it would be better to use the object of the current selection, but it is not easily available
+                    IGeoObjectOwner owner = go.Owner;
+                    IGeoObject current = go;
+                    while (owner != null && !(owner is Model))
                     {
-                        solids.Add(sld);
+                        if (owner is Edge edge) owner = edge.Owner.Owner;
+                        else if (owner is IGeoObject goo) owner = goo.Owner;
+                        else owner = null;
+                        if (owner is IGeoObject g) current = g;
                     }
-                    else if (objectsUnderCursor[i] is Face fc)
+                    if (owner is Model) selectedObjects.Add(current);
+                }
+                if (go is Solid sld)
+                {
+                    solids.Add(sld);
+                }
+                else if (go is Face fc)
+                {
+                    faces.Add(fc);
+                    if (alsoParent && fc.Owner is Shell sh)
                     {
-                        faces.Add(fc);
-                        if (fc.Owner is Shell sh)
+                        if (sh.Owner is Solid solid)
                         {
-                            if (sh.Owner is Solid solid)
-                            {
-                                solids.Add(solid);
-                                if (!solidToFaces.TryGetValue(solid, out List<Face> fcs)) solidToFaces[solid] = fcs = new List<Face>();
-                                fcs.Add(fc);
-                            }
-                            else shells.Add(sh);
+                            solids.Add(solid);
+                            if (!solidToFaces.TryGetValue(solid, out List<Face> fcs)) solidToFaces[solid] = fcs = new List<Face>();
+                            fcs.Add(fc);
                         }
-                    }
-                    else if (objectsUnderCursor[i] is ICurve crv)
-                    {
-                        if (objectsUnderCursor[i].Owner is Edge edge) edges.Add(edge);
-                        else if (objectsUnderCursor[i].UserData.Contains("CADability.AxisOf"))
-                        {
-                            Face faceWithAxis = (objectsUnderCursor[i]).UserData.GetData("CADability.AxisOf") as Face;
-                            if (faceWithAxis != null) axis.Add(faceWithAxis);
-                        }
-                        else
-                        {
-                            curves.Add(crv);
-                        }
-                    }
-                    else if (objectsUnderCursor[i] is Text text)
-                    {
-                        texts.Add(text);
+                        else shells.Add(sh);
                     }
                 }
-
-                if (edges.Count > 0) // are there features defined by the selected edges?
+                else if (go is ICurve crv)
                 {
-                    Shell edgesShell = (edges.First().Owner as Face).Owner as Shell;
-                    HashSet<Edge> connectedEdges = Shell.ConnectedSameGeometryEdges(edges); // add all faces which have the same surface and are connected
-                    if (edgesShell != null)
+                    if (go.Owner is Edge edge)
+                    {
+                        if (!edge.ConnectsSameSurfaces()) edges.Add(edge);
+                    }
+                    else if (go.UserData.Contains("CADability.AxisOf"))
+                    {
+                        Face faceWithAxis = (go).UserData.GetData("CADability.AxisOf") as Face;
+                        if (faceWithAxis != null) axis.Add(faceWithAxis);
+                    }
+                    else
+                    {
+                        curves.Add(crv);
+                    }
+                }
+                else if (go is Text text)
+                {
+                    texts.Add(text);
+                }
+            }
+
+            // find features from either edges or faces
+            if (edges.Count > 0) // are there features defined by the selected edges?
+            {
+                Shell edgesShell = (edges.First().Owner as Face).Owner as Shell;
+                HashSet<Edge> connectedEdges = Shell.ConnectedSameGeometryEdges(edges); // add all faces which have the same surface and are connected
+                if (edgesShell != null)
+                {
+                    try
                     {
                         if (edgesShell.FeatureFromLoops(connectedEdges, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
                         {
@@ -714,117 +625,113 @@ namespace ShapeIt
                             if (fp != null && fp.SubItems.Length > 0) subEntries.Add(fp);
                         }
                     }
+                    catch (Exception ex) { };
                 }
-                if (faces.Count > 0) // are there features defined by the selected faces?
+            }
+            if (faces.Count > 0) // are there features defined by the selected faces?
+            {
+                Shell facesShell = faces.First().Owner as Shell;
+                if (facesShell != null)
                 {
-                    Shell facesShell = faces.First().Owner as Shell;
-                    if (facesShell != null)
+                    HashSet<Face> connectedFaces = Shell.ConnectedSameGeometryFaces(faces); // add all faces which have the same surface and are connected
+                    try
                     {
-                        HashSet<Face> connectedFaces = Shell.ConnectedSameGeometryFaces(faces); // add all faces which have the same surface and are connected
-                        try
+                        if (facesShell.FeatureFromFaces(connectedFaces, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
                         {
-                            if (facesShell.FeatureFromFaces(connectedFaces, out IEnumerable<Face> featureFaces, out List<Face> connection, out bool isGap))
-                            {
-                                // there is a feature. Multiple different features are not considered, we would need FeaturesFromFaces
-                                // which would return more than one feature
-                                IPropertyEntry fp = GetFeatureProperties(vw, featureFaces, connection, isGap);
-                                if (fp != null && fp.SubItems.Length > 0) subEntries.Add(fp);
-                            }
+                            // there is a feature. Multiple different features are not considered, we would need FeaturesFromFaces
+                            // which would return more than one feature
+                            IPropertyEntry fp = GetFeatureProperties(vw, featureFaces, connection, isGap);
+                            if (fp != null && fp.SubItems.Length > 0) subEntries.Add(fp);
                         }
-                        catch (Exception ex) { };
                     }
+                    catch (Exception ex) { };
                 }
-                foreach (Face fc in faces)
-                {   // add menus for dealing with face dimensions
-                    AddFaceProperties(vw, fc, clickBeam);
-                }
-                if (edges.Count > 1)
+            }
+            // Add the menus for Faces
+            if (faces.Count > 1)
+            {
+                SelectEntry multipleFaces = new SelectEntry("MultipleFaces.Properties", true);
+                multipleFaces.IsSelected = (selected, frame) =>
                 {
-                    SelectEntry multipleEdges = new SelectEntry("MultipleEdges.Properties", true);
-                    multipleEdges.IsSelected = (selected, frame) =>
+                    feedback.Clear();
+                    if (selected)
+                    {
+                        feedback.FrontFaces.AddRange(faces);
+                    }
+                    feedback.Refresh();
+                    return true;
+                };
+                multipleFaces.Add(GetFacesProperties(faces, vw));
+                foreach (Face face in faces)
+                {
+                    multipleFaces.Add(GetFaceProperties(vw, face, clickBeam));
+                }
+                subEntries.Add(multipleFaces);
+            }
+            else if (faces.Any()) subEntries.Add(GetFaceProperties(vw, faces.First(), clickBeam));
+            // add the menus for Edges
+            if (edges.Count > 1)
+            {
+                SelectEntry multipleEdges = new SelectEntry("MultipleEdges.Properties", true);
+                GeoObjectList select = ThickCurvesFromEdges(edges);
+                multipleEdges.IsSelected = (selected, frame) =>
+                {
+                    feedback.Clear();
+                    if (selected)
+                    {
+                        feedback.ShadowFaces.AddRange(select);
+                    }
+                    feedback.Refresh();
+                    return true;
+                };
+                multipleEdges.Add(GetEdgesProperties(edges.Select(e => e.Curve3D).ToList()));
+                foreach (Edge edg in edges)
+                {
+                    multipleEdges.Add(GetEdgeProperties(vw, edg, clickBeam));
+                }
+                subEntries.Add(multipleEdges);
+            }
+            else if (edges.Any()) subEntries.Add(GetEdgeProperties(vw, edges.First(), clickBeam));
+
+            // add the menus for Solids (more than one?)
+            foreach (Solid sld in solids)
+            {
+                AddSolidProperties(vw, sld, solidToFaces.TryGetValue(sld, out List<Face> found) ? found : null);
+            }
+            bool suppresRuledSolid = false;
+            switch (curves.Count)
+            {
+                case 0: break;
+                case 1:
+                    subEntries.Add(GetCurveProperties(vw, curves[0], suppresRuledSolid));
+                    break;
+                default: // which is >1, but only in C# Version 9
+                    SelectEntry multipleCurves = new SelectEntry("MultipleCurves.Properties", true);
+                    GeoObjectList select = ThickCurvesFromCurves(curves);
+                    multipleCurves.IsSelected = (selected, frame) =>
                     {
                         feedback.Clear();
                         if (selected)
                         {
-                            for (int i = 0; i < curves.Count; i++)
-                            {
-                                feedback.FrontFaces.AddRange(edges.Select(e => e.Curve3D as IGeoObject).ToList());
-                            }
+                            feedback.ShadowFaces.AddRange(select);
                         }
                         feedback.Refresh();
                         return true;
                     };
-                    multipleEdges.Add(GetEdgesProperties(edges.Select(e => e.Curve3D).ToList()));
-                    foreach (Edge edg in edges)
+                    multipleCurves.Add(GetCurvesProperties(curves.ToList(), vw));
+                    foreach (ICurve crv in curves)
                     {
-                        multipleEdges.Add(GetEdgeProperties(vw, edg, clickBeam));
+                        multipleCurves.Add(GetCurveProperties(vw, crv, true));
                     }
-                    subEntries.Add(multipleEdges);
-                }
-                else if (edges.Any()) subEntries.Add(GetEdgeProperties(vw, edges.First(), clickBeam));
-                foreach (Solid sld in solids)
-                {
-                    AddSolidProperties(vw, sld, solidToFaces.TryGetValue(sld, out List<Face> found) ? found : null);
-                }
-                bool suppresRuledSolid = false;
-                if (curves.Count == 2 && curves[0] is Path path1 && curves[1] is Path path2)
-                {
-                    if (Constr3DRuledSolid.ruledSolidTest(path1, path2))
-                    {
-                        DirectMenuEntry ruledSolid = new DirectMenuEntry("MenuId.Constr.Solid.RuledSolid");
-                        ruledSolid.ExecuteMenu = (frame) =>
-                            {
-                                Constr3DRuledSolid.ruledSolidDo(path1, path2, selectAction.Frame);
-                                return true;
-                            };
-                        ruledSolid.IsSelected = (selected, frame) =>
-                        {
-                            if (selected)
-                            {
-                                feedback.Clear();
-                                for (int i = 0; i < curves.Count; i++)
-                                {
-                                    feedback.FrontFaces.Add(curves[i] as IGeoObject);
-                                }
-                                feedback.Refresh();
-                            }
-                            return true;
-                        };
-                        suppresRuledSolid = true;
-                    }
-                }
-                switch (curves.Count)
-                {
-                    case 0: break;
-                    case 1:
-                        subEntries.Add(GetCurveProperties(vw, curves[0], suppresRuledSolid));
-                        break;
-                    default: // which is >1, but only in C# Version 9
-                        SelectEntry multipleCurves = new SelectEntry("MultipleCurves.Properties", true);
-                        multipleCurves.IsSelected = (selected, frame) =>
-                        {
-                            feedback.Clear();
-                            if (selected)
-                            {
-                                feedback.FrontFaces.AddRange(curves.OfType<IGeoObject>());
-                            }
-                            feedback.Refresh();
-                            return true;
-                        };
-                        multipleCurves.Add(GetCurvesProperties(curves.ToList(),vw));
-                        foreach (ICurve crv in curves)
-                        {
-                            multipleCurves.Add(GetCurveProperties(vw, crv, true));
-                        }
-                        subEntries.Add(multipleCurves);
-                        break;
-                }
-                for (int i = 0; i < texts.Count; i++)
-                {
-                    AddTextProperties(vw, texts[i]);
-                }
-
+                    subEntries.Add(multipleCurves);
+                    break;
             }
+            for (int i = 0; i < texts.Count; i++)
+            {
+                AddTextProperties(vw, texts[i]);
+            }
+
+
 
             IPropertyPage pp = propertyPage;
             if (pp != null)
@@ -832,44 +739,53 @@ namespace ShapeIt
                 // pp.Refresh(this); // doesn't do the job, so we must remove and add
                 pp.Remove(this); // to reflect this newly composed entry
                 pp.Add(this, true);
-                for (int i = 0; i < subEntries.Count; i++)
-                {
-                    if (subEntries[i].Flags.HasFlag(PropertyEntryType.HasSubEntries) && subEntries[i].SubItems.Length > 0) pp.OpenSubEntries(subEntries[i], true);
-                }
                 for (int i = 0; i < subEntries.Count; ++i)
                 {
                     pp.OpenSubEntries(subEntries[i], false);
                 }
-                // open and select according to this priority list:
-                IPropertyEntry spe;
-                if (null != (spe = FindSubItem("MenuId.Feature")))
+                for (int i = 0; i < subEntries.Count; i++)
                 {
-                    pp.OpenSubEntries(spe, true);
-                    pp.SelectEntry(spe);
-                }
-                if (null != (spe = FindSubItem("MenuId.Solid")))
-                {
-                    pp.OpenSubEntries(spe, true);
-                    pp.SelectEntry(spe);
-                }
-                else if (null != (spe = FindSubItem("MenuId.Face")))
-                {
-                    pp.OpenSubEntries(spe, true);
-                    pp.SelectEntry(spe);
-                }
-                else if (null != (spe = FindSubItem("MenuId.Edge")))
-                {
-                    pp.OpenSubEntries(spe, true);
-                    pp.SelectEntry(spe);
-                }
-                else
-                {
-                    if (subEntries.Count > 0)
+                    if (resourceIdOfEntryToSelect.Contains(subEntries[i].ResourceId))
                     {
-                        pp.OpenSubEntries(subEntries[0], true);
-                        pp.SelectEntry(subEntries[0]);
+                        pp.OpenSubEntries(subEntries[i], true);
+                        pp.SelectEntry(subEntries[i]);
+                        break;
                     }
                 }
+                //for (int i = 0; i < subEntries.Count; i++)
+                //{
+                //    if (subEntries[i].Flags.HasFlag(PropertyEntryType.HasSubEntries) && subEntries[i].SubItems.Length > 0) pp.OpenSubEntries(subEntries[i], true);
+                //}
+                //// open and select according to this priority list:
+                //IPropertyEntry spe;
+                //if (null != (spe = FindSubItem("MenuId.Feature")))
+                //{
+                //    pp.OpenSubEntries(spe, true);
+                //    pp.SelectEntry(spe);
+                //}
+                //if (null != (spe = FindSubItem("MenuId.Solid")))
+                //{
+                //    pp.OpenSubEntries(spe, true);
+                //    pp.SelectEntry(spe);
+                //}
+                //else if (null != (spe = FindSubItem("MenuId.Face")))
+                //{
+                //    pp.OpenSubEntries(spe, true);
+                //    pp.SelectEntry(spe);
+                //}
+                //else if (null != (spe = FindSubItem("MenuId.Edge")))
+                //{
+                //    pp.OpenSubEntries(spe, true);
+                //    pp.SelectEntry(spe);
+                //}
+                //else
+                //{
+                //    if (subEntries.Count > 0)
+                //    {
+                //        pp.OpenSubEntries(subEntries[0], true);
+                //        pp.SelectEntry(subEntries[0]);
+                //    }
+                //}
             }
         }
 
@@ -909,7 +825,7 @@ namespace ShapeIt
                     foreach (IGeoObject go in allEdgesAsCurves) go.SetNamedAttribute("Style", stl);
                 }
                 frame.Project.GetActiveModel().Add(allEdgesAsCurves);
-                ComposeModellingEntries(allEdgesAsCurves, frame.ActiveView, null);
+                ComposeModellingEntries(allEdgesAsCurves, frame.ActiveView, null, false, false); // no parents, replace selection
                 return true;
             };
             makeCurves.IsSelected = (selected, frame) =>
@@ -924,7 +840,6 @@ namespace ShapeIt
             makeFillet.ExecuteMenu = (frame) =>
             {
                 frame.SetAction(new Constr3DFillet(edges));
-                StopAccumulating();
                 return true;
             };
             makeFillet.IsSelected = (selected, frame) =>
@@ -975,7 +890,6 @@ namespace ShapeIt
                             makeRuledSolid.ExecuteMenu = (frame) =>
                             {
                                 frame.Project.GetActiveModel().Add(sld);
-                                StopAccumulating();
                                 return true;
                             };
                             res.Add(makeRuledSolid);
@@ -994,7 +908,6 @@ namespace ShapeIt
                     extrude.ExecuteMenu = (frame) =>
                     {
                         frame.SetAction(new Constr3DFaceExtrude(fc));
-                        StopAccumulating();
                         return true;
                     };
                     res.Add(extrude);
@@ -1002,7 +915,6 @@ namespace ShapeIt
                     rotate.ExecuteMenu = (frame) =>
                     {
                         frame.SetAction(new Constr3DFaceRotate(new GeoObjectList(fc)));
-                        StopAccumulating();
                         return true;
                     };
                     res.Add(rotate);
@@ -1046,22 +958,6 @@ namespace ShapeIt
 
                 return true;
             };
-            DirectMenuEntry selectMoreCurves = new DirectMenuEntry("MenuId.SelectMoreCurves");
-            selectMoreCurves.ExecuteMenu = (frame) =>
-            {
-                accumulatedObjects.Add(curve as IGeoObject);
-                isAccumulating = true;
-                ComposeModellingEntries(new GeoObjectList(), vw, null);
-                return true;
-            };
-            selectMoreCurves.IsSelected = (selected, frame) =>
-            {   // show the provided face and the "same geometry connected" faces as feedback
-                feedback.Clear();
-                if (selected) feedback.ShadowFaces.Add(curve as IGeoObject);
-                feedback.Refresh();
-                return true;
-            };
-            curveMenus.Add(selectMoreCurves);
             if ((curve as IGeoObject).Owner is Model)
             {
                 SelectEntry modifyMenu = ModifyMenu(curve as IGeoObject);
@@ -1345,7 +1241,7 @@ namespace ShapeIt
                 {
                     List<Path> created = Path.FromSegments(curves);
                     vw.Model.Add(created.ToArray());
-                    ComposeModellingEntries(new GeoObjectList(created as IEnumerable<IGeoObject>),vw,null);
+                    ComposeModellingEntries(new GeoObjectList(created as IEnumerable<IGeoObject>), vw, null);
                 }
                 return true;
             };
@@ -1655,18 +1551,33 @@ namespace ShapeIt
             //solidMenus.Add(mhremove);
             subEntries.Add(solidMenus);
         }
-
-        private IPropertyEntry GetEdgeProperties(IView vw, Edge edg, Axis clickBeam)
+        private GeoObjectList ThickCurvesFromEdges(IEnumerable<Edge> edges)
         {
-            SelectEntry edgeMenus = new SelectEntry("MenuId.Edge", true); // the container for all edge related menus or properties
-            HashSet<Edge> edges = Shell.ConnectedSameGeometryEdges(new Edge[] { edg });
-            GeoObjectList selection = new GeoObjectList();
+            GeoObjectList res = new GeoObjectList();
             foreach (Edge e in edges)
             {
                 IGeoObject cloned = (e.Curve3D as IGeoObject).Clone();
                 if (cloned is ILineWidth lw) lw.LineWidth = edgeLineWidth;
-                selection.Add(cloned);
+                res.Add(cloned);
             }
+            return res;
+        }
+        private GeoObjectList ThickCurvesFromCurves(IEnumerable<ICurve> curves)
+        {
+            GeoObjectList res = new GeoObjectList();
+            foreach (ICurve crv in curves)
+            {
+                IGeoObject cloned = (crv as IGeoObject).Clone();
+                if (cloned is ILineWidth lw) lw.LineWidth = edgeLineWidth;
+                res.Add(cloned);
+            }
+            return res;
+        }
+        private IPropertyEntry GetEdgeProperties(IView vw, Edge edg, Axis clickBeam)
+        {
+            SelectEntry edgeMenus = new SelectEntry("MenuId.Edge", true); // the container for all edge related menus or properties
+            HashSet<Edge> edges = Shell.ConnectedSameGeometryEdges(new Edge[] { edg });
+            GeoObjectList selection = ThickCurvesFromEdges(edges);
             edgeMenus.IsSelected = (selected, frame) =>
             {   // show the provided edge and the "same geometry connected" edges as feedback
                 feedback.Clear();
@@ -1675,22 +1586,6 @@ namespace ShapeIt
                 return true;
             };
 
-            DirectMenuEntry selectMoreEdges = new DirectMenuEntry("MenuId.SelectMoreEdges");
-            selectMoreEdges.ExecuteMenu = (frame) =>
-            {
-                accumulatedObjects.Add(edg.Curve3D as IGeoObject);
-                isAccumulating = true;
-                ComposeModellingEntries(new GeoObjectList(), vw, null);
-                return true;
-            };
-            selectMoreEdges.IsSelected = (selected, frame) =>
-            {   // show the provided face and the "same geometry connected" faces as feedback
-                feedback.Clear();
-                if (selected) feedback.ShadowFaces.AddRange(selection);
-                feedback.Refresh();
-                return true;
-            };
-            edgeMenus.Add(selectMoreEdges);
             Shell owningShell = edg.PrimaryFace.Owner as Shell;
             DirectMenuEntry mhdist = new DirectMenuEntry("MenuId.Parametrics.DistanceTo");
             // mhdist.Target = new ParametricsDistanceActionOld(edg, selectAction.Frame); 
@@ -1758,9 +1653,9 @@ namespace ShapeIt
             return edgeMenus;
         }
 
-        private void AddFaceProperties(IView vw, Face fc, Axis clickBeam)
+        private IPropertyEntry GetFaceProperties(IView vw, Face fc, Axis clickBeam)
         {
-            if (!(fc.Owner is Shell)) return;
+            if (!(fc.Owner is Shell)) return null;
             HashSet<Face> faces = Shell.ConnectedSameGeometryFaces(new Face[] { fc }); // in case of half cylinders etc. use the whole cylinder
 
             // where did the user touch the face? We need this point for the display of the dimensioning arrow
@@ -1806,25 +1701,6 @@ namespace ShapeIt
                 feedback.Refresh();
                 return true;
             };
-
-            // select more faces: the following clicks only regard faces and adds them to the accumulatedObjects list
-            DirectMenuEntry selectMoreFaces = new DirectMenuEntry("MenuId.SelectMoreFaces");
-            selectMoreFaces.ExecuteMenu = (frame) =>
-            {
-                accumulatedObjects.AddRange(faces);
-                isAccumulating = true;
-                ComposeModellingEntries(new GeoObjectList(), vw, null);
-                return true;
-            };
-            selectMoreFaces.IsSelected = (selected, frame) =>
-            {   // show the provided face and the "same geometry connected" faces as feedback
-                feedback.Clear();
-                if (selected) feedback.FrontFaces.AddRange(faces.ToArray());
-                feedback.Refresh();
-                return true;
-            };
-            faceEntries.Add(selectMoreFaces);
-
 
             // add more menus for faces with specific surfaces
             faceEntries.Add(GetSurfaceSpecificSubmenus(fc, vw, touchingPoint).ToArray());
@@ -2015,7 +1891,7 @@ namespace ShapeIt
                 }
                 // else: more to come!
             }
-            subEntries.Add(faceEntries);
+            return faceEntries;
         }
         private List<IPropertyEntry> AddExtensionProperties(Face fc, Projection.PickArea pa, IView vw)
         {
@@ -2161,8 +2037,6 @@ namespace ShapeIt
             {
                 Solid sldToCopy = Solid.MakeSolid(feature.Clone() as Shell);
                 selectAction.Frame.UIService.SetClipboardData(new GeoObjectList(sldToCopy), true);
-                accumulatedObjects.Clear();
-                isAccumulating = false;
                 Clear();
                 return true;
             };
@@ -2177,8 +2051,6 @@ namespace ShapeIt
             {
                 ParametricsDistanceActionOld pd = new ParametricsDistanceActionOld(feature, selectAction.Frame);
                 selectAction.Frame.SetAction(pd);
-                accumulatedObjects.Clear();
-                isAccumulating = false;
                 Clear();
                 return true;
             };
@@ -2234,8 +2106,6 @@ namespace ShapeIt
                 bool addRemoveOk = shell.AddAndRemoveFaces(connection, featureFaces);
                 feedback.Clear();
                 feedback.Refresh();
-                accumulatedObjects.Clear();
-                isAccumulating = false;
                 Clear();
                 return true;
             };
@@ -2243,8 +2113,6 @@ namespace ShapeIt
             {
                 feedback.Clear();
                 feedback.Refresh();
-                accumulatedObjects.Clear();
-                isAccumulating = false;
                 Solid solid = shell.Owner as Solid;
                 Solid[] remaining = Solid.Subtract(solid, featureSolid);
                 if (remaining != null && remaining.Length > 0)
@@ -2720,14 +2588,7 @@ namespace ShapeIt
                 case "MenuId.Edit.Copy":
                     {
                         GeoObjectList toCopy;
-                        if (isAccumulating)
-                        {
-                            toCopy = new GeoObjectList(accumulatedObjects);
-                        }
-                        else
-                        {
-                            toCopy = new GeoObjectList(selectedObjects);
-                        }
+                        toCopy = new GeoObjectList(selectedObjects);
                         cadFrame.UIService.SetClipboardData(toCopy, true);
                     }
                     return true;
@@ -2769,14 +2630,7 @@ namespace ShapeIt
             {
                 case "MenuId.Edit.Copy":
                     {
-                        if (isAccumulating)
-                        {
-                            CommandState.Enabled = accumulatedObjects.Count > 0;
-                        }
-                        else
-                        {
-                            CommandState.Enabled = selectedObjects.Any();
-                        }
+                        CommandState.Enabled = selectedObjects.Any();
                     }
                     return true;
                 case "MenuId.Edit.Paste":

@@ -153,18 +153,6 @@
 		<label>Abstand zu einer anderen Fläche</label>
 		<info>Lege den Abstand zu einer anderen, noch zu bestimmenden, Fläche fest</info>
 	</data>
-	<data name="MenuId.SelectMoreEdges">
-		<label>Weitere Kanten auswählen [[W]]</label>
-		<info>Weitere Kanten für verschiedene Aufgaben auswählen</info>
-	</data>
-	<data name="MenuId.MenuId.SelectMoreCurves">
-		<label>Weitere Kurven auswählen [[W]]</label>
-		<info>Weitere Kurven für verschiedene Aufgaben auswählen</info>
-	</data>
-	<data name="MenuId.SelectMoreFaces">
-		<label>Weitere Flächen auswählen [[W]]</label>
-		<info>Weitere Flächen für verschiedene Aufgaben auswählen</info>
-	</data>
 	<data name="MenuId.Gauge">
 		<label>Dicke (Stärke)</label>
 		<info>Die Dicke des Körpers ändern</info>

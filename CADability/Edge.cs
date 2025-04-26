@@ -2387,10 +2387,21 @@ namespace CADability
         {
             return primaryFace == secondaryFace;
         }
-        internal bool ConnectsSameSurfaces()
+        public bool ConnectsSameSurfaces()
         {
-            if (secondaryFace == null) return false;
-            return primaryFace.SameSurface(secondaryFace);
+            if (kind == EdgeKind.unknown)
+            {
+                if (secondaryFace != null)
+                {
+                    if (primaryFace.Surface.SameGeometry(primaryFace.Domain, secondaryFace.Surface, secondaryFace.Domain, Precision.eps, out ModOp2D _)) kind = EdgeKind.sameSurface;
+                    else kind = EdgeKind.sharp; // we could also implement tangential looking at normal vectors, but how would we differentiate?
+                }
+                else
+                {
+                    kind = EdgeKind.sharp;
+                }
+            }
+            return kind == EdgeKind.sameSurface;
         }
         internal GeoPoint2D[] GetTriangulationBasis(Face face, double precision, ICurve2D c2d)
         {   // liefert die 2D Polygone für diese Kante in der richtigen Richtung
