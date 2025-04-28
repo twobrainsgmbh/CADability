@@ -47,6 +47,7 @@ namespace ShapeIt
         private bool downOnSelectedObjects;
         private ModOp accumulatedMovement; // when dragging objects this is the accumulation movement in respect to the original objects
         private HashSet<IGeoObject> currentlySelected = new HashSet<IGeoObject>(); // all curves, edges, faces which are currently shown in the subentries
+        private Dictionary<IGeoObject, IGeoObject> selectedSameSurfaceBudies = new Dictionary<IGeoObject, IGeoObject>();
 
         private GeoObjectList selectedChildObjects = new GeoObjectList(); // when a face or feature is selected, it is listed here to maybe move it later
         private bool movingChildObject; // the current move operation is on a feature or a face, which is not in the model
@@ -499,7 +500,8 @@ namespace ShapeIt
             }
             subEntries.Clear(); // build a new list of modelling properties
             // complete the same surface faces and edges in objectsUnderCursor
-            for (int i = objectsUnderCursor.Count - 1; i > 0; --i)
+            Dictionary<IGeoObject, IGeoObject> sameSurfaceBudies = new Dictionary<IGeoObject, IGeoObject>();
+            for (int i = objectsUnderCursor.Count - 1; i >= 0; --i)
             {
                 if (objectsUnderCursor[i] is ICurve crv)
                 {
@@ -507,12 +509,18 @@ namespace ShapeIt
                     {
                         HashSet<Edge> connectedSameGeometryEdges = Shell.ConnectedSameGeometryEdges(new Edge[] { edg });
                         connectedSameGeometryEdges.ExceptWith(new Edge[] { edg });
-                        foreach (Edge ec in connectedSameGeometryEdges) objectsUnderCursor.AddUnique(ec.Curve3D as IGeoObject);
+                        foreach (Edge ec in connectedSameGeometryEdges)
+                        {
+                            sameSurfaceBudies[objectsUnderCursor[i]] = ec.Curve3D as IGeoObject; // there could be multiple, this is not implemented yet
+                        }
                     }
                 }
                 if (objectsUnderCursor[i] is Face fc)
                 {
-                    foreach (Face fs in fc.GetSameSurfaceConnected()) objectsUnderCursor.AddUnique(fs);
+                    foreach (Face fs in fc.GetSameSurfaceConnected())
+                    {
+                        sameSurfaceBudies[objectsUnderCursor[i]] = fc; // there could be multiple, this is not implemented yet
+                    }
                 }
             }
             if (addRemove)
@@ -520,11 +528,16 @@ namespace ShapeIt
                 HashSet<IGeoObject> common = new HashSet<IGeoObject>(currentlySelected.Intersect(objectsUnderCursor));
                 currentlySelected.UnionWith(objectsUnderCursor);
                 currentlySelected.ExceptWith(common);
+                foreach (var kvp in sameSurfaceBudies)
+                {
+                    selectedSameSurfaceBudies[kvp.Key] = kvp.Value;
+                }
             }
             else
             {   // the old selection is replaced by the new selection
                 currentlySelected.Clear();
                 currentlySelected.UnionWith(objectsUnderCursor);
+                selectedSameSurfaceBudies = sameSurfaceBudies;
             }
             // what to focus after the selection changed?
             string resourceIdOfEntryToSelect = String.Empty; // may contain several ids

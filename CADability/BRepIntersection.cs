@@ -3996,7 +3996,7 @@ namespace CADability
                         {
                             shell.CombineConnectedFaces(); // two connected faces which have the same surface are merged into one face
                             if (operation == Operation.union) shell.ReverseOrientation(); // both had been reversed and the intersection had been calculated
-                            res.Add(shell);
+                            if (shell.Volume(Precision.eps) > Precision.eps * 100) res.Add(shell); // we sometimes get two identical faces, which are inverse oriented
                             nonManifoldParts.Clear();
                         }
                     }
@@ -4010,11 +4010,12 @@ namespace CADability
                             {
                                 shell.CombineConnectedFaces(); // two connected faces which have the same surface are merged into one face
                                 if (operation == Operation.union) shell.ReverseOrientation(); // both had been reversed and the intersection had been calculated
-                                res.Add(shell);
+                                if (shell.Volume(Precision.eps) > Precision.eps * 100) res.Add(shell); // we sometimes get two identical faces, which are inverse oriented
                             }
                             shell.RecalcVertices();
                             shell.TryConnectOpenEdges();
-                        } catch (Exception) { }
+                        }
+                        catch (Exception) { }
                     }
                 }
             }
@@ -4062,7 +4063,7 @@ namespace CADability
                         }
                         else
                         {
-                            if (edge.Curve3D!=null && Math.Abs(face.Surface.GetDistance(edge.Curve3D.PointAt(0.5))) < 10 * Precision.eps)
+                            if (edge.Curve3D != null && Math.Abs(face.Surface.GetDistance(edge.Curve3D.PointAt(0.5))) < 10 * Precision.eps)
                             {   // the middle point of the edge is also close to this face
                                 GeoPoint2D uv1 = face.Surface.PositionOf(edge.Vertex1.Position);
                                 GeoPoint2D uv2 = face.Surface.PositionOf(edge.Vertex2.Position);

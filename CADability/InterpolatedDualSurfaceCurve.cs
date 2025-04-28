@@ -948,6 +948,8 @@ namespace CADability
 
             InitApproxPolynom();
             CheckPeriodic(); // erst nach dieser Schleife, denn ApproximatePosition mach die uv-position evtl. falsch
+            // maybe we end up in the wron period
+            AdjustPeriodic(bounds1, bounds2);
             CheckSurfaceExtents();
 #if DEBUG
             GeoPoint2D[] dbgb1 = new GeoPoint2D[basePoints.Length];
@@ -1211,12 +1213,15 @@ namespace CADability
             //}
         }
         internal void AdjustPeriodic(BoundingRect bounds1, BoundingRect bounds2)
-        {
-            for (int i = 0; i < basePoints.Length; i++)
-            {
-                SurfaceHelper.AdjustPeriodic(surface1, bounds1, ref basePoints[i].psurface1);
-                SurfaceHelper.AdjustPeriodic(surface2, bounds2, ref basePoints[i].psurface2);
-            }
+        {   // we need to consider the whole curve, not just individual points, because the bounds may be too narrow and some points fall outside
+            // we expect that the 2d points are in a row and have no periodic jumps
+            GeoPoint2D[] p2d = new GeoPoint2D[basePoints.Length];
+            for (int i = 0; i < basePoints.Length; i++) p2d[i] = basePoints[i].psurface1;
+            SurfaceHelper.AdjustPeriodic(surface1, bounds1, p2d);
+            for (int i = 0; i < basePoints.Length; i++) basePoints[i].psurface1 = p2d[i];
+            for (int i = 0; i < basePoints.Length; i++) p2d[i] = basePoints[i].psurface2;
+            SurfaceHelper.AdjustPeriodic(surface2, bounds2, p2d);
+            for (int i = 0; i < basePoints.Length; i++) basePoints[i].psurface2 = p2d[i];
         }
         private void AdjustPeriodic(ref SurfacePoint toAdjust, int ind)
         {
@@ -2395,10 +2400,10 @@ namespace CADability
             double ppos = TetraederHull.PositionOf(p);
             if (approxPolynom == null) InitApproxPolynom();
             double pos1 = approxPolynom.PositionOf(p, out double md);
-            
-            if ((pos1 != double.MaxValue) && (PointAt(pos1) | p) < (PointAt(ppos) | p)) 
+
+            if ((pos1 != double.MaxValue) && (PointAt(pos1) | p) < (PointAt(ppos) | p))
                 return pos1;
-            
+
             return ppos;
 
             //Unreachable code

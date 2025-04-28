@@ -405,8 +405,8 @@ namespace ShapeIt
             }
             if (sld1 != null && sld2 != null )
             {
-                CADability.GeoObject.Solid[] res = CADability.GeoObject.Solid.Intersect(sld1, sld2);
-                res[0].Shells[0].CheckConsistency();
+                CADability.GeoObject.Solid[] res = CADability.GeoObject.Solid.Subtract(sld2, sld1);
+                bool ok = res[0].Shells[0].CheckConsistency();
             }
         }
 #endif
