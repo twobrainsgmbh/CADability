@@ -40,7 +40,6 @@ namespace ShapeIt
         private bool isDragging = false; // the user is dragging a selection rectangle
         private bool isMoving = false; // the user is moving the selected objects
         private bool isHotspotMoving = false; // the user is movind a hotspot
-        private LineWidth edgeLineWidth; // for edge display, we want a thicker line width
         private HashSet<IGeoObject> selectedObjects = new HashSet<IGeoObject>(); // the currently selected root objects 
         private GeoObjectList movingObjects = new GeoObjectList(); // a copy of the selected objects, used for moving
         private GeoPoint moveObjectsDownPoint;
@@ -73,8 +72,6 @@ namespace ShapeIt
             selectionTabForced = false;
 
             cadFrame.ProcessContextMenuEvent += ProcessContextMenu;
-
-            edgeLineWidth = new LineWidth("selectedEdge", 0.7);
 
             feedback = new Feedback();
             feedback.Attach(cadFrame.ActiveView);
@@ -686,7 +683,7 @@ namespace ShapeIt
             if (edges.Count > 1)
             {
                 SelectEntry multipleEdges = new SelectEntry("MultipleEdges.Properties", true);
-                GeoObjectList select = ThickCurvesFromEdges(edges);
+                GeoObjectList select = Helper.ThickCurvesFromEdges(edges);
                 multipleEdges.IsSelected = (selected, frame) =>
                 {
                     feedback.Clear();
@@ -720,7 +717,7 @@ namespace ShapeIt
                     break;
                 default: // which is >1, but only in C# Version 9
                     SelectEntry multipleCurves = new SelectEntry("MultipleCurves.Properties", true);
-                    GeoObjectList select = ThickCurvesFromCurves(curves);
+                    GeoObjectList select = Helper.ThickCurvesFromCurves(curves);
                     multipleCurves.IsSelected = (selected, frame) =>
                     {
                         feedback.Clear();
@@ -1564,33 +1561,11 @@ namespace ShapeIt
             //solidMenus.Add(mhremove);
             subEntries.Add(solidMenus);
         }
-        private GeoObjectList ThickCurvesFromEdges(IEnumerable<Edge> edges)
-        {
-            GeoObjectList res = new GeoObjectList();
-            foreach (Edge e in edges)
-            {
-                IGeoObject cloned = (e.Curve3D as IGeoObject).Clone();
-                if (cloned is ILineWidth lw) lw.LineWidth = edgeLineWidth;
-                res.Add(cloned);
-            }
-            return res;
-        }
-        private GeoObjectList ThickCurvesFromCurves(IEnumerable<ICurve> curves)
-        {
-            GeoObjectList res = new GeoObjectList();
-            foreach (ICurve crv in curves)
-            {
-                IGeoObject cloned = (crv as IGeoObject).Clone();
-                if (cloned is ILineWidth lw) lw.LineWidth = edgeLineWidth;
-                res.Add(cloned);
-            }
-            return res;
-        }
         private IPropertyEntry GetEdgeProperties(IView vw, Edge edg, Axis clickBeam)
         {
             SelectEntry edgeMenus = new SelectEntry("MenuId.Edge", true); // the container for all edge related menus or properties
             HashSet<Edge> edges = Shell.ConnectedSameGeometryEdges(new Edge[] { edg });
-            GeoObjectList selection = ThickCurvesFromEdges(edges);
+            GeoObjectList selection = Helper.ThickCurvesFromEdges(edges);
             edgeMenus.IsSelected = (selected, frame) =>
             {   // show the provided edge and the "same geometry connected" edges as feedback
                 feedback.Clear();
@@ -1600,6 +1575,44 @@ namespace ShapeIt
             };
 
             Shell owningShell = edg.PrimaryFace.Owner as Shell;
+
+            if (edg.Curve3D is Ellipse && (edg.PrimaryFace.Surface is CylindricalSurface || edg.SecondaryFace.Surface is CylindricalSurface
+                || edg.PrimaryFace.Surface is ConicalSurface || edg.SecondaryFace.Surface is ConicalSurface))
+            {   // lets try to change the radius of this edge
+                HashSet<Face> affectedFaces = new HashSet<Face>();
+                foreach (Edge edge in edges)
+                {
+                    affectedFaces.Add(edge.PrimaryFace);
+                    affectedFaces.Add(edge.SecondaryFace);
+                }
+                for (int i = 0; i < 2; ++i)
+                {
+                    string resourceId = string.Empty;
+                    switch (i)
+                    {
+                        case 0: resourceId = "MenuId.Edge.Radius"; break;
+                        case 1: resourceId = "MenuId.Edge.Diameter"; break;
+                    }
+                    DirectMenuEntry edgeRadiusOrDiameter = new DirectMenuEntry(resourceId);
+                    edgeRadiusOrDiameter.IsSelected = (selected, frame) =>
+                    {
+                        feedback.Clear();
+                        if (selected)
+                        {
+                            feedback.ShadowFaces.AddRange(selection);
+                            feedback.FrontFaces.AddRange(affectedFaces);
+                        }
+                        feedback.Refresh();
+                        return true;
+                    };
+                    edgeRadiusOrDiameter.ExecuteMenu = (frame) =>
+                    {
+                        cadFrame.SetAction(new ParametricsEdgeRadiusAction(edges, GeoPoint.Invalid, i == 1));
+                        return true;
+                    };
+                    edgeMenus.Add(edgeRadiusOrDiameter);
+                }
+            }
             DirectMenuEntry mhdist = new DirectMenuEntry("MenuId.Parametrics.DistanceTo");
             // mhdist.Target = new ParametricsDistanceActionOld(edg, selectAction.Frame); 
             // TODO!

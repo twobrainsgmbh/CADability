@@ -109,6 +109,7 @@
     <Compile Include="ParametricsAngleAction.cs" />
     <Compile Include="ParametricsCenterAction.cs" />
     <Compile Include="ParametricsDistanceAction.cs" />
+    <Compile Include="ParametricsEdgeRadiusAction.cs" />
     <Compile Include="ParametricsExtrudeAction.cs" />
     <Compile Include="ParametricsOffsetAction.cs" />
     <Compile Include="ParametricsRadiusAction.cs" />

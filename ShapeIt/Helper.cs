@@ -41,5 +41,28 @@ namespace ShapeIt
             }
             return go;
         }
+        public static GeoObjectList ThickCurvesFromEdges(IEnumerable<Edge> edges)
+        {
+            GeoObjectList res = new GeoObjectList();
+            foreach (Edge e in edges)
+            {
+                IGeoObject cloned = (e.Curve3D as IGeoObject).Clone();
+                if (cloned is ILineWidth lw) lw.LineWidth = edgeLineWidth;
+                res.Add(cloned);
+            }
+            return res;
+        }
+        public static GeoObjectList ThickCurvesFromCurves(IEnumerable<ICurve> curves)
+        {
+            GeoObjectList res = new GeoObjectList();
+            foreach (ICurve crv in curves)
+            {
+                IGeoObject cloned = (crv as IGeoObject).Clone();
+                if (cloned is ILineWidth lw) lw.LineWidth = edgeLineWidth;
+                res.Add(cloned);
+            }
+            return res;
+        }
+
     }
 }

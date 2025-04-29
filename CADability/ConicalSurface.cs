@@ -473,6 +473,65 @@ namespace CADability.GeoObject
             return Precision.SameDirection(Axis, rotationAxis.Direction, false);
         }
 
+        private static double CopySign(double magnitude, double sign)
+        {
+            return Math.Abs(magnitude) * (sign >= 0 ? 1.0 : -1.0);
+        }
+        /// <summary>
+        /// Finds the intersection points of a line with the cone z^2 = x^2 + y^2.
+        /// The line is defined by p and d
+        /// Returns 0, 1, or 2 points of intersection.
+        /// </summary>
+        private static List<GeoPoint> IntersectLineWithUnitCone(GeoPoint p, GeoVector d)
+        {
+            var result = new List<GeoPoint>();
+
+            // Coefficients of the quadratic equation At² + Bt + C = 0
+            double A = d.z * d.z - d.x * d.x - d.y * d.y;
+            double B = 2 * (p.z * d.z - p.x * d.x - p.y * d.y);
+            double C = p.z * p.z - p.x * p.x - p.y * p.y;
+
+            const double epsilon = 1e-6f;
+
+            if (Math.Abs(A) < epsilon)
+            {
+                // Degenerate case: linear equation Bt + C = 0
+                if (Math.Abs(B) > epsilon)
+                {
+                    double t = -C / B;
+                    result.Add(p + t * d);
+                }
+                // else: No solution or infinite solutions (line lies on cone surface)
+            }
+            else
+            {
+                double discriminant = B * B - 4 * A * C;
+
+                if (discriminant < -epsilon)
+                {
+                    // No real intersection points
+                    return result;
+                }
+                else if (Math.Abs(discriminant) < epsilon)
+                {
+                    // One real solution (tangent)
+                    double t = -B / (2 * A);
+                    result.Add(p + t * d);
+                }
+                else
+                {
+                    // Two real solutions, numerically stable version
+                    double sqrtD = Math.Sqrt(discriminant);
+                    double q = -0.5 * (B + CopySign(sqrtD, B));
+                    double t1 = q / A;
+                    double t2 = C / q;
+                    result.Add(p + t1 * d);
+                    result.Add(p + t2 * d);
+                }
+            }
+
+            return result;
+        }
         /// <summary>
         /// Overrides <see cref="CADability.GeoObject.ISurfaceImpl.GetLineIntersection (GeoPoint, GeoVector)"/>
         /// </summary>
@@ -481,46 +540,52 @@ namespace CADability.GeoObject
         /// <returns></returns>
         public override GeoPoint2D[] GetLineIntersection(GeoPoint startPoint, GeoVector direction)
         {
+
             // Bringe die Linie in das Einheitssystem und bestimme dann die Punkte, bei denen
             // x^2+y^2 == z^2
             GeoPoint sp = toUnit * startPoint;
             GeoVector dir = toUnit * direction;
+            List<GeoPoint> ips = IntersectLineWithUnitCone(sp, dir);
+            List<GeoPoint2D> res = new List<GeoPoint2D>();
+            for (int i = 0; i < ips.Count; i++) res.Add(PositionOf(toCone * ips[i]));
+            return res.ToArray();
+            // following code was not numericaly stable:
 
-            double A = dir.x * dir.x + dir.y * dir.y - dir.z * dir.z;
-            double B = 2 * (sp.x * dir.x + sp.y * dir.y - sp.z * dir.z);
-            double C = sp.x * sp.x + sp.y * sp.y - sp.z * sp.z;
-            if (Math.Abs(B * B - 4 * A * C) < Precision.eps)
-            {   // tangential intersection
-                return new GeoPoint2D[] { PositionOf(toCone * (sp - B / (2 * A) * dir)) };
-            }
-            // Mit Maxima: 
-            // solve((spz+l*dirz)^2=(spx+l*dirx)^2+(spy+l*diry)^2,l);  string(%);
-            // ergibt sich:
-            // [l = (sqrt((diry^2+dirx^2)*spz^2+(-2*diry*dirz*spy-2*dirx*dirz*spx)*spz+\
-            // (dirz^2-dirx^2)*spy^2+2*dirx*diry*spx*spy+(dirz^2-diry^2)*spx^2)-dirz*spz+diry\
-            // *spy+dirx*spx)/(dirz^2-diry^2-dirx^2),l = -(sqrt((diry^2+dirx^2)*spz^2+(-2*dir\
-            // y*dirz*spy-2*dirx*dirz*spx)*spz+(dirz^2-dirx^2)*spy^2+2*dirx*diry*spx*spy+(dir\
-            // z^2-diry^2)*spx^2)+dirz*spz-diry*spy-dirx*spx)/(dirz^2-diry^2-dirx^2)]
-            double root = (dir.y * dir.y + dir.x * dir.x) * sp.z * sp.z + (-2 * dir.y * dir.z * sp.y - 2 * dir.x * dir.z * sp.x) * sp.z + (dir.z * dir.z - dir.x * dir.x) * sp.y * sp.y + 2 * dir.x * dir.y * sp.x * sp.y + (dir.z * dir.z - dir.y * dir.y) * sp.x * sp.x;
-            double denominator = (dir.z * dir.z - dir.y * dir.y - dir.x * dir.x);
-            if (root >= 0.0 && denominator != 0.0)
-            {
-                double l1 = (Math.Sqrt(root) - dir.z * sp.z + dir.y * sp.y + dir.x * sp.x) / denominator;
-                double l2 = -(Math.Sqrt(root) + dir.z * sp.z - dir.y * sp.y - dir.x * sp.x) / denominator;
-                GeoPoint pl1 = sp + l1 * dir;
-                GeoPoint pl2 = sp + l2 * dir;
-                // Mit dem Winkel (u-Parameter) verhält es sich so: im "oberen" Kegel ist es der Winkel
-                // der x,y Komponente, im "unteren" ist es um PI versetzt. Das Ergebnis soll immer
-                // im Bereich 0..2*PI sein.
-                double u1 = Math.Atan2(pl1.y, pl1.x);
-                if (pl1.z < 0.0) u1 += Math.PI;
-                if (u1 < 0.0) u1 += Math.PI * 2.0;
-                double u2 = Math.Atan2(pl2.y, pl2.x);
-                if (pl2.z < 0.0) u2 += Math.PI;
-                if (u2 < 0.0) u2 += Math.PI * 2.0;
-                return new GeoPoint2D[] { new GeoPoint2D(u1, pl1.z), new GeoPoint2D(u2, pl2.z) };
-            }
-            return new GeoPoint2D[0];
+            //double A = dir.x * dir.x + dir.y * dir.y - dir.z * dir.z;
+            //double B = 2 * (sp.x * dir.x + sp.y * dir.y - sp.z * dir.z);
+            //double C = sp.x * sp.x + sp.y * sp.y - sp.z * sp.z;
+            //if (Math.Abs(B * B - 4 * A * C) < Precision.eps)
+            //{   // tangential intersection
+            //    return new GeoPoint2D[] { PositionOf(toCone * (sp - B / (2 * A) * dir)) };
+            //}
+            //// Mit Maxima: 
+            //// solve((spz+l*dirz)^2=(spx+l*dirx)^2+(spy+l*diry)^2,l);  string(%);
+            //// ergibt sich:
+            //// [l = (sqrt((diry^2+dirx^2)*spz^2+(-2*diry*dirz*spy-2*dirx*dirz*spx)*spz+\
+            //// (dirz^2-dirx^2)*spy^2+2*dirx*diry*spx*spy+(dirz^2-diry^2)*spx^2)-dirz*spz+diry\
+            //// *spy+dirx*spx)/(dirz^2-diry^2-dirx^2),l = -(sqrt((diry^2+dirx^2)*spz^2+(-2*dir\
+            //// y*dirz*spy-2*dirx*dirz*spx)*spz+(dirz^2-dirx^2)*spy^2+2*dirx*diry*spx*spy+(dir\
+            //// z^2-diry^2)*spx^2)+dirz*spz-diry*spy-dirx*spx)/(dirz^2-diry^2-dirx^2)]
+            //double root = (dir.y * dir.y + dir.x * dir.x) * sp.z * sp.z + (-2 * dir.y * dir.z * sp.y - 2 * dir.x * dir.z * sp.x) * sp.z + (dir.z * dir.z - dir.x * dir.x) * sp.y * sp.y + 2 * dir.x * dir.y * sp.x * sp.y + (dir.z * dir.z - dir.y * dir.y) * sp.x * sp.x;
+            //double denominator = (dir.z * dir.z - dir.y * dir.y - dir.x * dir.x);
+            //if (root >= 0.0 && denominator != 0.0)
+            //{
+            //    double l1 = (Math.Sqrt(root) - dir.z * sp.z + dir.y * sp.y + dir.x * sp.x) / denominator;
+            //    double l2 = -(Math.Sqrt(root) + dir.z * sp.z - dir.y * sp.y - dir.x * sp.x) / denominator;
+            //    GeoPoint pl1 = sp + l1 * dir;
+            //    GeoPoint pl2 = sp + l2 * dir;
+            //    // Mit dem Winkel (u-Parameter) verhält es sich so: im "oberen" Kegel ist es der Winkel
+            //    // der x,y Komponente, im "unteren" ist es um PI versetzt. Das Ergebnis soll immer
+            //    // im Bereich 0..2*PI sein.
+            //    double u1 = Math.Atan2(pl1.y, pl1.x);
+            //    if (pl1.z < 0.0) u1 += Math.PI;
+            //    if (u1 < 0.0) u1 += Math.PI * 2.0;
+            //    double u2 = Math.Atan2(pl2.y, pl2.x);
+            //    if (pl2.z < 0.0) u2 += Math.PI;
+            //    if (u2 < 0.0) u2 += Math.PI * 2.0;
+            //    return new GeoPoint2D[] { new GeoPoint2D(u1, pl1.z), new GeoPoint2D(u2, pl2.z) };
+            //}
+            //return new GeoPoint2D[0];
 
             //    // Versuch einer Geometrischen Lösung:
             //    Plane pln = new Plane(sp, dir, dir ^ GeoVector.ZAxis); 
