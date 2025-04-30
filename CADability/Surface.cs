@@ -5554,6 +5554,18 @@ namespace CADability.GeoObject
                 ICurve res = Intersect(surface2 as PlaneSurface, bounds2, surface1 as ToroidalSurface, bounds1, points);
                 if (res != null) return res;
             }
+            {
+                ICurve[] crvs = surface1.Intersect(bounds1, surface2, bounds2);
+                for (int i = 0; i < crvs.Length; i++)
+                {
+                    double dsum = 0.0;
+                    for (int j = 0; j < points.Count; j++)
+                    {
+                        dsum += crvs[i].DistanceTo(points[j]);
+                    }
+                    if (dsum < points.Count * Precision.eps) return crvs[i];
+                }
+            }
             // kein bekannter Fall. Hier ist es aber gefährlich wenn wir tangential sind,
             // denn dann funktioniert InterpolatedDualSurfaceCurve sehr schlecht, vor allem die Richtung ger Kurve
             // wird oft falsch

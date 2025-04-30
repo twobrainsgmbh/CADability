@@ -1662,6 +1662,19 @@ namespace CADability.GeoObject
                 }
                 return res;
             }
+            if (other is ISurfaceOfRevolution rev)
+            {
+                List<ICurve> res = new List<ICurve>();
+                if (Precision.SameAxis(rev.Axis, (this as ISurfaceOfRevolution).Axis))
+                {   // two surfaces of revolution with the same axis
+                    Intersect(rev.Curve, thisBounds, out GeoPoint[] ips, out GeoPoint2D[] uvOnFaces, out double[] uOnCurve3Ds);
+                    for (int i = 0; i < uvOnFaces.Length; i++)
+                    {
+                        res.Add(FixedV(uvOnFaces[i].y, thisBounds.Left, thisBounds.Right));
+                    }
+                }
+                if (res.Count > 0) return res.ToArray();
+            }
             return base.Intersect(thisBounds, other, otherBounds);
         }
         public override ISurface GetNonPeriodicSurface(ICurve[] orientedCurves)
