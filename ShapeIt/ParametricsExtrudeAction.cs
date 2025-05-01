@@ -479,7 +479,6 @@ namespace ShapeIt
                     sh = parametric.Result();
                     if (sh != null)
                     {
-                        bool ok = sh.CheckConsistency();
                         ParametricDistanceProperty.Mode pmode = 0;
                         if (moveConnected) pmode |= ParametricDistanceProperty.Mode.connected;
                         if (mode == Mode.symmetric) pmode |= ParametricDistanceProperty.Mode.symmetric;
