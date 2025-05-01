@@ -54,6 +54,7 @@ namespace ShapeIt
             if (d.startPoint.IsValid)
             {   // find a position, where the arrow would be visible
                 GeoVector dir = d.endPoint - d.startPoint;
+                if (dir.IsNullVector()) dir = GeoVector.XAxis; // if "0" is entered for the distance
                 Plane pln;
                 GeoVector xdir = projection.Direction ^ (d.endPoint - d.startPoint);
                 if (xdir.IsNullVector()) pln = new Plane(d.startPoint, projection.Direction);
@@ -122,7 +123,7 @@ namespace ShapeIt
                         if (Math.Abs(perp) < 0.3) evaluation[i] += 2; // the view direction should be close to perpendicular to the dimension
                         else if (Math.Abs(perp) < 0.6) evaluation[i] += 1;
                     }
-                    evaluation[closest] += 1; // very close to clickpoint
+                    if (closest>=0) evaluation[closest] += 1; // very close to clickpoint
                     closest = 0;
                     for (int i = 1; i < 8; i++) if (evaluation[i] > evaluation[closest]) closest = i;
                     //for (int i = 0; i < 8; i++)

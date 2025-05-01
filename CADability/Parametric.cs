@@ -1013,7 +1013,7 @@ namespace CADability
                     // remove duplicate seeds
                     if (seeds.Count == 2 && Precision.IsEqual(seeds[0], seeds[1])) seeds.RemoveAt(1);
                     ICurve crv = null;
-                    if (edge.PrimaryFace.Surface.SameGeometry(edge.PrimaryFace.Domain, edge.SecondaryFace.Surface, edge.SecondaryFace.Domain, Precision.eps, out ModOp2D firstToSecond))
+                    if (edge.PrimaryFace.Surface.SameGeometry(edge.PrimaryFace.Domain, edge.SecondaryFace.Surface, edge.SecondaryFace.Domain, Precision.eps, out ModOp2D firstToSecond) && seeds.Count>1)
                     {   // this is probably a seam of two periodic parts with the same surface
                         GeoPoint2D sp = edge.PrimaryFace.Surface.PositionOf(seeds[0]);
                         GeoPoint2D ep = edge.PrimaryFace.Surface.PositionOf(seeds[1]);

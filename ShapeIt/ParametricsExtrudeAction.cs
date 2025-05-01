@@ -48,7 +48,7 @@ namespace ShapeIt
         /// Making it possible to add a face as user data to an IGeoObject. When the face is beeing cloned, the user data also will be cloned,
         /// which would result in an infinite loop
         /// </summary>
-        private class FaceDontClone: ICloneable
+        private class FaceDontClone : ICloneable
         {
             public FaceDontClone(Face face) { Face = face; }
             public Face Face { get; }
@@ -244,7 +244,7 @@ namespace ShapeIt
         }
         private void CalcDistance()
         {
-            (startPoint, endPoint) = DistanceCalculator.DistanceBetweenObjects(measureFromHere, measureToHere, Plane.Normal, pickPoint, 
+            (startPoint, endPoint) = DistanceCalculator.DistanceBetweenObjects(measureFromHere, measureToHere, Plane.Normal, pickPoint,
                 out GeoVector degreeOfFreedom, out GeoPoint dimStartPoint, out GeoPoint dimEndPoint);
             distance = startPoint | endPoint;
         }
@@ -270,30 +270,44 @@ namespace ShapeIt
             Refresh();
         }
 
-        private bool OnMouseOverBackwardObject(BRepObjectInput sender, object[] bRepObjects, bool up)
+        private bool OnMouseOverForwardObject(BRepObjectInput sender, object[] bRepObjects, bool up)
         {   // we accept vertex, edge or face, but in the original object, not in the modified object (maybe implement later)
             // the object must be on the correct side of the plane
             object bestObject = null;
             for (int i = 0; i < bRepObjects.Length; i++)
             {
-                if (bRepObjects[i] is Vertex vtx && Plane.Distance(vtx.Position) < 0.0) bestObject = vtx;
+                if (bRepObjects[i] is Vertex vtx && Plane.Distance(vtx.Position) > 0.0) bestObject = vtx;
                 else if (bRepObjects[i] is Edge edg && !(bestObject is Vertex))
                 {
                     double[] ex = edg.Curve3D.GetExtrema(Plane.Normal);
                     for (int j = 0; j < ex.Length; j++)
                     {
-                        if (ex[j] >= 0.0 && ex[j] <= 1.0 && Plane.Distance(edg.Curve3D.PointAt(ex[j])) < 0.0)
+                        if (ex[j] >= 0.0 && ex[j] <= 1.0 && Plane.Distance(edg.Curve3D.PointAt(ex[j])) > 0.0)
                         {
                             bestObject = edg;
                             break;
                         }
+                    }
+                    if (edg.Curve3D.GetPlanarState() == PlanarState.Planar)
+                    {
+                        Plane pln = edg.Curve3D.GetPlane();
+                        if (Precision.SameDirection(Plane.Normal, pln.Normal, false) && Plane.Distance(pln.Location) > 0.0)
+                        {   // edge is on a plane parallel to extrusion plane
+                            bestObject = edg;
+                            break;
+                        }
+                    }
+                    else if (edg.Curve3D is Line line && Precision.IsPerpendicular(Plane.Normal, line.StartDirection, false) && Plane.Distance(line.StartPoint) > 0.0)
+                    {
+                        bestObject = edg;
+                        break;
                     }
                 }
                 else if (bRepObjects[i] is Face fce && !(bestObject is Vertex) && !(bestObject is Edge))
                 {
                     if (fce.Surface is PlaneSurface ps)
                     {
-                        if (Precision.SameDirection(ps.Normal, Plane.Normal, false) && Plane.Distance(fce.AllEdges[0].Vertex1.Position) < 0.0) bestObject = fce;
+                        if (Precision.SameDirection(ps.Normal, Plane.Normal, false) && Plane.Distance(fce.AllEdges[0].Vertex1.Position) > 0.0) bestObject = fce;
                     }
                     else
                     {
@@ -310,34 +324,49 @@ namespace ShapeIt
                 sender.SetBRepObject(new object[] { bestObject }, bestObject);
                 measureToHere = bestObject;
                 CalcDistance();
+                distanceInput.ForceValue(distance);
                 Refresh();
             }
             return bestObject != null;
         }
 
-        private bool OnMouseOverForwardObject(BRepObjectInput sender, object[] bRepObjects, bool up)
+        private bool OnMouseOverBackwardObject(BRepObjectInput sender, object[] bRepObjects, bool up)
         {
             object bestObject = null;
             for (int i = 0; i < bRepObjects.Length; i++)
             {
-                if (bRepObjects[i] is Vertex vtx && Plane.Distance(vtx.Position) > 0.0) bestObject = vtx;
+                if (bRepObjects[i] is Vertex vtx && Plane.Distance(vtx.Position) < 0.0) bestObject = vtx;
                 else if (bRepObjects[i] is Edge edg && !(bestObject is Vertex))
                 {
                     double[] ex = edg.Curve3D.GetExtrema(Plane.Normal);
                     for (int j = 0; j < ex.Length; j++)
                     {
-                        if (ex[j] >= 0.0 && ex[j] <= 1.0 && Plane.Distance(edg.Curve3D.PointAt(ex[j])) > 0.0)
+                        if (ex[j] >= 0.0 && ex[j] <= 1.0 && Plane.Distance(edg.Curve3D.PointAt(ex[j])) < 0.0)
                         {
                             bestObject = edg;
                             break;
                         }
+                    }
+                    if (edg.Curve3D.GetPlanarState() == PlanarState.Planar)
+                    {
+                        Plane pln = edg.Curve3D.GetPlane();
+                        if (Precision.SameDirection(Plane.Normal, pln.Normal, false) && Plane.Distance(pln.Location) < 0.0)
+                        {   // edge is on a plane parallel to extrusion plane
+                            bestObject = edg;
+                            break;
+                        }
+                    }
+                    else if (edg.Curve3D is Line line && Precision.IsPerpendicular(Plane.Normal, line.StartDirection, false) && Plane.Distance(line.StartPoint) < 0.0)
+                    {
+                        bestObject = edg;
+                        break;
                     }
                 }
                 else if (bRepObjects[i] is Face fce && !(bestObject is Vertex) && !(bestObject is Edge))
                 {
                     if (fce.Surface is PlaneSurface ps)
                     {
-                        if (Precision.SameDirection(ps.Normal, Plane.Normal, false) && Plane.Distance(fce.AllEdges[0].Vertex1.Position) > 0.0) bestObject = fce;
+                        if (Precision.SameDirection(ps.Normal, Plane.Normal, false) && Plane.Distance(fce.AllEdges[0].Vertex1.Position) < 0.0) bestObject = fce;
                     }
                     else
                     {
@@ -351,6 +380,7 @@ namespace ShapeIt
                 sender.SetBRepObject(new object[] { bestObject }, bestObject);
                 measureFromHere = bestObject;
                 CalcDistance();
+                distanceInput.ForceValue(distance);
                 Refresh();
             }
             return bestObject != null;
@@ -388,7 +418,7 @@ namespace ShapeIt
                 case Mode.forward:
                     ep = endPoint + (distance - originalDistance) * dir;
                     feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, CloneAndMove(measureFromHere, GeoVector.NullVector), CloneAndMove(measureToHere, (distance - originalDistance) * dir),
-                        null, dir, GeoPoint.Invalid, CurrentMouseView,FeedbackArrow.ArrowFlags.secondRed);
+                        null, dir, GeoPoint.Invalid, CurrentMouseView, FeedbackArrow.ArrowFlags.secondRed);
                     break;
                 case Mode.backward:
                     sp = startPoint - (distance - originalDistance) * dir;
@@ -399,7 +429,7 @@ namespace ShapeIt
                     sp = startPoint - 0.5 * (distance - originalDistance) * dir;
                     ep = endPoint + 0.5 * (distance - originalDistance) * dir;
                     GeoPoint mp = new GeoPoint(sp, ep);
-                    feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, CloneAndMove(measureFromHere,- 0.5 * (distance - originalDistance) * dir),
+                    feedbackDimension = FeedbackArrow.MakeLengthArrow(shell, CloneAndMove(measureFromHere, -0.5 * (distance - originalDistance) * dir),
                         CloneAndMove(measureToHere, 0.5 * (distance - originalDistance) * dir), null, dir, GeoPoint.Invalid, CurrentMouseView, FeedbackArrow.ArrowFlags.firstRed | FeedbackArrow.ArrowFlags.secondRed);
                     break;
             }
@@ -449,6 +479,7 @@ namespace ShapeIt
                     sh = parametric.Result();
                     if (sh != null)
                     {
+                        bool ok = sh.CheckConsistency();
                         ParametricDistanceProperty.Mode pmode = 0;
                         if (moveConnected) pmode |= ParametricDistanceProperty.Mode.connected;
                         if (mode == Mode.symmetric) pmode |= ParametricDistanceProperty.Mode.symmetric;
@@ -491,6 +522,7 @@ namespace ShapeIt
             {
                 faceDict = new Dictionary<Face, Face>();
                 feedbackResult = shell.Clone(new Dictionary<Edge, Edge>(), new Dictionary<Vertex, Vertex>(), faceDict);
+                validResult = false;
             }
             //feedback.FrontFaces.AddRange(forwardMovingFaces);
             //feedback.BackFaces.AddRange(backwardMovingFaces);

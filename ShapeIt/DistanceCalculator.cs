@@ -90,6 +90,20 @@ namespace ShapeIt
                     endPoint = p2;
                 }
             }
+            else if (fromHere is GeoPoint p3 && toHere is ICurve c3)
+            {
+                if (c3.GetPlanarState() == PlanarState.Planar)
+                {
+                    Plane pln = c3.GetPlane();
+                    endPoint = pln.FootPoint(p3);
+                    startPoint = p3;
+                }
+                else if (c3 is Line line)
+                {
+                    endPoint = Geometry.DropPL(p3, line.StartPoint, line.EndPoint);
+                    startPoint = p3;
+                }
+            }
             else if (fromHere is ICurve c1 && toHere is ICurve c2)
             {
                 if (preferredDirection.IsValid() && !preferredDirection.IsNullVector())
@@ -276,12 +290,13 @@ namespace ShapeIt
             if (face.Surface is PlaneSurface ps)
             {   // distance to line or arc
 
-            } else if (face.Surface is CylindricalSurface cyl)
+            }
+            else if (face.Surface is CylindricalSurface cyl)
             {
                 if (edge.Curve3D is Line line)
                 {
                     double dist = Geometry.DistLL(cyl.Location, cyl.Axis, line.StartPoint, line.StartDirection, out double par1, out double par2);
-                    if (dist>cyl.RadiusX)
+                    if (dist > cyl.RadiusX)
                     {   // we must be outside the cylinder, or are there valid other cases?
                         GeoPoint sp = cyl.Location + par1 * cyl.Axis;
                         GeoPoint ep = line.StartPoint + par2 * line.StartDirection;

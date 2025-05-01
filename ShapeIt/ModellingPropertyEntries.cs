@@ -1291,7 +1291,7 @@ namespace ShapeIt
             {
                 foreach (Face fc in fromFaces)
                 {   // build the menu with extrusions and rotations
-                    solidMenus.Add(AddExtensionProperties(fc, lastPickArea, vw).ToArray());
+                    solidMenus.Add(GetExtensionProperties(fc, lastPickArea, vw).ToArray());
                 }
             }
             // Split by plane is always possible
@@ -1919,7 +1919,7 @@ namespace ShapeIt
             }
             return faceEntries;
         }
-        private List<IPropertyEntry> AddExtensionProperties(Face fc, Projection.PickArea pa, IView vw)
+        private List<IPropertyEntry> GetExtensionProperties(Face fc, Projection.PickArea pa, IView vw)
         {
             List<IPropertyEntry> res = new List<IPropertyEntry>();
             if (!(fc.Owner is Shell)) return res;
@@ -2202,7 +2202,8 @@ namespace ShapeIt
                     }
                 }
                 // we create an octtree of the edges of the shell to have fast acces to the edges from a point
-                OctTree<EdgeInOctTree> edgeOctTree = new OctTree<EdgeInOctTree>(shell.GetExtent(0.0), Precision.eps);
+                BoundingCube ext = shell.GetExtent(0.0); // for symmetric objects this sometimes leads to problems, because we later try to find edges from a point
+                OctTree<EdgeInOctTree> edgeOctTree = new OctTree<EdgeInOctTree>(ext, Precision.eps);
                 edgeOctTree.AddMany(shell.Edges.Select(e => new EdgeInOctTree(e)));
 
                 for (int i = 0; i < directions.Count; i++) // all possible extrusion directions found for the face fc
@@ -2230,7 +2231,7 @@ namespace ShapeIt
                             {
                                 crvs.Add(planeSurface.Make3dCurve(curve2D));
                                 GeoPoint pointOnEdge = planeSurface.PointAt(curve2D.EndPoint);
-                                EdgeInOctTree[] eo = edgeOctTree.GetObjectsFromPoint(pointOnEdge);
+                                EdgeInOctTree[] eo = edgeOctTree.GetObjectsFromBox(new BoundingCube(pointOnEdge, ext.Size / 1000)); // search from point failed sometimes
                                 Edge edgeFound = null;
                                 foreach (Edge edg in eo.Select(e => e.Edge))
                                 {
