@@ -13,24 +13,26 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
     <TargetFrameworkProfile />
-    <IsWebBootstrapper>false</IsWebBootstrapper>
-    <PublishUrl>publish\</PublishUrl>
+    <IsWebBootstrapper>true</IsWebBootstrapper>
+    <PublishUrl>ftp://ftp.cadability.de/html/ShapeIt/</PublishUrl>
     <Install>true</Install>
-    <InstallFrom>Disk</InstallFrom>
-    <UpdateEnabled>false</UpdateEnabled>
+    <InstallFrom>Web</InstallFrom>
+    <UpdateEnabled>true</UpdateEnabled>
     <UpdateMode>Foreground</UpdateMode>
     <UpdateInterval>7</UpdateInterval>
     <UpdateIntervalUnits>Days</UpdateIntervalUnits>
     <UpdatePeriodically>false</UpdatePeriodically>
     <UpdateRequired>false</UpdateRequired>
     <MapFileExtensions>true</MapFileExtensions>
+    <InstallUrl>https://www.cadability.de/ShapeIt/</InstallUrl>
     <ProductName>ShapeIt with CADability</ProductName>
-    <PublisherName>Gerhard</PublisherName>
+    <PublisherName>Gerhard Hofmann</PublisherName>
+    <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
-    <AutorunEnabled>true</AutorunEnabled>
-    <ApplicationRevision>5</ApplicationRevision>
-    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <ApplicationRevision>7</ApplicationRevision>
+    <ApplicationVersion>0.2.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
+    <CreateDesktopShortcut>true</CreateDesktopShortcut>
     <PublishWizardCompleted>true</PublishWizardCompleted>
     <BootstrapperEnabled>true</BootstrapperEnabled>
   </PropertyGroup>
@@ -194,4 +196,20 @@
     </FileAssociation>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>if /I NOT "$(ConfigurationName)"=="Release" exit 0
+setlocal
+set OUTPATH=$(ProjectDir)installer_temp
+
+rmdir /S /Q "%25OUTPATH%25"
+mkdir "%25OUTPATH%25"
+
+copy /Y "$(TargetPath)" "%25OUTPATH%25\"
+xcopy /Y /Q "$(TargetDir)*.dll" "%25OUTPATH%25\"
+
+"$(ProgramFiles)\7-Zip\7z.exe" a -sfx"$(ProgramFiles)\7-Zip\7z.sfx" "$(ProjectDir)unsigned\unsigned_installer.exe" "%25OUTPATH%25\*"
+
+endlocal
+</PostBuildEvent>
+  </PropertyGroup>
 </Project>

@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Wintellect.PowerCollections;
+using static CADability.BRepOperation;
 #if WEBASSEMBLY
 using CADability.WebDrawing;
 #else
@@ -1414,6 +1415,7 @@ namespace CADability
     {
         private Shell shell1;
         private Shell shell2;
+        private List<Shell> multipleShells;
         private PlaneSurface splittingOnplane; // when splitting a Shell with a plane, this is the surface
         private bool allowOpenEdges;
         private bool shellsAreUnchanged;
@@ -1660,7 +1662,7 @@ namespace CADability
             list.Add(iv);
         }
 
-        public enum Operation { union, intersection, difference, clip, testonly }
+        public enum Operation { union, intersection, difference, clip, connectMultiple, testonly }
         Operation operation;
         /// <summary>
         /// Prepare a brep operation for splitting a (closed) shell with a plane. Or for returning the compound shapes on the specified plane.
@@ -1772,6 +1774,55 @@ namespace CADability
                 combineEdges(); // hier werden intsEdgeToEdgeShell1, intsEdgeToEdgeShell2 und intsEdgeToIntsEdge gesetzt, die aber z.Z. noch nicht verwendet werden
 
             }
+
+        }
+        /// <summary>
+        /// Connect all provided shells to one or more shells. The shells may overlap or exceed each other. Used by Shell.GetOffset.
+        /// </summary>
+        /// <param name="shellsToConnect"></param>
+        public BRepOperation(IEnumerable<Shell> shellsToConnect)
+        {
+            operation = Operation.connectMultiple;
+            multipleShells = new List<Shell>();
+
+            foreach (Shell shell in shellsToConnect)
+            {
+                multipleShells.Add(shell.Clone() as Shell);
+            }
+            // fill the OctTree
+            BoundingCube ext = BoundingCube.EmptyBoundingCube;
+            foreach (Shell shell in multipleShells) ext.MinMax(shell.GetExtent(0.0));
+            // in rare cases the extension isn't a good choice, faces shouldn't exactely reside on the sides of the small cubes of the octtree
+            // so we modify the extension a little, to make this case extremely unlikely. The best solution would be to check, whether a vertex
+            // falls exactely on the side of a octtree-cube, then throw an exception and try with a different octtree location
+            double extsize = ext.Size;
+            ext.Expand(extsize * 1e-3);
+            ext = ext.Modify(new GeoVector(extsize * 1e-4, extsize * 1e-4, extsize * 1e-4));
+            Initialize(ext, extsize * 1e-6); // initialize the OctTree
+            // put all edges and faces into the octtree
+            foreach (Shell shell in multipleShells)
+            {
+                foreach (Edge edg in shell.Edges)
+                {
+                    base.AddObject(new BRepItem(this, edg));
+                }
+                foreach (Face fc in shell.Faces)
+                {
+                    base.AddObject(new BRepItem(this, fc));
+                }
+            }
+            edgesToSplit = new Dictionary<Edge, List<Vertex>>();
+            intersectionVertices = new Set<IntersectionVertex>();
+            facesToIntersectionVertices = new Dictionary<DoubleFaceKey, List<IntersectionVertex>>();
+
+            findOverlappingFaces(); // populates overlappingFaces, faces of different shells which overlap or are identical
+            createEdgeFaceIntersections(); // find intersection of edges with faces from different shells
+            splitEdges(); // split the edges at the found intersection positions
+            combineVertices(); // combine geometric close vertices
+            removeIdenticalOppositeFaces(); // 
+            createNewEdges(); // populate faceToIntersectionEdges : for each face a list of intersection curves
+            createInnerFaceIntersections(); // find additional intersection curves where faces intersect, but edges don't intersect (rare)
+            // combineEdges(); // do we need this?
 
         }
 

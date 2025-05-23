@@ -307,7 +307,7 @@ namespace ShapeIt
                     // when only a single click (not dragging a selections rectangle) then we also want to show the parent objects (i.e. the solid)
                     // when the control key is pressed, we want to add or remove from the current selection
                     bool addOrRemove = (cadFrame.UIService.ModifierKeys & Keys.Control) == Keys.Control;
-                    ComposeModellingEntries(objectsUnderCursor, vw, pickArea, !multiple && !addOrRemove, addOrRemove);
+                    ComposeModellingEntries(objectsUnderCursor, vw, pickArea, true, addOrRemove); // when should we use alsoParent==false?
                     IsOpen = true;
                     Refresh();
                 }
@@ -448,6 +448,7 @@ namespace ShapeIt
             // IGeoObjectShowProperty is the parent class of all geo objects property entries
             if (!canShowHotspots && feedback.hotSpots.Count > 0)
             {
+                activeHotspots.Clear();
                 feedback.hotSpots.Clear();
                 feedback.Refresh();
             }
@@ -496,6 +497,10 @@ namespace ShapeIt
                 clickBeam = new Axis(pickArea.FrontCenter, pickArea.Direction);
             }
             subEntries.Clear(); // build a new list of modelling properties
+            activeHotspots.Clear(); // something in the selection of objects has changed. Remove all hotspots
+            feedback.hotSpots.Clear();
+            feedback.Refresh();
+
             // complete the same surface faces and edges in objectsUnderCursor
             Dictionary<IGeoObject, IGeoObject> sameSurfaceBudies = new Dictionary<IGeoObject, IGeoObject>();
             for (int i = objectsUnderCursor.Count - 1; i >= 0; --i)
@@ -540,16 +545,53 @@ namespace ShapeIt
             string resourceIdOfEntryToSelect = String.Empty; // may contain several ids
             IPropertyEntry pe = propertyPage.GetCurrentSelection();
             if (pe != null) resourceIdOfEntryToSelect = pe.ResourceId; // resource id of what is currently selected, if objectsUnderCursor was removed
-            // if we added a single object, then use this
-            if (objectsUnderCursor.Count > 0 && currentlySelected.Contains(objectsUnderCursor[0]))
-            {
-                if (objectsUnderCursor[0] is Face) resourceIdOfEntryToSelect = "MultipleFaces.Properties" + "|" + "MenuId.Face";
-                if (objectsUnderCursor[0] is ICurve crv)
-                {
-                    if ((crv as IGeoObject).Owner is Edge) resourceIdOfEntryToSelect = "MultipleEdges.Properties" + "|" + "MenuId.Edge";
-                    else resourceIdOfEntryToSelect = "MultipleCurves.Properties" + "|" + "MenuId.Curve";
+
+            {   // test, whethere there are hidden objects and if so, make a menu to show them
+                bool thereAreHiddenObjects = false;
+                Model m = Frame.Project.GetActiveModel();
+                foreach (IGeoObject go in m.AllObjects)
+                {   // hidden objects are in a layer named "CADability.Hidden" and contain a reference to their original layer
+                    if (go.Layer != null && go.Layer.Name == "CADability.Hidden" && go.UserData.ContainsData("CADability.OriginalLayer"))
+                    {
+                        thereAreHiddenObjects = true;
+                        break;
+                    }
                 }
-                if (objectsUnderCursor[0] is Text) resourceIdOfEntryToSelect = "MenuId.TextMenus";
+                if (thereAreHiddenObjects)
+                {
+                    DirectMenuEntry showHiddenObjects = new DirectMenuEntry("MenuId.ShowHidden");
+                    showHiddenObjects.ExecuteMenu = (frame) =>
+                    {
+                        foreach (IGeoObject go in m.AllObjects)
+                        {   // restore the original layer and remove the reference to it in the user data
+                            if (go.Layer != null && go.Layer.Name == "CADability.Hidden" && go.UserData.ContainsData("CADability.OriginalLayer"))
+                            {
+                                Layer layer = go.UserData.GetData("CADability.OriginalLayer") as Layer;
+                                go.Layer = layer;
+                                go.UserData.Remove("CADability.OriginalLayer");
+                            }
+                        }
+                        Clear();
+                        return true;
+                    };
+                    showHiddenObjects.IsSelected = (selected, frame) =>
+                    {
+                        feedback.Clear();
+                        if (selected)
+                        {
+                            foreach (IGeoObject go in m.AllObjects)
+                            {   // restore the original layer and remove the reference to it in the user data
+                                if (go.Layer != null && go.Layer.Name == "CADability.Hidden" && go.UserData.ContainsData("CADability.OriginalLayer"))
+                                {
+                                    feedback.ShadowFaces.Add(go);
+                                }
+                            }
+                        }
+                        feedback.Refresh();
+                        return true;
+                    };
+                    subEntries.Add(showHiddenObjects);
+                }
             }
 
             // show actions for all vertices, edges, faces and curves in 
@@ -618,6 +660,16 @@ namespace ShapeIt
                     texts.Add(text);
                 }
             }
+
+            // What would we select
+            {
+                if (edges.Count > 0) resourceIdOfEntryToSelect = "MultipleEdges.Properties" + "|" + "MenuId.Edge";
+                else if (curves.Count > 0) resourceIdOfEntryToSelect = "MultipleCurves.Properties" + "|" + "MenuId.CurveMenus";
+                else if (faces.Count > 0) resourceIdOfEntryToSelect = "MultipleFaces.Properties" + "|" + "MenuId.Face";
+                else if (solids.Count > 0) resourceIdOfEntryToSelect = "MultipleSolids.Properties" + "|" + "MenuId.Solid";
+                if (texts.Count > 0) resourceIdOfEntryToSelect = "MenuId.TextMenus";
+            }
+
 
             // find features from either edges or faces
             if (edges.Count > 0) // are there features defined by the selected edges?
@@ -703,11 +755,29 @@ namespace ShapeIt
             }
             else if (edges.Any()) subEntries.Add(GetEdgeProperties(vw, edges.First(), clickBeam));
 
-            // add the menus for Solids (more than one?)
-            foreach (Solid sld in solids)
+            // add the menus for Solids 
+            if (solids.Count > 1)
             {
-                AddSolidProperties(vw, sld, solidToFaces.TryGetValue(sld, out List<Face> found) ? found : null);
+                SelectEntry multipleSolids = new SelectEntry("MultipleSolids.Properties", true);
+                multipleSolids.IsSelected = (selected, frame) =>
+                {
+                    feedback.Clear();
+                    if (selected)
+                    {
+                        feedback.FrontFaces.AddRange(solids);
+                    }
+                    feedback.Refresh();
+                    return true;
+                };
+                multipleSolids.Add(GetSolidsProperties(solids, vw));
+                foreach (Solid sld in solids)
+                {
+                    multipleSolids.Add(GetSolidProperties(vw, sld, solidToFaces.TryGetValue(sld, out List<Face> found) ? found : null));
+                }
+                subEntries.Add(multipleSolids);
             }
+            else if (solids.Any()) subEntries.Add(GetSolidProperties(vw, solids.First(), solidToFaces.TryGetValue(solids.First(), out List<Face> found) ? found : null));
+
             bool suppresRuledSolid = false;
             switch (curves.Count)
             {
@@ -758,44 +828,23 @@ namespace ShapeIt
                     if (resourceIdOfEntryToSelect.Contains(subEntries[i].ResourceId))
                     {
                         pp.OpenSubEntries(subEntries[i], true);
-                        pp.SelectEntry(subEntries[i]);
+                        if (subEntries[i].ResourceId == "MenuId.CurveMenus")
+                        {   // there is only a single curve selected: also open the curve properties to show the hotspots
+                            for (int j = 0; j < subEntries[i].SubItems.Length; j++)
+                            {
+                                if (subEntries[i].SubItems[j] is IDisplayHotSpots)
+                                {
+                                    pp.OpenSubEntries(subEntries[i].SubItems[j], true);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            pp.SelectEntry(subEntries[i]);
+                        }
                         break;
                     }
                 }
-                //for (int i = 0; i < subEntries.Count; i++)
-                //{
-                //    if (subEntries[i].Flags.HasFlag(PropertyEntryType.HasSubEntries) && subEntries[i].SubItems.Length > 0) pp.OpenSubEntries(subEntries[i], true);
-                //}
-                //// open and select according to this priority list:
-                //IPropertyEntry spe;
-                //if (null != (spe = FindSubItem("MenuId.Feature")))
-                //{
-                //    pp.OpenSubEntries(spe, true);
-                //    pp.SelectEntry(spe);
-                //}
-                //if (null != (spe = FindSubItem("MenuId.Solid")))
-                //{
-                //    pp.OpenSubEntries(spe, true);
-                //    pp.SelectEntry(spe);
-                //}
-                //else if (null != (spe = FindSubItem("MenuId.Face")))
-                //{
-                //    pp.OpenSubEntries(spe, true);
-                //    pp.SelectEntry(spe);
-                //}
-                //else if (null != (spe = FindSubItem("MenuId.Edge")))
-                //{
-                //    pp.OpenSubEntries(spe, true);
-                //    pp.SelectEntry(spe);
-                //}
-                //else
-                //{
-                //    if (subEntries.Count > 0)
-                //    {
-                //        pp.OpenSubEntries(subEntries[0], true);
-                //        pp.SelectEntry(subEntries[0]);
-                //    }
-                //}
             }
         }
 
@@ -818,6 +867,87 @@ namespace ShapeIt
                     catch (Exception ex) { } // TODO: there should be no exceptions, but sometimes are: check!
                 }
             }
+            return res.ToArray();
+        }
+        private IPropertyEntry[] GetSolidsProperties(List<Solid> solids, IView vw)
+        {
+            List<IPropertyEntry> res = new List<IPropertyEntry>();
+
+            res.Add(ModifyMenu(solids));
+
+            DirectMenuEntry exportSTL = new DirectMenuEntry("MenuId.Export.Solid"); // export this solids to a stl or step file
+            exportSTL.ExecuteMenu = (frame) =>
+            {   // show open file dialog
+                string filter = StringTable.GetString("File.STEP.Filter") + "|" + StringTable.GetString("File.STL.Filter");
+
+                int filterIndex = 1;
+                string filename = null;
+                if (cadFrame.UIService.ShowSaveFileDlg("MenuId.Export", StringTable.GetString("MenuId.Export"), filter, ref filterIndex, ref filename) == DialogResult.OK
+                    && filename != null)
+                {
+                    switch (filterIndex)
+                    {
+                        case 1:
+                            {
+                                Project stepProject = Project.CreateSimpleProject();
+                                Model model = stepProject.GetActiveModel();
+                                foreach (Solid sld in solids)
+                                {
+                                    model.Add(sld.Clone()); // add a clone, otherwise sld will be removed from the current model
+                                }
+                                ExportStep exportStep = new ExportStep();
+                                exportStep.WriteToFile(filename, stepProject);
+                            }
+                            break;
+                        case 2:
+                            using (PaintToSTL pstl = new PaintToSTL(filename, Settings.GlobalSettings.GetDoubleValue("Export.STL.Precision", 0.005)))
+                            {
+                                pstl.Init();
+                                foreach (Solid sld in solids)
+                                {
+                                    sld.PaintTo3D(pstl);
+                                }
+                            }
+                            break;
+                    }
+                }
+                return true;
+            };
+            exportSTL.IsSelected = (selected, frame) =>
+            {   // this is the standard selection behaviour for BRep operations
+                feedback.Clear();
+                if (selected)
+                {
+                    feedback.ShadowFaces.AddRange(solids);
+                }
+                feedback.Refresh();
+                return true;
+            };
+            res.Add(exportSTL);
+
+            DirectMenuEntry mhhide = new DirectMenuEntry("MenuId.Solid.Hide"); // hide this solid
+            mhhide.ExecuteMenu = (frame) =>
+            {
+                foreach (Solid sld in solids)
+                {
+                    if (!sld.UserData.ContainsData("CADability.OriginalLayer"))
+                    {
+                        if (sld.Layer == null)
+                        {
+                            Style sldstl = frame.Project.StyleList.GetDefault(Style.EDefaultFor.Solids);
+                            if (sldstl != null && sldstl.Layer != null) sld.Layer = sldstl.Layer;
+                        }
+                        sld.UserData.Add("CADability.OriginalLayer", sld.Layer);
+                    }
+                    Layer layer = frame.Project.LayerList.CreateOrFind("CADability.Hidden");
+                    sld.Layer = layer;
+                    if (frame.ActiveView is ModelView mv) mv.SetLayerVisibility(layer, false);
+                }
+                ComposeModellingEntries(new GeoObjectList(), vw, null);
+                return true;
+            };
+            res.Add(mhhide);
+
             return res.ToArray();
         }
 
@@ -866,16 +996,19 @@ namespace ShapeIt
         private IPropertyEntry[] GetCurvesProperties(List<ICurve> curves, IView vw)
         {
             List<IPropertyEntry> res = new List<IPropertyEntry>();
-            // we may not use the curves direct, because adding them to a path would remove them from the model
-            for (int i = 0; i < curves.Count; i++) curves[i] = curves[i].Clone();
             if (curves.Count > 1)
-            {
+            {   // here we work with the original curves. MakePath in GetMakepath needs them to remove them properly from the model, when a path is created
                 if (CanMakePath(curves)) res.Add(GetMakePath(vw, curves));
             }
+            
+            res.Add(ModifyMenu(curves.OfType<IGeoObject>())); 
+
             MultiObjectsProperties mop = new MultiObjectsProperties(cadFrame, new GeoObjectList(curves.OfType<IGeoObject>()));
             res.Add(mop.attributeProperties);
             // check the condition to make a ruled solid:
             // two closed curves not in the same plane
+            // we may not use the curves direct, because adding them to a path would remove them from the model
+            for (int i = 0; i < curves.Count; i++) curves[i] = curves[i].Clone();
             List<Path> paths = Path.FromSegments(curves);
             // if we have two paths which are flat but not in the same plane, we could make a ruled solid directly
             // if we need more user control, e.g. specifying synchronous points on each path, we woould need a more
@@ -950,6 +1083,10 @@ namespace ShapeIt
                 pp.Remove(this); // to reflect this newly composed entry
                 pp.Add(this, true);
             }
+            activeHotspots.Clear();
+            feedback.hotSpots.Clear();
+            feedback.Clear();
+            feedback.Refresh();
         }
 
 
@@ -970,7 +1107,7 @@ namespace ShapeIt
             };
             if ((curve as IGeoObject).Owner is Model)
             {
-                SelectEntry modifyMenu = ModifyMenu(curve as IGeoObject);
+                SelectEntry modifyMenu = ModifyMenu(new IGeoObject[] { curve as IGeoObject });
                 curveMenus.TestShortcut = (key) =>
                 {
                     if (key == Keys.Delete)
@@ -1099,7 +1236,7 @@ namespace ShapeIt
             };
             if ((text as IGeoObject).Owner is Model)
             {
-                SelectEntry modifyMenu = ModifyMenu(text);
+                SelectEntry modifyMenu = ModifyMenu(new IGeoObject[]{ text});
                 textMenus.TestShortcut = (key) =>
                 {
                     if (key == Keys.Delete)
@@ -1159,16 +1296,21 @@ namespace ShapeIt
             textMenus.Add(rotate);
             subEntries.Add(textMenus);
         }
-
-        private SelectEntry ModifyMenu(IGeoObject go)
+        /// <summary>
+        /// Creates an entry for general modification like move, rotat, reflect for all provided objects
+        /// </summary>
+        /// <param name="gos"></param>
+        /// <returns></returns>
+        private SelectEntry ModifyMenu(IEnumerable<IGeoObject> gos)
         {
             SelectEntry modifyMenu = new SelectEntry("MenuId.GeneralModifications");
+            GeoObjectList capturedList = new GeoObjectList(gos);
             modifyMenu.IsSelected = (selected, frame) =>
             {
                 feedback.Clear();
                 if (selected)
                 {
-                    feedback.ShadowFaces.Add(go);
+                    feedback.ShadowFaces.AddRange(capturedList);
                 }
                 feedback.Refresh();
                 return true;
@@ -1177,7 +1319,10 @@ namespace ShapeIt
             {   // directly delete the selected object
                 if (key == Keys.Delete)
                 {
-                    cadFrame.ActiveView.Model.Remove(go);
+                    foreach (IGeoObject go in capturedList)
+                    {
+                        cadFrame.ActiveView.Model.Remove(go);
+                    }
                     Clear();
                     return true;
                 }
@@ -1188,40 +1333,40 @@ namespace ShapeIt
             move.OnCommand = (e) =>
             {
                 Clear();
-                cadFrame.SetAction(new MoveObjects(new GeoObjectList(go)));
+                cadFrame.SetAction(new MoveObjects(capturedList));
                 return true;
             };
             MenuWithHandler rotate = new MenuWithHandler("MenuId.Object.Rotate");
             rotate.OnCommand = (e) =>
             {
                 Clear();
-                cadFrame.SetAction(new RotateObjects(new GeoObjectList(go)));
+                cadFrame.SetAction(new RotateObjects(capturedList));
                 return true;
             };
             MenuWithHandler scale = new MenuWithHandler("MenuId.Object.Scale");
             scale.OnCommand = (e) =>
             {
                 Clear();
-                cadFrame.SetAction(new ScaleObjects(new GeoObjectList(go)));
+                cadFrame.SetAction(new ScaleObjects(capturedList));
                 return true;
             };
             MenuWithHandler reflect = new MenuWithHandler("MenuId.Object.Reflect");
             reflect.OnCommand = (e) =>
             {
                 Clear();
-                cadFrame.SetAction(new ReflectObjects(new GeoObjectList(go)));
+                cadFrame.SetAction(new ReflectObjects(capturedList));
                 return true;
             };
             MenuWithHandler copy = new MenuWithHandler("MenuId.Edit.Copy");
             copy.OnCommand = (e) =>
             {
-                cadFrame.UIService.SetClipboardData(new GeoObjectList(go), true);
+                cadFrame.UIService.SetClipboardData(capturedList, true);
                 return true;
             };
             MenuWithHandler delete = new MenuWithHandler("MenuId.Object.Delete");
             delete.OnCommand = (e) =>
             {
-                cadFrame.ActiveView.Model.Remove(new GeoObjectList(go));
+                cadFrame.ActiveView.Model.Remove(capturedList);
                 Clear();
                 return true;
             };
@@ -1231,15 +1376,16 @@ namespace ShapeIt
 
         private IPropertyEntry GetMakePath(IView vw, List<ICurve> curves)
         {
+            List<ICurve> cc = new List<ICurve>(curves); // the captured list of curves for the following lambdas
             DirectMenuEntry mp = new DirectMenuEntry("MenuId.Object.MakePath");
             mp.IsSelected = (selected, frame) =>
             {   // show the selected curves as feedback
                 feedback.Clear();
                 if (selected)
                 {
-                    for (int i = 0; i < curves.Count; i++)
+                    for (int i = 0; i < cc.Count; i++)
                     {
-                        feedback.FrontFaces.Add(curves[i] as IGeoObject);
+                        feedback.FrontFaces.Add(cc[i] as IGeoObject);
                     }
                 }
                 vw.Invalidate(PaintBuffer.DrawingAspect.Select, vw.DisplayRectangle);
@@ -1249,7 +1395,12 @@ namespace ShapeIt
             {
                 using (frame.Project.Undo.UndoFrame)
                 {
-                    List<Path> created = Path.FromSegments(curves);
+                    List<ICurve> useForPathCreation = new List<ICurve>(cc);
+                    List<Path> created = Path.FromSegments(useForPathCreation); // all curves used for a path are removed from useForPathCreation
+                    for (int i = 0; i < cc.Count; i++)
+                    {   // rmeove all those curves, which have been used in the created paths
+                        if (!useForPathCreation.Contains(cc[i])) vw.Model.Remove(cc[i] as IGeoObject);
+                    }
                     vw.Model.Add(created.ToArray());
                     ComposeModellingEntries(new GeoObjectList(created as IEnumerable<IGeoObject>), vw, null);
                 }
@@ -1258,7 +1409,7 @@ namespace ShapeIt
             return mp;
         }
 
-        private void AddSolidProperties(IView vw, Solid sld, List<Face> fromFaces)
+        private IPropertyEntry GetSolidProperties(IView vw, Solid sld, List<Face> fromFaces)
         {
             SelectEntry solidMenus = new SelectEntry("MenuId.Solid", true); // the container for all menus or properties of the solid
             solidMenus.IsSelected = (selected, frame) =>
@@ -1270,7 +1421,7 @@ namespace ShapeIt
             };
             if (sld.Owner is Model)
             {   // switch to selection tab and use "old" modification functions like move and delete
-                solidMenus.Add(ModifyMenu(sld));
+                solidMenus.Add(ModifyMenu(new IGeoObject[] { sld }));
                 // here we process the delete key!
                 solidMenus.TestShortcut = (key) =>
                 {
@@ -1535,6 +1686,7 @@ namespace ShapeIt
                 Layer layer = frame.Project.LayerList.CreateOrFind("CADability.Hidden");
                 sld.Layer = layer;
                 if (frame.ActiveView is ModelView mv) mv.SetLayerVisibility(layer, false);
+                ComposeModellingEntries(new GeoObjectList(), vw, null);
                 return true;
             };
             solidMenus.Add(mhhide);
@@ -1559,7 +1711,7 @@ namespace ShapeIt
             //    return true;
             //});
             //solidMenus.Add(mhremove);
-            subEntries.Add(solidMenus);
+            return solidMenus;
         }
         private IPropertyEntry GetEdgeProperties(IView vw, Edge edg, Axis clickBeam)
         {
@@ -1605,9 +1757,10 @@ namespace ShapeIt
                         feedback.Refresh();
                         return true;
                     };
+                    bool useDiameter = i == 1;
                     edgeRadiusOrDiameter.ExecuteMenu = (frame) =>
                     {
-                        cadFrame.SetAction(new ParametricsEdgeRadiusAction(edges, GeoPoint.Invalid, i == 1));
+                        cadFrame.SetAction(new ParametricsEdgeRadiusAction(edges, GeoPoint.Invalid, useDiameter));
                         return true;
                     };
                     edgeMenus.Add(edgeRadiusOrDiameter);
@@ -2275,12 +2428,6 @@ namespace ShapeIt
                 }
             }
         }
-        /// <summary>
-        /// Will be called when the DrawingAspect.Select of the view has to be repainted (and modellingIsActive).
-        /// </summary>
-        /// <param name="IsInvalid"></param>
-        /// <param name="View"></param>
-        /// <param name="PaintToSelect"></param>
         private bool CanMakePath(List<ICurve> curves)
         {
             List<GeoPoint> points = new List<GeoPoint>();
@@ -2643,8 +2790,16 @@ namespace ShapeIt
                     return true;
                 case "MenuId.ShowHidden":
                     {
-                        Layer layer = cadFrame.Project.LayerList.CreateOrFind("CADability.Hidden");
-                        if (cadFrame.ActiveView is ModelView mv) mv.SetLayerVisibility(layer, true);
+                        Model m = Frame.Project.GetActiveModel();
+                        foreach (IGeoObject go in m.AllObjects)
+                        {
+                            if (go.UserData.ContainsData("CADability.OriginalLayer"))
+                            {
+                                Layer layer = go.UserData.GetData("CADability.OriginalLayer") as Layer;
+                                if (layer != null) go.Layer = layer;
+                            }
+                        }
+                        // if (cadFrame.ActiveView is ModelView mv) mv.SetLayerVisibility(layer, true);
                     }
                     return true;
                 default: return false;

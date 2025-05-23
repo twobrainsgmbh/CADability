@@ -439,6 +439,13 @@ namespace CADability.Actions
                 double h = base.ActiveDrawingPlane.Distance(MousePosition);
                 if (!Precision.IsNull(h)) return h;
             }
+            else
+            {
+                if (geoObjectOrgList.Count>0 && geoObjectOrgList[0] is Face fc && fc.Surface is PlaneSurface ps)
+                {
+                    return ps.Plane.Distance(MousePosition);
+                }
+            }
             return height;
         }
 

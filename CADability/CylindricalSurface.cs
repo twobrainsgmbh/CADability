@@ -475,7 +475,7 @@ namespace CADability.GeoObject
 
             {
                 GetExtremePositions(thisBounds, other, otherBounds, out List<Tuple<double, double, double, double>> extremePositions);
-                if (usedArea.IsInfinite) usedArea = thisBounds;
+                if (usedArea.IsInfinite || usedArea.IsEmpty()) usedArea = thisBounds;
                 return BoxedSurfaceEx.Intersect(thisBounds, other, otherBounds, null, extremePositions); // allgemeine Lösung
             }
         }

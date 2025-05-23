@@ -2268,8 +2268,10 @@ namespace CADability
                                 }
                                 if (z <= zcurve && go is ICurve crv)
                                 {
+                                    Layer layer = go.Layer;
+                                    if (layer == null && go.Owner is Edge edg) layer = edg.PrimaryFace.Layer;
                                     if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
-                                        (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer) || visibleLayers.Contains(go.Layer)))
+                                        (visibleLayers.Count == 0 || layer == null || visibleLayers.Contains(layer) ))
                                     {
                                         zcurve = z;
                                         singleCurve = crv;
@@ -2344,8 +2346,10 @@ namespace CADability
                     {
                         if (go.HitTest(area, false))
                         {
+                            Layer layer = go.Layer;
+                            if (layer == null && go.Owner is Edge edg) layer = edg.PrimaryFace.Layer;
                             if ((filterList == null || filterList.Accept(go)) &&
-                                (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer)))
+                                (visibleLayers.Count == 0 || layer == null || visibleLayers.Contains(layer)))
                             {
                                 if (go.Owner is Block)
                                 {   // beim Block die Kinder liefern

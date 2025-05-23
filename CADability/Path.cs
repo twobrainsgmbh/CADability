@@ -62,7 +62,7 @@ namespace CADability.GeoObject
         }
         private void RecalcPlanarState()
         {	// berechnet den PlanarState und wenn planar, dann auch die Ebene
-            if (planarState == PlanarState.Unknown || inPlane==null)
+            if (planarState == PlanarState.Unknown || inPlane == null)
             {
                 if (subCurves == null) return;
                 if (subCurves.Length == 0) return; // bleibt unbekannt
@@ -163,12 +163,12 @@ namespace CADability.GeoObject
                 if (path.Set(geoObjects, false, Precision.eps))
                 {
                     created = true;
-                    path.Flatten();
-                    res.Add(path);
                     for (int i = 0; i < path.subCurves.Length; i++)
                     {
                         curves.Remove(path.subCurves[i]);
                     }
+                    path.Flatten();
+                    res.Add(path);
                 }
                 else created = false;
 
@@ -627,6 +627,7 @@ namespace CADability.GeoObject
                     if ((OrderedCurves[i] as ICurve).IsClosed) OrderedCurves.RemoveAt(i);
                 }
             }
+            if (OrderedCurves.Count == 0) return false;
             if (OrderedCurves.Count == 1 && moreThanOne) return false;
             for (int i = 0; i < OrderedCurves.Count; ++i)
             {
@@ -1186,20 +1187,20 @@ namespace CADability.GeoObject
                 return res.ToArray();
             }
         }
-		#region IGeoObjectImpl
-		public override Style.EDefaultFor PreferredStyle
-		{
-			get
-			{
-				return Style.EDefaultFor.Curves;
-			}
-		}
-		/// <summary>
-		/// Overrides <see cref="CADability.GeoObject.IGeoObjectImpl.GetShowProperties (IFrame)"/>
-		/// </summary>
-		/// <param name="Frame"></param>
-		/// <returns></returns>
-		public override IPropertyEntry GetShowProperties(IFrame Frame)
+        #region IGeoObjectImpl
+        public override Style.EDefaultFor PreferredStyle
+        {
+            get
+            {
+                return Style.EDefaultFor.Curves;
+            }
+        }
+        /// <summary>
+        /// Overrides <see cref="CADability.GeoObject.IGeoObjectImpl.GetShowProperties (IFrame)"/>
+        /// </summary>
+        /// <param name="Frame"></param>
+        /// <returns></returns>
+        public override IPropertyEntry GetShowProperties(IFrame Frame)
         {
             return new ShowPropertyPath(this, Frame);
         }

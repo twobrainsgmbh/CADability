@@ -1712,6 +1712,62 @@ namespace CADability
         }
 
         /// <summary>
+        /// Computes all external and internal tangents between two circles.
+        /// Returns a list of point pairs (on circle1 and circle2 respectively) that define the tangents.
+        /// </summary>
+        public static GeoPoint2D[] TangentCC(GeoPoint2D c1, double r1, GeoPoint2D c2, double r2)
+        {
+            var tangents = new List<GeoPoint2D>();
+
+            GeoVector2D d = c2 - c1;
+            double dist2 = d * d;
+            double dist = Math.Sqrt(dist2);
+
+            if (dist < 1e-6)
+            {
+                // Circles are too close or identical, no tangents
+                return tangents.ToArray();
+            }
+
+            // Direction vector from c1 to c2, normalized
+            GeoVector2D dir = (1 / dist) * d;
+
+            // Loop for outer (+1) and inner (-1) tangents
+            for (int sign = -1; sign <= 1; sign += 2)
+            {
+                // Compute effective radius ratio
+                double r = (r2 - sign * r1) / dist;
+
+                // Check if tangent is possible (|r| <= 1)
+                if (r * r > 1.0)
+                    continue; // No tangent of this type
+
+                double h = Math.Sqrt(Math.Max(0, 1 - r * r));
+
+                // Perpendicular vector to dir (rotated by ±90°)
+                GeoVector2D ortho = new GeoVector2D(-dir.y, dir.x);
+
+                // Two tangents: one for each side (+/-)
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    GeoVector2D tangentDir = r * dir + h * side * ortho;
+
+                    // Tangent point on first circle
+                    GeoPoint2D p1 = c1 + r1 * sign * tangentDir;
+
+                    // Tangent point on second circle
+                    GeoPoint2D p2 = c2 + r2 * tangentDir;
+
+                    tangents.Add(p1);
+                    tangents.Add(p2);
+                    // if (h < 1e-6 && Math.Abs(r) < 1e-6) continue; // only one solution?
+                }
+            }
+
+            return tangents.ToArray();
+        }
+
+        /// <summary>
         /// Tangential lines to two circles, returned as pairs of points
         /// </summary>
         /// <param name="center1"></param>
@@ -1719,7 +1775,7 @@ namespace CADability
         /// <param name="center2"></param>
         /// <param name="radius2"></param>
         /// <returns></returns>
-        public static GeoPoint2D[] TangentCC(GeoPoint2D center1, double radius1, GeoPoint2D center2, double radius2)
+        public static GeoPoint2D[] TangentCCOld(GeoPoint2D center1, double radius1, GeoPoint2D center2, double radius2)
         {
             double d = center1 | center2;
             if (d < radius1 || d < radius2) return new GeoPoint2D[0];
@@ -1981,7 +2037,7 @@ namespace CADability
             if (d / radius > 1 + Precision.eps)
                 return new GeoPoint2D[0];
 
-            if (Math.Abs(d-radius) < Precision.eps)
+            if (Math.Abs(d - radius) < Precision.eps)
             {
                 // line is tangential to radius
                 return new GeoPoint2D[] { DropPL(center, pointofline, direction) };
@@ -3921,7 +3977,7 @@ namespace CADability
                         double perpToCircle = circleToLine * tangentToCircle; // is it really perpendicular to the circle
                         double perpToLine = circleToLine * unitLineDirection; // is it really perpendicular to the circle
                         // the quartic polynom yields more results than necessary, some of them are wrong, because the equation has been squared
-                        if (Math.Abs(perpToCircle / (circleToLine.Length * tangentToCircle.Length)) < 1e-5 && 
+                        if (Math.Abs(perpToCircle / (circleToLine.Length * tangentToCircle.Length)) < 1e-5 &&
                             Math.Abs(perpToLine / (circleToLine.Length * unitLineDirection.Length)) < 1e-5)
                         {
                             res.Add(toWorld * onCircle);
