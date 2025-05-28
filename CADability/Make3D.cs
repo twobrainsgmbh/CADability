@@ -899,13 +899,15 @@ namespace CADability.GeoObject
             return shell;
         }
 
-        private static ISurface MakeRuledSurface(ICurve curve1, ICurve curve2)
+        public static ISurface MakeRuledSurface(ICurve curve1, ICurve curve2)
         {
             if (curve1 is Line && curve2 is Line)
             {
                 if (Precision.SameDirection(curve1.StartDirection, curve2.StartDirection, false))
                 {   // two lines in a common plane
-                    return new PlaneSurface(curve1.StartPoint, curve1.EndPoint, curve2.StartPoint);
+                    Plane pln = new Plane(curve1.StartPoint, curve1.StartDirection, curve2.StartPoint - curve1.StartPoint);
+                    return new PlaneSurface(pln);
+                    // return new PlaneSurface(curve1.StartPoint, curve1.EndPoint, curve2.StartPoint);
                 }
             }
             else if (curve1 is Ellipse && curve2 is Ellipse)
@@ -938,6 +940,10 @@ namespace CADability.GeoObject
                         }
                     }
                 }
+            }
+            if (Curves.GetCommonPlane(curve1, curve2, out Plane commonPlane))
+            {
+                return new PlaneSurface(commonPlane);
             }
             return new RuledSurface(curve1, curve2);
         }

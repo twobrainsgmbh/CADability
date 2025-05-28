@@ -163,7 +163,11 @@ namespace CADability.GeoObject
         IGeoObject GetFace(int[] id, int index);
     }
 
-    internal class FaceReference : ICloneable
+    /// <summary>
+    /// A reference to a face. This is mainly used as a UserData: the Clone method does not clon the face but returns this object, so you won't have an infinite loop
+    /// when the userdata of a face refers to itself.
+    /// </summary>
+    public class FaceReference : ICloneable
     {
         public FaceReference(Face face) { Face = face; }
         public Face Face { get; }
@@ -9727,7 +9731,7 @@ namespace CADability.GeoObject
 
             // now edg1 and edg2 are both forward oriented on this face and edg1 precedes edg2
             ICurve combined = Curves.Combine(edg1.Curve3D, edg2.Curve3D, Precision.eps);
-            if (combined == null)
+            if (combined == null && otherface != null)
             {
                 Vertex v1 = edg1.StartVertex(this);
                 Vertex v2 = edg1.EndVertex(this);

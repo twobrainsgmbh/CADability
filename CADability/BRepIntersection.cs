@@ -1413,12 +1413,13 @@ namespace CADability
     }
     public class BRepOperation : OctTree<BRepItem>
     {
-        private Shell shell1;
-        private Shell shell2;
-        private List<Shell> multipleShells;
+        private Shell shell1; // the two shells, which are intersected
+        private Shell shell2; // either shell1 and shell2 are set or multipleFaces is set
+        private List<Face> multipleFaces; // the faces, which are intersected. 
         private PlaneSurface splittingOnplane; // when splitting a Shell with a plane, this is the surface
         private bool allowOpenEdges;
         private bool shellsAreUnchanged;
+        private List<Face> unusedFaces; // faces, which ware not used in the multipleFaces mode
 
         Dictionary<DoubleFaceKey, ModOp2D> overlappingFaces; // Faces von verschiedenen Shells, die auf der gleichen Surface beruhen und sich überlappen
         Dictionary<DoubleFaceKey, Set<Edge>> overlappingEdges; // relevante Kanten auf den overlappingFaces
@@ -1457,7 +1458,7 @@ namespace CADability
                         {
                             if (second.Type == BRepItem.ItemType.Face)
                             {
-                                if (second.face.Owner != shell)
+                                if (second.face.Owner == null || second.face.Owner != shell) // owner==null when we don't have two shells but many faces (e.g. offset shell)
                                 {   // keine Schnitte von Kanten, die ganz im Face liegen
                                     Set<Face> overlap;
                                     if (faceToOverlappingFaces.TryGetValue(second.face, out overlap))
@@ -1505,6 +1506,7 @@ namespace CADability
                 {
                     if (ki.Item1 == ef.face || ki.Item2 == ef.face) continue;
                 }
+                if (ef.edge.PrimaryFace == ef.face || ef.edge.SecondaryFace == ef.face) continue; // necessary for multipleFaces
                 ef.face.IntersectAndPosition(ef.edge, out ip, out uvOnFace, out uOnCurve3D, out position, precision);
                 for (int i = 0; i < ip.Length; ++i)
                 {
@@ -1635,6 +1637,35 @@ namespace CADability
             }
             // vo.combineAll(intersectionVertices); // hier wird zusammengefasst
         }
+        private void combineVerticesMultipleFaces()
+        {
+            VertexOcttree vo = new VertexOcttree(this.Extend, this.precision);
+            HashSet<Vertex> vertices = new HashSet<Vertex>();
+            foreach (Face face in multipleFaces)
+            {
+                vertices.UnionWith(face.Vertices);
+            }
+            foreach (Vertex vtx in vertices)
+            {
+                vo.AddObject(vtx);
+            }
+            foreach (IntersectionVertex iv in intersectionVertices)
+            {
+                Vertex[] close = vo.GetObjectsCloseTo(iv.v);
+                bool found = false;
+                for (int j = 0; j < close.Length; j++)
+                {
+                    if ((close[j].Position | iv.v.Position) < precision)
+                    {
+                        close[j].MergeWith(iv.v);
+                        iv.v = close[j];
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) vo.AddObject(iv.v); // die sind alle verschieden
+            }
+        }
         private void removeIdenticalOppositeFaces()
         {
             cancelledfaces = new Set<GeoObject.Face>();
@@ -1653,13 +1684,31 @@ namespace CADability
         private void AddFacesToIntersectionVertices(Face f1, Face f2, IntersectionVertex iv)
         {
             if (f1 == null || f2 == null) return; // possible when a shell is not closed
-            List<IntersectionVertex> list;
-            if (!facesToIntersectionVertices.TryGetValue(new DoubleFaceKey(f1, f2), out list))
-            {
-                list = new List<IntersectionVertex>();
-                facesToIntersectionVertices[new DoubleFaceKey(f1, f2)] = list;
+            if (multipleFaces != null)
+            {   // the case with multiple faces and no shells
+                IEnumerable<Edge> commonEdges = f1.Edges.Intersect(f2.Edges); // in case of multipleFaces
+                foreach (Edge edge in commonEdges)
+                {   // dont use the common edges for new intersections
+                    if (Precision.IsEqual(edge.Vertex1.Position, iv.v.Position)) return;
+                    if (Precision.IsEqual(edge.Vertex2.Position, iv.v.Position)) return;
+                }
+                DoubleFaceKey dfk;
+                if (f2.GetHashCode() < f1.GetHashCode()) dfk = new DoubleFaceKey(f2, f1);
+                else dfk = new DoubleFaceKey(f1, f2);
+                if (!facesToIntersectionVertices.TryGetValue(dfk, out List<IntersectionVertex> list))
+                    facesToIntersectionVertices[dfk] = list = new List<IntersectionVertex>(); ;
+                list.Add(iv);
             }
-            list.Add(iv);
+            else
+            {   // the case with two shells
+                List<IntersectionVertex> list;
+                if (!facesToIntersectionVertices.TryGetValue(new DoubleFaceKey(f1, f2), out list))
+                {
+                    list = new List<IntersectionVertex>();
+                    facesToIntersectionVertices[new DoubleFaceKey(f1, f2)] = list;
+                }
+                list.Add(iv);
+            }
         }
 
         public enum Operation { union, intersection, difference, clip, connectMultiple, testonly }
@@ -1777,21 +1826,17 @@ namespace CADability
 
         }
         /// <summary>
-        /// Connect all provided shells to one or more shells. The shells may overlap or exceed each other. Used by Shell.GetOffset.
+        /// Connect all provided faces, remove the overhangs. Used by Shell.GetOffset.
         /// </summary>
         /// <param name="shellsToConnect"></param>
-        public BRepOperation(IEnumerable<Shell> shellsToConnect)
+        public BRepOperation(IEnumerable<Face> facesToConnect)
         {
             operation = Operation.connectMultiple;
-            multipleShells = new List<Shell>();
+            multipleFaces = new List<Face>(facesToConnect); // we don't clone here, because we dont need it
 
-            foreach (Shell shell in shellsToConnect)
-            {
-                multipleShells.Add(shell.Clone() as Shell);
-            }
             // fill the OctTree
             BoundingCube ext = BoundingCube.EmptyBoundingCube;
-            foreach (Shell shell in multipleShells) ext.MinMax(shell.GetExtent(0.0));
+            foreach (Face face in multipleFaces) ext.MinMax(face.GetExtent(0.0));
             // in rare cases the extension isn't a good choice, faces shouldn't exactely reside on the sides of the small cubes of the octtree
             // so we modify the extension a little, to make this case extremely unlikely. The best solution would be to check, whether a vertex
             // falls exactely on the side of a octtree-cube, then throw an exception and try with a different octtree location
@@ -1800,17 +1845,18 @@ namespace CADability
             ext = ext.Modify(new GeoVector(extsize * 1e-4, extsize * 1e-4, extsize * 1e-4));
             Initialize(ext, extsize * 1e-6); // initialize the OctTree
             // put all edges and faces into the octtree
-            foreach (Shell shell in multipleShells)
+            HashSet<Edge> alreadyAdded = new HashSet<Edge>();
+            foreach (Face face in multipleFaces)
             {
-                foreach (Edge edg in shell.Edges)
+                foreach (Edge edg in face.Edges)
                 {
-                    base.AddObject(new BRepItem(this, edg));
+                    if (alreadyAdded.Contains(edg)) continue;
+                    AddObject(new BRepItem(this, edg));
+                    alreadyAdded.Add(edg);
                 }
-                foreach (Face fc in shell.Faces)
-                {
-                    base.AddObject(new BRepItem(this, fc));
-                }
+                AddObject(new BRepItem(this, face));
             }
+
             edgesToSplit = new Dictionary<Edge, List<Vertex>>();
             intersectionVertices = new Set<IntersectionVertex>();
             facesToIntersectionVertices = new Dictionary<DoubleFaceKey, List<IntersectionVertex>>();
@@ -1818,7 +1864,7 @@ namespace CADability
             findOverlappingFaces(); // populates overlappingFaces, faces of different shells which overlap or are identical
             createEdgeFaceIntersections(); // find intersection of edges with faces from different shells
             splitEdges(); // split the edges at the found intersection positions
-            combineVertices(); // combine geometric close vertices
+            combineVerticesMultipleFaces(); // combine geometric close vertices
             removeIdenticalOppositeFaces(); // 
             createNewEdges(); // populate faceToIntersectionEdges : for each face a list of intersection curves
             createInnerFaceIntersections(); // find additional intersection curves where faces intersect, but edges don't intersect (rare)
@@ -3252,6 +3298,31 @@ namespace CADability
             }
         }
         public bool Unchanged => shellsAreUnchanged;
+        public List<Face> UnusedFaces => unusedFaces;
+        /// <summary>
+        /// Get all face pairs, which intersect each other
+        /// </summary>
+        public HashSet<(Face, Face)> IntersectingFaces
+        {
+            get
+            {
+                HashSet<(Face, Face)> res = new HashSet<(Face, Face)>();
+                foreach (KeyValuePair<Face, Set<Edge>> kv in faceToIntersectionEdges)
+                {   
+                    Face faceToSplit = kv.Key;
+                    Set<Edge> intersectionEdges = kv.Value;
+                    foreach (Edge edg in intersectionEdges)
+                    {
+                        Face other = edg.OtherFace(faceToSplit);
+                        (Face, Face) item;
+                        if (other.GetHashCode() < faceToSplit.GetHashCode()) item = (other, faceToSplit);
+                        else item = (faceToSplit, other);
+                        res.Add(item);
+                    }
+                }
+                return res;
+            }
+        }
         public Shell[] Result()
         {
             // this method relies on
@@ -3275,41 +3346,73 @@ namespace CADability
             // dcis: all intersection edges. Here the edges must build one ore more closed curves. there can not be open ends.
             // If there are open ends, some intersection calculation failed!
             DebuggerContainer dcFaces = new CADability.DebuggerContainer();
-            foreach (Face fce in shell1.Faces)
+            if (multipleFaces != null)
             {
-                dcFaces.Add(fce.Clone(), fce.GetHashCode()); // die Faces werden kaputt gemacht, deshalb hier clones merken
-                double ll = fce.GetExtent(0.0).Size * 0.01;
-                ColorDef cd = new ColorDef("debug", Color.Blue);
-                SimpleShape ss = fce.Area;
-                GeoPoint2D c = ss.GetExtent().GetCenter();
-                GeoPoint pc = fce.Surface.PointAt(c);
-                GeoVector nc = fce.Surface.GetNormal(c);
-                Line l = Line.TwoPoints(pc, pc + ll * nc.Normalized);
-                l.ColorDef = cd;
-                dcFaces.Add(l);
+                foreach (Face fce in multipleFaces)
+                {
+                    dcFaces.Add(fce.Clone(), fce.GetHashCode()); // die Faces werden kaputt gemacht, deshalb hier clones merken
+                    double ll = fce.GetExtent(0.0).Size * 0.01;
+                    ColorDef cd = new ColorDef("debug", Color.Blue);
+                    SimpleShape ss = fce.Area;
+                    GeoPoint2D c = ss.GetExtent().GetCenter();
+                    GeoPoint pc = fce.Surface.PointAt(c);
+                    GeoVector nc = fce.Surface.GetNormal(c);
+                    Line l = Line.TwoPoints(pc, pc + ll * nc.Normalized);
+                    l.ColorDef = cd;
+                    dcFaces.Add(l);
+                }
             }
-            foreach (Face fce in shell2.Faces)
+            else
             {
-                dcFaces.Add(fce.Clone(), fce.GetHashCode()); // use clones, because the faces might be destroyed in course of this routine
-                double ll = fce.GetExtent(0.0).Size * 0.01;
-                ColorDef cd = new ColorDef("debug", Color.Brown);
-                SimpleShape ss = fce.Area;
-                GeoPoint2D c = ss.GetExtent().GetCenter();
-                GeoPoint pc = fce.Surface.PointAt(c);
-                GeoVector nc = fce.Surface.GetNormal(c);
-                Line l = Line.TwoPoints(pc, pc + ll * nc.Normalized);
-                l.ColorDef = cd;
-                dcFaces.Add(l);
+                foreach (Face fce in shell1.Faces)
+                {
+                    dcFaces.Add(fce.Clone(), fce.GetHashCode()); // die Faces werden kaputt gemacht, deshalb hier clones merken
+                    double ll = fce.GetExtent(0.0).Size * 0.01;
+                    ColorDef cd = new ColorDef("debug", Color.Blue);
+                    SimpleShape ss = fce.Area;
+                    GeoPoint2D c = ss.GetExtent().GetCenter();
+                    GeoPoint pc = fce.Surface.PointAt(c);
+                    GeoVector nc = fce.Surface.GetNormal(c);
+                    Line l = Line.TwoPoints(pc, pc + ll * nc.Normalized);
+                    l.ColorDef = cd;
+                    dcFaces.Add(l);
+                }
+                foreach (Face fce in shell2.Faces)
+                {
+                    dcFaces.Add(fce.Clone(), fce.GetHashCode()); // use clones, because the faces might be destroyed in course of this routine
+                    double ll = fce.GetExtent(0.0).Size * 0.01;
+                    ColorDef cd = new ColorDef("debug", Color.Brown);
+                    SimpleShape ss = fce.Area;
+                    GeoPoint2D c = ss.GetExtent().GetCenter();
+                    GeoPoint pc = fce.Surface.PointAt(c);
+                    GeoVector nc = fce.Surface.GetNormal(c);
+                    Line l = Line.TwoPoints(pc, pc + ll * nc.Normalized);
+                    l.ColorDef = cd;
+                    dcFaces.Add(l);
+                }
             }
             DebuggerContainer dcs1e = new CADability.DebuggerContainer();
-            foreach (Edge edg in shell1.Edges)
-            {
-                if (edg.Curve3D != null) dcs1e.Add(edg.Curve3D as IGeoObject, edg.GetHashCode());
-            }
             DebuggerContainer dcs2e = new CADability.DebuggerContainer();
-            foreach (Edge edg in shell2.Edges)
+            if (multipleFaces != null)
             {
-                if (edg.Curve3D != null) dcs2e.Add(edg.Curve3D as IGeoObject, edg.GetHashCode());
+                foreach (Face face in multipleFaces)
+                {
+                    foreach (Edge edg in face.Edges)
+                    {
+                        if (edg.Curve3D != null) dcs1e.Add(edg.Curve3D as IGeoObject, edg.GetHashCode());
+                    }
+                }
+            }
+            else
+            {
+                foreach (Edge edg in shell1.Edges)
+                {
+                    if (edg.Curve3D != null) dcs1e.Add(edg.Curve3D as IGeoObject, edg.GetHashCode());
+                }
+                foreach (Edge edg in shell2.Edges)
+                {
+                    if (edg.Curve3D != null) dcs2e.Add(edg.Curve3D as IGeoObject, edg.GetHashCode());
+                }
             }
             DebuggerContainer dcis = new CADability.DebuggerContainer(); // <----- dcis shows the intersection curves
             Set<Edge> ise = new Set<Edge>();
@@ -3408,7 +3511,7 @@ namespace CADability
                 DebuggerContainer dcIntersectingFaces = new DebuggerContainer();
                 foreach (Edge edg in intersectionEdges)
                 {
-                    dcIntersectingFaces.Add(edg.OtherFace(faceToSplit), edg.GetHashCode());
+                    //dcIntersectingFaces.Add(edg.OtherFace(faceToSplit), edg.GetHashCode());
                 }
                 DebuggerContainer dcIntEdges2D = new DebuggerContainer();
                 foreach (Edge edg in intersectionEdges)
@@ -3773,7 +3876,7 @@ namespace CADability
                     }
                     fc.Set(faceToSplit.Surface.Clone(), edgeLoop[i], holes); // we need a clone of the surface because two independent faces shall not have the identical surface
                     fc.CopyAttributes(faceToSplit);
-                    fc.UserData["BRepIntersection.IsPartOf"] = faceToSplit.Owner.GetHashCode(); // only hash code here to avoid cloning user data of damaged faces
+                    if (faceToSplit.Owner != null) fc.UserData["BRepIntersection.IsPartOf"] = faceToSplit.Owner.GetHashCode(); // only hash code here to avoid cloning user data of damaged faces
 #if DEBUG
                     System.Diagnostics.Debug.Assert(fc.CheckConsistency());
                     if (fc.GetHashCode() == 115)
@@ -3944,7 +4047,7 @@ namespace CADability
             }
             if (allFaces.Count == 0 && cancelledfaces.Count > 0)
             {   // there were no intersections, only identical opposite faces, like when glueing two parts together
-                // this remains empty in case of intersection and returns the full body in cas of union
+                // this remains empty in case of intersection and returns the full body in case of union
                 if (this.operation == Operation.union)
                 {
                     foreach (Face fce in cancelledfaces) fce.DisconnectAllEdges();
@@ -4069,6 +4172,10 @@ namespace CADability
                         catch (Exception) { }
                     }
                 }
+            }
+            if (multipleFaces != null)
+            {
+                unusedFaces = new List<Face>(multipleFaces.Except(discardedFaces));
             }
             return res.ToArray();
         }
