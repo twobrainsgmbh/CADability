@@ -58,6 +58,9 @@
     <EmbeddedFiles Remove="@(RemoveFiles)" />
     <Resource Remove="@(RemoveFiles)" />
     <Compile Remove="@(RemoveFiles)" />
+    <Compile Remove="ParametricsExtrudeAction.cs" />
+    <Compile Remove="ParametricsOffsetAction.cs" />
+    <Compile Remove="ParametricsRadiusAction.cs" />
     <Compile Remove="SelectActionContextMenu.cs" />
     <Content Remove="@(RemoveFiles)" />
     <None Remove="@(RemoveFiles)" />
