@@ -27,6 +27,8 @@ namespace CADability.Forms
                 sub[i] = new MenuItemWithHandler(definition[i]);
             }
             base.MenuItems.AddRange(sub);
+
+            this.Collapse += (s, e) => MenuItemWithHandler.HideToolTip();
         }
 
         private void RecurseCommandState(MenuItemWithHandler miid)
@@ -143,7 +145,14 @@ namespace CADability.Forms
 
     class MenuItemWithHandler : MenuItem
     {
-        private bool doubleChecked; // the MenuItem Checked property behaves strange. Maybe "because it is a field of a marshal-by-reference class" is the problem? // so here is a copy of this flag
+        private static Timer hoverTimer;
+        public static ToolTip toolTip;
+        private static Timer autoHideTimer; 
+        private static MenuItemWithHandler currentItem;
+        private static string currentToolTipText;
+
+        private bool doubleChecked; // the MenuItem Checked property behaves strange. Maybe "because it is a field of a marshal-by-reference class" is the problem? 
+            // so here is a copy of this flag
         private static Shortcut ShortcutFromString(string p)
         {   // rather primitive:
             switch (p)
@@ -305,6 +314,23 @@ namespace CADability.Forms
                 default: return Shortcut.None;
             }
         }
+        static MenuItemWithHandler()
+        {
+            hoverTimer = new Timer();
+            hoverTimer.Interval = 500;
+            hoverTimer.Tick += HoverTimer_Tick;
+
+            toolTip = new ToolTip();
+            toolTip.AutoPopDelay = 10000; // kann man zusätzlich noch setzen
+            toolTip.InitialDelay = 0;
+            toolTip.ReshowDelay = 0;
+            toolTip.ShowAlways = true;
+
+            // Neuer Timer für max. Anzeigedauer
+            autoHideTimer = new Timer();
+            autoHideTimer.Interval = 5000; // nach 5s ausblenden
+            autoHideTimer.Tick += AutoHideTimer_Tick;
+        }
         public MenuItemWithHandler(MenuWithHandler definition) : base()
         {
             OwnerDraw = true;
@@ -332,9 +358,14 @@ namespace CADability.Forms
                 }
                 MenuItems.AddRange(sub);
             }
+
         }
         protected override void OnClick(EventArgs e)
         {
+            // Beim Anklicken ebenfalls Tooltip verstecken
+            HideToolTip();
+
+            hoverTimer.Stop();
             MenuWithHandler definition = (Tag as MenuWithHandler);
             if (definition.Target != null) definition.Target.OnCommand(definition.ID);
             // Sometimes all menu texts are blank. I cannot reproduce it. I guess, it is because the menus are not disposed. I debugged by overriding Dispose of ContextMenuWithHandler
@@ -500,6 +531,9 @@ namespace CADability.Forms
         }
         protected override void OnPopup(EventArgs e)
         {
+            // Wenn das Menü selbst aufgeht, sicherstellen, dass kein alter Tooltip angezeigt wird
+            HideToolTip();
+
             if (this.IsParent)
             {
                 foreach (MenuItem mi in MenuItems)
@@ -535,12 +569,72 @@ namespace CADability.Forms
             base.OnPopup(e);
         }
         protected override void OnSelect(EventArgs e)
-        {   
+        {
             MenuWithHandler definition = (Tag as MenuWithHandler);
             if (definition.Target != null) definition.Target.OnSelected(definition, true);
             base.OnSelect(e);
+            // Setze diesen Eintrag als aktuellen
+            currentItem = this;
+            currentToolTipText = "";
+            if (StringTable.IsStringDefined(definition.ID))
+            {
+                string tt = StringTable.GetString(definition.ID, StringTable.Category.info);
+                if (String.IsNullOrEmpty(tt) || tt.StartsWith("missing string:")) tt = StringTable.GetString(definition.ID, StringTable.Category.label);
+                if (!String.IsNullOrEmpty(tt) || tt.StartsWith("missing string:")) currentToolTipText = tt;
+            }
+
+            // Timer neu starten
+            hoverTimer.Stop();
+            if (!String.IsNullOrEmpty(currentToolTipText))
+            {
+                hoverTimer.Start();
+            }
+
+            // Falls der Tooltip gerade angezeigt wird (von einem vorherigen Item), verstecken wir ihn zunächst
+            HideToolTip();
+        }
+        private static void HoverTimer_Tick(object sender, EventArgs e)
+        {
+            // Wird ausgelöst, nachdem der Timer abgelaufen ist
+            hoverTimer.Stop();
+            if (currentItem != null && !string.IsNullOrEmpty(currentToolTipText))
+            {
+                // Position des Mauszeigers bestimmen
+                Point mousePos = Cursor.Position;
+
+                // Tooltip in Nähe des Mauszeigers anzeigen. 
+                // Man könnte den Tooltip auch relativ zu einem Control platzieren.
+                Form ownerForm = currentItem.GetOwnerForm();
+                if (ownerForm != null)
+                {
+                    // In Form-Koordinaten umrechnen
+                    Point formPos = ownerForm.PointToClient(mousePos);
+                    toolTip.Show(currentToolTipText, ownerForm, formPos.X + 10, formPos.Y + 10);
+                    autoHideTimer.Stop();
+                    autoHideTimer.Start();
+                }
+            }
+        }
+        private Form GetOwnerForm()
+        {
+            return Form.ActiveForm;
+        }
+        private static void AutoHideTimer_Tick(object sender, EventArgs e)
+        {
+            // Nach 5s ausblenden
+            HideToolTip();
+        }
+        internal static void HideToolTip()
+        {
+            Form ownerForm = currentItem?.GetOwnerForm();
+            if (ownerForm != null)
+            {
+                toolTip.Hide(ownerForm);
+            }
+            autoHideTimer.Stop();
         }
     }
+
     class MenuManager
     {
         static internal ContextMenuWithHandler MakeContextMenu(MenuWithHandler[] definition)
@@ -558,6 +652,7 @@ namespace CADability.Forms
                 items[i] = new MenuItemWithHandler(definition[i]);
             }
             res.MenuItems.AddRange(items);
+            res.Collapse += (s, e) => MenuItemWithHandler.HideToolTip();
             return res;
         }
     }

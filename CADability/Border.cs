@@ -1340,6 +1340,18 @@ namespace CADability.Shapes
 			segments[0] = new Circle2D(center, radius);
 			return new Border(segments);
 		}
+		public static Border MakePolygon(GeoPoint2D center, double radius, int numberOfSides)
+		{
+			ICurve2D[] segments = new ICurve2D[numberOfSides];
+			double step = Math.PI * 2.0 / numberOfSides;
+			GeoPoint2D lastPoint = center + radius * GeoVector2D.XAxis;
+			for (int i = 0; i < numberOfSides; ++i)
+			{
+				segments[i] = new Line2D(lastPoint, center + radius * GeoVector2D.FromAngle(i * step));
+				lastPoint = segments[i].EndPoint;
+			}
+			return new Border(segments);
+		}
 		internal static Border MakeHole(GeoPoint2D center, double radius)
 		{
 			ICurve2D[] segments = new ICurve2D[2];

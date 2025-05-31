@@ -1157,6 +1157,13 @@ namespace CADability.GeoObject
 				}
 			}
 		}
+		public ModOp ToUnitCircle
+		{
+			get
+			{
+				return plane.CoordSys.GlobalToLocal;
+			}
+		}
 		private GeoPoint[] GetCashedApproximation(double precision)
 		{
 			lock (lockApproximationRecalc)
@@ -1209,6 +1216,7 @@ namespace CADability.GeoObject
 				}
 			}
 		}
+
 		/// <summary>
 		/// Returns the intersectionpoints of this ellipse with the provided plane <paramref name="toIntersectWith"/>.
 		/// The result is an array with 0 to 2 <see cref="GeoPoint"/>s.
@@ -1304,11 +1312,6 @@ namespace CADability.GeoObject
 
 							Plane pln = new Plane(cnt, majax, minax); // geht schief, wenn Ellipse zur Linie degeneriert!
 							GeoVector2D majax2d = pln.Project(majax);
-							GeoVector2D minax2d = pln.Project(minax);
-							GeoVector2D majax2dmain, minax2dmain;
-							GeoPoint2D left, right, bottom, top;
-							Geometry.PrincipalAxis(GeoPoint2D.Origin, majax2d, minax2d, out majax2dmain, out minax2dmain, out left, out right, out bottom, out top, false);
-
 							plane = new Plane(cnt, pln.ToGlobal(majax2dmain), pln.ToGlobal(minax2dmain));
 							majorRadius = majax2dmain.Length;
 							minorRadius = minax2dmain.Length;
@@ -1682,7 +1685,24 @@ namespace CADability.GeoObject
 			{
 				if (Plane.Intersect(fromHere, direction, out GeoPoint p))
 				{
-					return Geometry.LinePar(fromHere, direction, p); // nicht getestet ob Ellipse auch getroffen
+					// double planeDistance = Geometry.LinePar(fromHere, direction, p); // the beam hits the plane at this point
+					double pos = (this as ICurve).PositionOf(p);
+					if (pos >= 0.0 && pos <= 1.0)
+					{
+						GeoPoint pCurve = (this as ICurve).PointAt(pos);
+						return Geometry.LinePar(fromHere, direction, pCurve);
+					}
+					else
+					{
+						if ((p | StartPoint) < (p | EndPoint))
+						{
+							return Geometry.LinePar(fromHere, direction, StartPoint);
+						}
+						else
+						{
+							return Geometry.LinePar(fromHere, direction, EndPoint);
+						}
+					}
 				}
 				else
 				{
@@ -1935,6 +1955,11 @@ namespace CADability.GeoObject
 			}
 		}
 		#region IOcasEdge Members
+                    }
+                }
+            }
+        }
+        #region IOcasEdge Members
 
 		#endregion
 		#region ICurve Members
@@ -2876,11 +2901,6 @@ namespace CADability.GeoObject
 			else
 			{
 				return res;
-			}
-		}
-
-	}
-
 	internal class QuadTreeEllipse : IQuadTreeInsertableZ
 	{
 		ICurve2D curve;
@@ -2946,7 +2966,7 @@ namespace CADability.GeoObject
 				double l2 = s[1];
 				return plane.Location.z + l1 * plane.DirectionX.z + l2 * plane.DirectionY.z;
 			}
-
+            {
 			if (projection != null)
 			{   // die Ellipse von der Seite her gesehen (also eine Linie in der Projektion)
 				// hier wird umständlich in die Ebene der Ellipse gerechnet und dort der Schnittpunkt des
@@ -2986,6 +3006,11 @@ namespace CADability.GeoObject
 		}
 		#endregion
 	}
+        {
+            get { return go; }
+        }
+        #endregion
+    }
 
 	internal class FullEllipse : IOctTreeInsertable
 	{
