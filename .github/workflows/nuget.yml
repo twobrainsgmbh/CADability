@@ -25,11 +25,11 @@ jobs:
       - name: Build solution
         run: msbuild CADability.sln /p:Configuration=Release /p:CI=true
 
-      - name: Show Release folder
+      - name: Show CADability.Forms output
         run: dir CADability.Forms\bin\Release
 
-      - name: Pack CADability.Forms
-        run: nuget pack CADability.Forms\CADability.Forms.csproj -Properties Configuration=Release -OutputDirectory ./nupkgs
+      - name: Pack using .nuspec
+        run: nuget pack CADability.Forms\CADability.Forms.nuspec -OutputDirectory ./nupkgs
 
       - name: Show packed files
         run: dir ./nupkgs
