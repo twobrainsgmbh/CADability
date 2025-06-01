@@ -2,7 +2,12 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageId>CADability</PackageId>
+    <Authors>FriendsOfCADability</Authors>
+    <Description>CAD functionality for .NET</Description>
+    <RepositoryUrl>https://github.com/FriendsOfCADability/CADability</RepositoryUrl>
     <BuildDocFx Condition=" '$(Configuration)'!='RelWithDoc' ">false</BuildDocFx>
+    <Version>1.0.0</Version>
     <Configurations>Debug;Release;RelWithDoc;WebDebug</Configurations>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>CADabilityKey.snk</AssemblyOriginatorKeyFile>
