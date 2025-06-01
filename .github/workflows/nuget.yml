@@ -23,7 +23,7 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Build solution
-        run: msbuild CADability.sln /p:Configuration=Release
+        run: msbuild CADability.sln /p:Configuration=Release /p:CI=true
 
       - name: Pack CADability.Forms
         run: nuget pack CADability.Forms\CADability.Forms.csproj -OutputDirectory ./nupkgs

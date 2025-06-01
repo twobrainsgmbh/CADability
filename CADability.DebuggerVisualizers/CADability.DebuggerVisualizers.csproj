@@ -93,8 +93,9 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>echo "copying $(TargetPath) to $(USERPROFILE)\Documents\Visual Studio 2022\Visualizers\$(TargetFileName)"
-copy /Y "$(TargetPath)" "$(USERPROFILE)\Documents\Visual Studio 2022\Visualizers\$(TargetFileName)"
-</PostBuildEvent>
+    <PostBuildEvent Condition=" '$(CI)' != 'true' ">
+      echo "copying $(TargetPath) to $(USERPROFILE)\Documents\Visual Studio 2022\Visualizers\$(TargetFileName)"
+      copy /Y "$(TargetPath)" "$(USERPROFILE)\Documents\Visual Studio 2022\Visualizers\$(TargetFileName)"
+    </PostBuildEvent>
   </PropertyGroup>
 </Project>
