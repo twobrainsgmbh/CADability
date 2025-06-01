@@ -35,4 +35,11 @@ jobs:
         run: dir ./nupkgs
 
       - name: Push to NuGet
-        run: nuget push ./nupkgs/*.nupkg -ApiKey ${{ secrets.NUGET_API_KEY }} -Source https://api.nuget.org/v3/index.json
+        shell: pwsh
+        run: |
+          $pkg = Get-ChildItem -Path ./nupkgs -Filter *.nupkg | Select-Object -First 1
+          if ($pkg) {
+            nuget push $pkg.FullName -ApiKey ${{ secrets.NUGET_API_KEY }} -Source https://api.nuget.org/v3/index.json
+          } else {
+            Write-Error "No .nupkg file found to push."
+          }
