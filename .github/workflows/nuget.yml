@@ -8,6 +8,7 @@ on:
 jobs:
   publish:
     runs-on: windows-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -17,13 +18,13 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore CADability.sln
 
       - name: Build
-        run: dotnet build --configuration Release
+        run: dotnet build CADability.sln --configuration Release --no-restore
 
       - name: Pack
-        run: dotnet pack --configuration Release --output ./nupkgs
+        run: dotnet pack CADability/CADability.csproj --configuration Release --no-build --output ./nupkgs
 
       - name: Push to NuGet
         run: dotnet nuget push ./nupkgs/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
