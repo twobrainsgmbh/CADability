@@ -10,21 +10,23 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
 
-      - name: Restore
-        run: dotnet restore CADability.sln
+      - name: Restore NuGet packages
+        run: nuget restore CADability.sln
 
-      - name: Build
-        run: dotnet build CADability.sln --configuration Release --no-restore
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
 
-      - name: Pack
-        run: dotnet pack CADability/CADability.csproj --configuration Release --no-build --output ./nupkgs
+      - name: Build solution
+        run: msbuild CADability.sln /p:Configuration=Release
+
+      - name: Pack CADability.Forms
+        run: nuget pack CADability.Forms\CADability.Forms.csproj -OutputDirectory ./nupkgs
 
       - name: Push to NuGet
-        run: dotnet nuget push ./nupkgs/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+        run: nuget push ./nupkgs/*.nupkg -ApiKey ${{ secrets.NUGET_API_KEY }} -Source https://api.nuget.org/v3/index.json
