@@ -1,53 +1,31 @@
-name: Publish NuGet
+name: Publish NuGet Package
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*' # Triggers on version tags like v1.0.4
 
 jobs:
-  publish:
+  build:
     runs-on: windows-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0.x'
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
+      - name: Restore dependencies
+        run: dotnet restore CADability/CADability.csproj
 
-      - name: Restore NuGet packages
-        run: nuget restore CADability.sln
+      - name: Build
+        run: dotnet build CADability/CADability.csproj -c Release --no-restore
 
-      - name: Build all projects
-        run: |
-          msbuild CADability\CADability.csproj /p:Configuration=Release /p:CI=true
-          msbuild CADability.App\CADability.App.csproj /p:Configuration=Release /p:CI=true
-          msbuild CADability.DebuggerVisualizers\CADability.DebuggerVisualizers.csproj /p:Configuration=Release /p:CI=true
-          msbuild CADability.Forms\CADability.Forms.csproj /p:Configuration=Release /p:CI=true
-
-      - name: Show all outputs
-        run: |
-          dir CADability\bin\Release\netstandard2.0
-          dir CADability.App\bin\Release
-          dir CADability.DebuggerVisualizers\bin\Release
-          dir CADability.Forms\bin\Release
-
-      - name: Pack combined CADability
-        run: nuget pack CADability.nuspec -OutputDirectory ./nupkgs
-
-      - name: Show packed files
-        run: dir ./nupkgs
+      - name: Pack
+        run: dotnet pack CADability/CADability.csproj -c Release --no-build
 
       - name: Push to NuGet
-        shell: pwsh
-        run: |
-          $pkg = Get-ChildItem -Path ./nupkgs -Filter *.nupkg | Select-Object -First 1
-          if ($pkg) {
-            nuget push $pkg.FullName -ApiKey ${{ secrets.NUGET_API_KEY }} -Source https://api.nuget.org/v3/index.json
-          } else {
-            Write-Error "No .nupkg file found to push."
-          }
+        run: dotnet nuget push CADability/bin/Release/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
