@@ -2,12 +2,12 @@
 <package>
   <metadata>
     <id>CADability</id>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <authors>FriendsOfCADability</authors>
     <owners>FriendsOfCADability</owners>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>CADability full library: core (.NET Standard), Forms UI, App runner, and debugger visualizers.</description>
-    <readme>readme.md</readme>
+    <readme>README.md</readme>
     <tags>cad drawing winforms geometry netstandard net48</tags>
     <dependencies>
       <group targetFramework=".NETStandard2.0" />
@@ -24,6 +24,6 @@
     <file src="CADability.DebuggerVisualizers\bin\Release\CADability.DebuggerVisualizers.dll" target="lib\net48" />
 
     <!-- Optional: readme file -->
-    <file src="readme.md" target="" />
+    <file src="README.md" target="" />
   </files>
 </package>
