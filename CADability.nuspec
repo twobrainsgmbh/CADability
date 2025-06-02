@@ -6,16 +6,24 @@
     <authors>FriendsOfCADability</authors>
     <owners>FriendsOfCADability</owners>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>CADability full library including core (.NET Standard), Forms UI, App runner, and debugger visualizers.</description>
+    <description>CADability full library: core (.NET Standard), Forms UI, App runner, and debugger visualizers.</description>
+    <readme>readme.md</readme>
     <tags>cad drawing winforms geometry netstandard net48</tags>
+    <dependencies>
+      <group targetFramework=".NETStandard2.0" />
+      <group targetFramework=".NETFramework4.8" />
+    </dependencies>
   </metadata>
-<files>
-  <!-- Core -->
-  <file src="CADability\bin\Release\netstandard2.0\CADability.dll" target="lib\netstandard2.0" />
+  <files>
+    <!-- Core -->
+    <file src="CADability\bin\Release\netstandard2.0\CADability.dll" target="lib\netstandard2.0\" />
 
-  <!-- UI + App + Debug (all built into bin\Release, no net48 subfolder) -->
-  <file src="CADability.Forms\bin\Release\CADability.Forms.dll" target="lib\net48" />
-  <file src="CADability.App\bin\Release\CADability.App.exe" target="lib\net48" />
-  <file src="CADability.DebuggerVisualizers\bin\Release\CADability.DebuggerVisualizers.dll" target="lib\net48" />
-</files>
+    <!-- UI + App + Debug -->
+    <file src="CADability.Forms\bin\Release\CADability.Forms.dll" target="lib\net48" />
+    <file src="CADability.App\bin\Release\CADability.App.exe" target="lib\net48" />
+    <file src="CADability.DebuggerVisualizers\bin\Release\CADability.DebuggerVisualizers.dll" target="lib\net48" />
+
+    <!-- Optional: readme file -->
+    <file src="readme.md" target="" />
+  </files>
 </package>
