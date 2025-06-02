@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>CADability</id>
+    <version>1.0.0</version>
+    <authors>FriendsOfCADability</authors>
+    <owners>FriendsOfCADability</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>CADability full library including core (.NET Standard), Forms UI, App runner, and debugger visualizers.</description>
+    <tags>cad drawing winforms geometry netstandard net48</tags>
+  </metadata>
+  <files>
+    <!-- Core -->
+    <file src="CADability\bin\Release\netstandard2.0\CADability.dll" target="lib\netstandard2.0" />
+
+    <!-- UI + App + Debug -->
+    <file src="CADability.Forms\bin\Release\CADability.Forms.dll" target="lib\net48" />
+    <file src="CADability.App\bin\Release\CADability.App.dll" target="lib\net48" />
+    <file src="CADability.DebuggerVisualizers\bin\Release\CADability.DebuggerVisualizers.dll" target="lib\net48" />
+  </files>
+</package>
