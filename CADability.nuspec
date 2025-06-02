@@ -9,13 +9,13 @@
     <description>CADability full library including core (.NET Standard), Forms UI, App runner, and debugger visualizers.</description>
     <tags>cad drawing winforms geometry netstandard net48</tags>
   </metadata>
-  <files>
-    <!-- Core -->
-    <file src="CADability\bin\Release\netstandard2.0\CADability.dll" target="lib\netstandard2.0" />
+<files>
+  <!-- Core -->
+  <file src="CADability\bin\Release\netstandard2.0\CADability.dll" target="lib\netstandard2.0" />
 
-    <!-- UI + App + Debug -->
-    <file src="CADability.Forms\bin\Release\CADability.Forms.dll" target="lib\net48" />
-    <file src="CADability.App\bin\Release\CADability.App.dll" target="lib\net48" />
-    <file src="CADability.DebuggerVisualizers\bin\Release\CADability.DebuggerVisualizers.dll" target="lib\net48" />
-  </files>
+  <!-- UI + App + Debug (all built into bin\Release, no net48 subfolder) -->
+  <file src="CADability.Forms\bin\Release\CADability.Forms.dll" target="lib\net48" />
+  <file src="CADability.App\bin\Release\CADability.App.exe" target="lib\net48" />
+  <file src="CADability.DebuggerVisualizers\bin\Release\CADability.DebuggerVisualizers.dll" target="lib\net48" />
+</files>
 </package>
