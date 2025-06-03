@@ -3,10 +3,10 @@ name: Publish NuGet Package
 on:
   push:
     tags:
-      - 'v*'  # Trigger only on version tags like v1.0.9
+      - 'v*'
 
 jobs:
-  build:
+  publish:
     runs-on: windows-latest
 
     steps:
@@ -18,15 +18,18 @@ jobs:
         with:
           dotnet-version: '6.0.x'
 
-      - name: Restore dependencies
-        run: dotnet restore CADability/CADability.csproj
-
-      - name: Build
-        run: dotnet build CADability/CADability.csproj -c Release --no-restore
-
       - name: Pack NuGet package
-        run: dotnet pack CADability/CADability.csproj -c Release --no-build -o ./nupkgs
+        run: dotnet pack CADability/CADability.csproj -c Release -o ./nupkgs
+
+      - name: List .nupkg files
+        run: dir .\nupkgs
+
+      - name: Validate NuGet packages
+        run: |
+          if (!(Test-Path "./nupkgs/*.nupkg")) {
+            Write-Host "No .nupkg files found. Failing the workflow.";
+            exit 1;
+          }
 
       - name: Push to NuGet
-        working-directory: ${{ github.workspace }}
-        run: dotnet nuget push nupkgs/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+        run: dotnet nuget push ./nupkgs/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
