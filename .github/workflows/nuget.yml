@@ -25,7 +25,7 @@ jobs:
         run: dotnet build CADability/CADability.csproj -c Release --no-restore
 
       - name: Pack
-        run: dotnet pack CADability/CADability.csproj -c Release --no-build
+        run: dotnet pack CADability/CADability.csproj -c Release --no-build -o ./nupkgs
 
       - name: Push to NuGet
-        run: dotnet nuget push CADability/bin/Release/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+        run: dotnet nuget push ./nupkgs/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
