@@ -33,5 +33,7 @@ jobs:
       - name: List nupkg
         run: dir .\nupkgs
 
-      - name: Push to NuGet
-        run: dotnet nuget push CADability/nupkgs/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+      - name: Push NuGet package
+        run: |
+          $pkg = Get-ChildItem -Path ./nupkgs -Filter *.nupkg | Select-Object -First 1
+          dotnet nuget push $pkg.FullName --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
