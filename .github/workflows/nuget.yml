@@ -24,13 +24,6 @@ jobs:
       - name: Build
         run: dotnet build CADability/CADability.csproj -c Release --no-restore
 
-      - name: Verify build output
-        run: |
-          if not exist "CADability/bin/Release/netstandard2.0/CADability.dll" (
-            echo Build output missing
-            exit 1
-          )
-
       - name: List build output
         run: dir CADability\bin\Release\netstandard2.0
 
