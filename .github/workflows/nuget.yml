@@ -3,7 +3,7 @@ name: Publish NuGet Package
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*' # Trigger on version tags like v1.0.0
 
 jobs:
   publish:
@@ -18,17 +18,35 @@ jobs:
         with:
           dotnet-version: '6.0.x'
 
+      - name: Restore dependencies
+        run: dotnet restore CADability/CADability.csproj
+
+      - name: Build project
+        run: dotnet build CADability/CADability.csproj -c Release --no-restore
+
+      - name: Verify build output
+        shell: cmd
+        run: |
+          if not exist "CADability\bin\Release\netstandard2.0\CADability.dll" (
+            echo Build output missing
+            exit 1
+          )
+
+      - name: List build output
+        run: dir CADability\bin\Release\netstandard2.0
+
       - name: Pack NuGet package
-        run: dotnet pack CADability/CADability.csproj -c Release -o ./nupkgs
+        run: dotnet pack CADability/CADability.csproj -c Release --no-build -o ./nupkgs
 
       - name: List .nupkg files
         run: dir .\nupkgs
 
-      - name: Validate NuGet packages
+      - name: Validate .nupkg presence
+        shell: pwsh
         run: |
-          if (!(Test-Path "./nupkgs/*.nupkg")) {
-            Write-Host "No .nupkg files found. Failing the workflow.";
-            exit 1;
+          if (-not (Test-Path "./nupkgs/*.nupkg")) {
+            Write-Host "No .nupkg files found. Failing."
+            exit 1
           }
 
       - name: Push to NuGet
