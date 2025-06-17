@@ -1622,7 +1622,7 @@ namespace CADability
 
                     DoubleProperty lineStyleScaleProp = new DoubleProperty(this.Frame, "Model.LineStyleScale");
                     lineStyleScaleProp.OnGetValue = () => lineStyleScale;
-					lineStyleScaleProp.OnSetValue = (l) => lineStyleScale = l;
+                    lineStyleScaleProp.OnSetValue = (l) => lineStyleScale = l;
                     subEntries = new IShowProperty[] { unitProp, defaultScaleProp, lineStyleScaleProp };
                 }
                 return subEntries;
@@ -2231,10 +2231,11 @@ namespace CADability
                     }
                     if (singleObject != null) res.Add(singleObject);
                     return res;
-                case CADability.PickMode.singleFaceAndCurve: // a single edge or curve, but also a face
+                case CADability.PickMode.singleFaceAndCurve: // a single edge or curve, but also a face, or a Point object
                     {
                         Face singleFace = null;
                         ICurve singleCurve = null;
+                        Point singlePoint = null;
                         double zcurve = double.MaxValue;
                         double zface = double.MaxValue;
                         foreach (IGeoObject go in oct)
@@ -2256,10 +2257,20 @@ namespace CADability
                                     Layer layer = go.Layer;
                                     if (layer == null && go.Owner is Edge edg) layer = edg.PrimaryFace.Layer;
                                     if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
-                                        (visibleLayers.Count == 0 || layer == null || visibleLayers.Contains(layer) ))
+                                        (visibleLayers.Count == 0 || layer == null || visibleLayers.Contains(layer)))
                                     {
                                         zcurve = z;
                                         singleCurve = crv;
+                                    }
+                                }
+                                if (z <= zcurve && go is Point point) // point and curve share the same z value
+                                {
+                                    Layer layer = go.Layer;
+                                    if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
+                                        (visibleLayers.Count == 0 || layer == null || visibleLayers.Contains(layer)))
+                                    {
+                                        zcurve = z;
+                                        singlePoint = point;
                                     }
                                 }
                             }
@@ -2284,6 +2295,7 @@ namespace CADability
                         {
                             res.Add(singleCurve as IGeoObject);
                         }
+                        if (singlePoint != null) res.Add(singlePoint);
                         return res;
                     }
                 case CADability.PickMode.multipleFacesAndCurves: // all faces and curves inside the pickarea
