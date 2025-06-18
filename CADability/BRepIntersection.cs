@@ -1526,8 +1526,8 @@ namespace CADability
                         // and should handle tangential intersections seperately
                         bool tangential = Math.Abs(ef.edge.Curve3D.DirectionAt(uOnCurve3D[i]) * ef.face.Surface.GetNormal(uvOnFace[i])) < 0.01;
                         double maxDist = tangential ? Precision.eps * 1000 : Precision.eps;
-                        if ((ip[i] | ef.edge.Vertex1.Position) < maxDist && ef.edge.Vertex1.InvolvedFaces.Contains(ef.face)) continue;
-                        if ((ip[i] | ef.edge.Vertex2.Position) < maxDist && ef.edge.Vertex2.InvolvedFaces.Contains(ef.face)) continue;
+                        //if ((ip[i] | ef.edge.Vertex1.Position) < maxDist && ef.edge.Vertex1.InvolvedFaces.Contains(ef.face)) continue;
+                        //if ((ip[i] | ef.edge.Vertex2.Position) < maxDist && ef.edge.Vertex2.InvolvedFaces.Contains(ef.face)) continue;
                     }
                     if (knownIntersections != null)
                     {   // knownIntersections are often tangential intersections of round fillets. The precision of tangential intersections is often bad,
@@ -3061,6 +3061,9 @@ namespace CADability
                                 // this is an intersection with a "third" face 
                                 GeoVector curveDir = edge.Curve3D.DirectionAt(us[j]);
                                 GeoVector surfaceDir = closeObjects[i].face.Surface.GetNormal(uvs[j]);
+                                // if this is a tangential intersection at the beginning or end of the edge, ignore it. A typical scenario for this
+                                // intersection is when two faces are tangentially connected and the intersection edge ends at a tangential edge
+                                if (Math.Abs(curveDir * surfaceDir) < 1e-3 && (us[j] < Precision.eps * 100 || us[j] > 1.0 - Precision.eps * 100)) continue;
                                 bool entering = curveDir * surfaceDir < 0.0;
                                 (Face, Face, Face) faceTriple = FaceTriple(edge.PrimaryFace, edge.SecondaryFace, closeObjects[i].face);
                                 Vertex vtx;
