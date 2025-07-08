@@ -38,6 +38,15 @@ namespace CADability
             {
                 return new Vector2(v1.x - v2.x, v1.y - v2.y);
             }
+            public override bool Equals(object obj)
+            {
+                if (obj is Vector2 v2) return x == v2.x && y == v2.y;
+                else return base.Equals(obj);
+            }
+            public override int GetHashCode()
+            {
+                return x.GetHashCode() | y.GetHashCode();
+            }
         }
         private readonly Stack<ModOp2D> _transformStack;
         public Stack<GeoObjectList> listStack;
@@ -247,12 +256,7 @@ namespace CADability
 
         protected virtual void CreatePolyline(string points, ModOp2D transform)
         {
-            // TODO: Implementieren (Punkte parsen)
-        }
-
-        protected virtual void CreatePolygon(string points, ModOp2D transform)
-        {
-            var matches = Regex.Matches(points, @"([MmZzLlHhVvCcQqAaSsTt])|(-?\d*\.?\d+(?:[eE][+-]?\d+)?)");
+            var matches = Regex.Matches(points, @"(-?\d*\.?\d+(?:[eE][+-]?\d+)?)");
             var tokens = new List<string>();
             foreach (Match m in matches)
                 tokens.Add(m.Value);
@@ -268,16 +272,43 @@ namespace CADability
             Add(pl2d, transform);
         }
 
+        protected virtual void CreatePolygon(string points, ModOp2D transform)
+        {
+            var matches = Regex.Matches(points, @"(-?\d*\.?\d+(?:[eE][+-]?\d+)?)");
+            var tokens = new List<string>();
+            foreach (Match m in matches)
+                tokens.Add(m.Value);
+            int i = 0;
+            List<GeoPoint2D> pointList = new List<GeoPoint2D>();
+            while (i < tokens.Count)
+            {
+                float x = ParseFloat(tokens[i++]);
+                float y = ParseFloat(tokens[i++]);
+                pointList.Add(new GeoPoint2D(x, y));
+            }
+            pointList.Add(pointList[0]);
+            Polyline2D pl2d = new Polyline2D(pointList.ToArray());
+            Add(pl2d, transform);
+        }
+
         protected virtual void CreateCubicBezier(Vector2 start, Vector2 control1, Vector2 control2, Vector2 end, ModOp2D transform)
         {
-            BSpline2D bsp2d = new BSpline2D(new GeoPoint2D[] { new GeoPoint2D(start.x, start.y), new GeoPoint2D(control1.x, control1.y), new GeoPoint2D(control2.x, control2.y), new GeoPoint2D(end.x, end.y) },
-                new double[] { 1.0, 1.0, 1.0, 1.0 }, new double[] { 0.0, 1.0 }, new int[] { 4, 4 }, 3, false, 0.0, 1.0);
-            Add(bsp2d, transform);
+            if (control2.x == end.x && control2.y == end.y) CreateQuadraticBezier(start, control1, end, transform);
+            else if (control2.x == control1.x && control2.y == control1.y) CreateQuadraticBezier(start, control1, end, transform);
+            else if (start.x == control1.x && start.y == control1.y) CreateQuadraticBezier(start, control2, end, transform);
+            else
+            {
+                BSpline2D bsp2d = new BSpline2D(new GeoPoint2D[] { new GeoPoint2D(start.x, start.y), new GeoPoint2D(control1.x, control1.y), new GeoPoint2D(control2.x, control2.y), new GeoPoint2D(end.x, end.y) },
+                    new double[] { 1.0, 1.0, 1.0, 1.0 }, new double[] { 0.0, 1.0 }, new int[] { 4, 4 }, 3, false, 0.0, 1.0);
+                Add(bsp2d, transform);
+            }
         }
 
         protected virtual void CreateQuadraticBezier(Vector2 start, Vector2 control, Vector2 end, ModOp2D transform)
         {
-            // TODO: Implementieren
+            BSpline2D bsp2d = new BSpline2D(new GeoPoint2D[] { new GeoPoint2D(start.x, start.y), new GeoPoint2D(control.x, control.y), new GeoPoint2D(end.x, end.y) },
+                new double[] { 1.0, 1.0, 1.0 }, new double[] { 0.0, 1.0 }, new int[] { 3, 3 }, 2, false, 0.0, 1.0);
+            Add(bsp2d, transform);
         }
 
         protected virtual void CreateEllipticalArc(Vector2 start, float frx, float fry, float xAxisRotation, bool largeArcFlag, bool sweepFlag, Vector2 end, ModOp2D transform)
@@ -345,7 +376,7 @@ namespace CADability
             listStack.Push(new GeoObjectList());
             List<GeoObjectList> subPaths = new List<GeoObjectList>();
             // Tokenize: Befehle und Zahlen
-            var matches = Regex.Matches(data,@"([MmZzLlHhVvCcQqAaSsTt])|(-?\d*\.?\d+(?:[eE][+-]?\d+)?)");
+            var matches = Regex.Matches(data, @"([MmZzLlHhVvCcQqAaSsTt])|(-?\d*\.?\d+(?:[eE][+-]?\d+)?)");
 
             var tokens = new List<string>();
             foreach (Match m in matches)
@@ -353,7 +384,9 @@ namespace CADability
 
             int i = 0;
             char cmd = ' ';
-            Vector2 current = new Vector2();
+            char prevCmd = ' ';
+
+            Vector2 current = new Vector2(0.0f, 0.0f);
             Vector2 startPoint = new Vector2();
             Vector2 lastCp = new Vector2();
 
@@ -365,7 +398,12 @@ namespace CADability
                 {
                     cmd = token[0];
                 }
-                else --i;
+                else
+                {
+                    --i;
+                    if (cmd == 'M') cmd = 'L'; // nach Move automatisch Line
+                    if (cmd == 'm') cmd = 'l';
+                }
 
                 bool isRelative = char.IsLower(cmd);
                 char uc = char.ToUpper(cmd);
@@ -378,6 +416,8 @@ namespace CADability
                         if (isRelative) p += current;
                         current = p;
                         startPoint = p;
+                        // lastControl zurücksetzen, da kein vorheriger Cubic
+                        lastCp = current;
                         if (listStack.Peek().Count > 0)
                         {
                             subPaths.Add(listStack.Pop());
@@ -430,7 +470,9 @@ namespace CADability
                         break;
                     case 'S': // smooth cubic
                               // Berechne ersten Kontrollpunkt als Spiegelung:
-                        Vector2 reflected = current + (current - lastCp);
+                        Vector2 reflected;
+                        // Spiegelung: reflektiere lastControl über current
+                        reflected = current + (current - lastCp);
                         // 2) Lese (x2,y2) und (x,y) (ggf. relativ addieren)
                         x1 = ParseFloat(tokens[i++]);
                         y1 = ParseFloat(tokens[i++]);
@@ -443,7 +485,14 @@ namespace CADability
                             lastCp += current;
                             p += current;
                         }
-                        CreateCubicBezier(current, reflected, lastCp, p, transform);
+                        if (prevCmd == 'C' || prevCmd == 'c' || prevCmd == 'S' || prevCmd == 's')
+                        {
+                            CreateCubicBezier(current, reflected, lastCp, p, transform);
+                        }
+                        else
+                        {
+                            CreateQuadraticBezier(current, lastCp, p, transform);
+                        }
                         current = p;
                         break;
                     case 'Q':
@@ -492,6 +541,7 @@ namespace CADability
 
                     case 'Z':
                         CreateLine(current.x, current.y, startPoint.x, startPoint.y, transform);
+                        //if (!isRelative) current = startPoint;
                         current = startPoint;
                         break;
 
@@ -499,23 +549,42 @@ namespace CADability
                         // Unhandled
                         break;
                 }
+                prevCmd = cmd;
             }
-            
+
             GeoObjectList list = listStack.Pop();
-            if (list.Count>0) subPaths.Add(list);
+            if (list.Count > 0) subPaths.Add(list);
             // wir müssen die Paths der Größe nach sortieren und überprüfen, welches Inseln sind und entsprechende SimpleShapes erzeugen
             for (int j = 0; j < subPaths.Count; j++)
             {
                 List<ICurve> lgo = new List<ICurve>(subPaths[j].OfType<ICurve>());
                 Path path = Path.FromSegments(lgo, true);
-                path.RemoveShortSegments(0.1);
+                bool wasClosed = path.IsClosed;
+                double prec = path.GetExtent(0.0).Size * 0.002;
+                path.RemoveShortSegments(prec);
+                if (!path.IsClosed && wasClosed)
+                {
+                    if ((path.EndPoint | path.StartPoint) < prec)
+                    {   // this fixes some paths which have a small intersection at the end
+                        GeoPoint mp = new GeoPoint(path.EndPoint, path.StartPoint);
+                        path.StartPoint = mp;
+                        path.EndPoint = mp;
+                    }
+                    else
+                    {
+                        List<ICurve> curves = new List<ICurve>(path.Curves);
+                        curves.Add(Line.TwoPoints(path.EndPoint, path.StartPoint));
+                        path = Path.FromSegments(curves, true);
+                    }
+                }
+                if (!path.IsClosed) { }
                 bool added = false;
                 if (styles.TryGetValue("fill", out string color))
                 {
-                    System.Drawing.Color clr =ParseSvgColor(color);
+                    System.Drawing.Color clr = ParseSvgColor(color);
                     if (!clr.IsEmpty)
                     {
-                        if (!FillStyles.TryGetValue("SVG+"+clr.Name, out ColorDef cd))
+                        if (!FillStyles.TryGetValue("SVG+" + clr.Name, out ColorDef cd))
                         {
                             cd = new ColorDef("SVG+" + clr.Name, clr);
                             FillStyles["SVG+" + clr.Name] = cd;
@@ -524,9 +593,9 @@ namespace CADability
                         for (int k = 0; k < lgo.Count; k++)
                         {
                             ICurve2D c2d = lgo[k].GetProjectedCurve(Plane.XYPlane);
-                            if (c2d.Length>1e-3) segments.Add(c2d);
+                            if (c2d.Length > 1e-3) segments.Add(c2d);
                         }
-                        Shapes.Border bdr = Shapes.Border.FromUnorientedList(segments.ToArray(),true);
+                        Shapes.Border bdr = Shapes.Border.FromUnorientedList(segments.ToArray(), true);
                         if (bdr != null)
                         {
                             Face fc = Face.MakeFace(new PlaneSurface(Plane.XYPlane), new Shapes.SimpleShape(bdr));

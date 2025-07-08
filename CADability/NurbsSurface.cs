@@ -371,7 +371,7 @@ namespace CADability.GeoObject
             GeoPoint dbg = PointAt(new GeoPoint2D(this.uKnots[0], this.vKnots[0]));
 #endif
         }
-        public NurbsSurface(Ellipse[] throughEllis)
+        public NurbsSurface(Ellipse[] throughEllis, double[] knots=null)
         {
             GeoPoint[,] rawpoles = null;
             int numEPoles = 0;
@@ -411,7 +411,7 @@ namespace CADability.GeoObject
                     tp[j] = rawpoles[i, j];
                 }
                 BSpline diru = BSpline.Construct();
-                diru.ThroughPoints(tp, 3, false);
+                diru.ThroughPoints(tp, 3, false, knots);
                 GeoPoint[] upoles;
                 double[] uweights;
                 double[] uknots;

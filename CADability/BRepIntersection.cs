@@ -1224,7 +1224,7 @@ namespace CADability
             }
             return false; // kommt nicht vor, ohne Elemente, oder
         }
-        internal void combineAll(Set<IntersectionVertex> intersectionVertices)
+        internal void combineAll(HashSet<IntersectionVertex> intersectionVertices)
         {   // jede Liste, die mehr als einen Vertex enthält, hat nur solche mit geometrisch gleichen Punkten (siehe SplitNode)
             // deshalb werden alle weiteren in den ersten eingemischt
             Dictionary<Vertex, IntersectionVertex> backreference = new Dictionary<Vertex, IntersectionVertex>();
@@ -1432,7 +1432,7 @@ namespace CADability
         Dictionary<Face, Set<Face>> faceToCommonFaces; // faces which have overlapping common parts on them
         Dictionary<Edge, List<Vertex>> edgesToSplit;
         Set<Edge> edgesNotToUse; // these edges are identical to intersection edges, but are original edges. They must not be used when collecting faces
-        Set<IntersectionVertex> intersectionVertices; // die Mange aller gefundenen Schnittpunkte (mit Rückverweis zu Kante und face)
+        HashSet<IntersectionVertex> intersectionVertices; // die Mange aller gefundenen Schnittpunkte (mit Rückverweis zu Kante und face)
         Dictionary<DoubleFaceKey, List<IntersectionVertex>> facesToIntersectionVertices; // Faces mit den zugehörigen Schnittpunkt
         Dictionary<Edge, Tuple<Face, Face>> knownIntersections; // already known intersection edges, some open edges when rounding edges are known before and are tangential
         Dictionary<Edge, Edge> intsEdgeToEdgeShell1; // diese IntersectionEdge ist identisch mit dieser kante auf Shell1
@@ -1510,6 +1510,8 @@ namespace CADability
                     if (ki.Item1 == ef.face || ki.Item2 == ef.face) continue;
                 }
                 if (ef.edge.PrimaryFace == ef.face || ef.edge.SecondaryFace == ef.face) continue; // necessary for multipleFaces
+                if (ef.edge.PrimaryFace.Surface.SameGeometry(ef.edge.PrimaryFace.Domain, ef.face.Surface, ef.face.Domain, precision, out ModOp2D _)) continue;
+                if (ef.edge.SecondaryFace!=null && ef.edge.SecondaryFace.Surface.SameGeometry(ef.edge.SecondaryFace.Domain, ef.face.Surface, ef.face.Domain, precision, out ModOp2D _)) continue;
                 ef.face.IntersectAndPosition(ef.edge, out ip, out uvOnFace, out uOnCurve3D, out position, precision);
                 for (int i = 0; i < ip.Length; ++i)
                 {
@@ -1660,7 +1662,20 @@ namespace CADability
             }
             foreach (Vertex vtx in vertices)
             {
-                vo.AddObject(vtx);
+                Vertex[] close;
+                if (vo.IsEmpty) close = new Vertex[0];
+                else close = vo.GetObjectsCloseTo(vtx);
+                bool found = false;
+                for (int j = 0; j < close.Length; j++)
+                {
+                    if ((vtx != close[j]) && (close[j].Position | vtx.Position) < precision)
+                    {
+                        close[j].MergeWith(vtx);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) vo.AddObject(vtx);
             }
             foreach (IntersectionVertex iv in intersectionVertices)
             {
@@ -1668,7 +1683,7 @@ namespace CADability
                 bool found = false;
                 for (int j = 0; j < close.Length; j++)
                 {
-                    if ((close[j].Position | iv.v.Position) < precision)
+                    if ((iv.v != close[j]) && (close[j].Position | iv.v.Position) < precision)
                     {
                         close[j].MergeWith(iv.v);
                         iv.v = close[j];
@@ -1677,6 +1692,31 @@ namespace CADability
                     }
                 }
                 if (!found) vo.AddObject(iv.v); // die sind alle verschieden
+            }
+            // doesn't help: 
+            if (faceToIntersectionEdges != null)
+            {
+                HashSet<Vertex> vtxs = new HashSet<Vertex>();
+                foreach (var item in faceToIntersectionEdges)
+                {
+                    foreach (Edge edge in item.Value)
+                    {
+                        vtxs.Add(edge.Vertex1);
+                        vtxs.Add(edge.Vertex2);
+                    }
+                }
+                foreach (Vertex vtx in vtxs) vo.AddObject(vtx);
+                foreach (Vertex vtx in vtxs)
+                    {
+                    Vertex[] close = vo.GetObjectsCloseTo(vtx);
+                    for (int j = 0; j < close.Length; j++)
+                    {
+                        if ((vtx != close[j]) && (close[j].Position | vtx.Position) < precision)
+                        {
+                            close[j].MergeWith(vtx);
+                        }
+                    }
+                }
             }
         }
         private void removeIdenticalOppositeFaces()
@@ -1821,7 +1861,7 @@ namespace CADability
             }
 
             edgesToSplit = new Dictionary<Edge, List<Vertex>>();
-            intersectionVertices = new Set<IntersectionVertex>();
+            intersectionVertices = new HashSet<IntersectionVertex>();
             facesToIntersectionVertices = new Dictionary<DoubleFaceKey, List<IntersectionVertex>>();
 
             findOverlappingFaces(); // setzt overlappingFaces, also Faces von verschiedenen shells, die sich teilweise überlappen oder identisch sind
@@ -1883,7 +1923,7 @@ namespace CADability
             }
 
             edgesToSplit = new Dictionary<Edge, List<Vertex>>();
-            intersectionVertices = new Set<IntersectionVertex>();
+            intersectionVertices = new HashSet<IntersectionVertex>();
             facesToIntersectionVertices = new Dictionary<DoubleFaceKey, List<IntersectionVertex>>();
 
             findOverlappingFaces(); // populates overlappingFaces, faces of different shells which overlap or are identical
@@ -1894,6 +1934,7 @@ namespace CADability
             createNewEdges(); // populate faceToIntersectionEdges : for each face a list of intersection curves
             createInnerFaceIntersections(); // find additional intersection curves where faces intersect, but edges don't intersect (rare)
             TrimmIntersectionEdges();
+            combineVerticesMultipleFaces(); // combine geometric close vertices
             // combineEdges(); // do we need this?
 
         }
@@ -1953,7 +1994,7 @@ namespace CADability
             }
 
             edgesToSplit = new Dictionary<Edge, List<Vertex>>();
-            intersectionVertices = new Set<IntersectionVertex>();
+            intersectionVertices = new HashSet<IntersectionVertex>();
             facesToIntersectionVertices = new Dictionary<DoubleFaceKey, List<IntersectionVertex>>();
 
             findOverlappingFaces(); // setzt overlappingFaces, also Faces von verschiedenen shells, die sich teilweise überlappen oder identisch sind
@@ -2157,7 +2198,7 @@ namespace CADability
             }
 
             edgesToSplit = new Dictionary<Edge, List<Vertex>>();
-            intersectionVertices = new Set<IntersectionVertex>();
+            intersectionVertices = new HashSet<IntersectionVertex>();
             facesToIntersectionVertices = new Dictionary<DoubleFaceKey, List<IntersectionVertex>>();
 
             findOverlappingFaces(); // setzt overlappingFaces, also Faces von verschiedenen shells, die sich teilweise überlappen oder identisch sind
@@ -2900,7 +2941,7 @@ namespace CADability
             }
 
             edgesToSplit = new Dictionary<Edge, List<Vertex>>();
-            intersectionVertices = new Set<IntersectionVertex>();
+            intersectionVertices = new HashSet<IntersectionVertex>();
             facesToIntersectionVertices = new Dictionary<DoubleFaceKey, List<IntersectionVertex>>();
 
             findOverlappingFaces(); // setzt overlappingFaces, also Faces von verschiedenen shells, die sich teilweise überlappen oder identisch sind
@@ -3080,6 +3121,10 @@ namespace CADability
                 {
                     // this intersection edge crosses a third face. it must be split into several parts
                     edgeIntersection.Sort((a, b) => a.par.CompareTo(b.par));
+                    for (int i = edgeIntersection.Count - 1; i > 0; --i)
+                    {
+                        if (edgeIntersection[i].v == edgeIntersection[i - 1].v) edgeIntersection.RemoveAt(i);
+                    }
                     // which parts should we create?
                     // if the edge starts on an open edge, then the startpoint should not be used. It is the offset case where open edges are not connected by fillets
                     // which indicates, they are standing out
@@ -4335,7 +4380,7 @@ namespace CADability
                     allFaces.RemoveMany(cancelledfaces);
                 }
             }
-            if (allFaces.Count==0 && multipleFaces!=null)
+            if (allFaces.Count == 0 && multipleFaces != null)
             {
                 // simply connect all faces, there were no intersections
                 allFaces.AddMany(multipleFaces);
@@ -4497,6 +4542,13 @@ namespace CADability
                 }
                 );
             }
+#if DEBUG
+            DebuggerContainer dcv = new DebuggerContainer();
+            foreach (Vertex vtx in nodes.Keys)
+            {
+                dcv.Add(vtx.GetPositionOnFace(onThisFace), Color.Red, vtx.GetHashCode());
+            }
+#endif
             while (availableEdges.Any())
             {
                 Edge current = availableEdges.First();
@@ -10120,7 +10172,7 @@ namespace CADability
         private OctTree<Face> originalFaces;
         private double offset;
         Dictionary<Edge, List<Vertex>> edgesToSplit;
-        Set<IntersectionVertex> intersectionVertices;
+        HashSet<IntersectionVertex> intersectionVertices;
         Dictionary<DoubleFaceKey, List<IntersectionVertex>> facesToIntersectionVertices;
         Dictionary<DoubleFaceKey, ModOp2D> overlappingFaces; // Faces von verschiedenen Shells, die auf der gleichen Surface beruhen und sich überlappen
         Dictionary<Face, Set<Edge>> faceToMixedEdges; // die neuen durch Schnitte entstandenen Kanten
@@ -10683,7 +10735,7 @@ namespace CADability
         private void createEdgeFaceIntersections()
         {
             edgesToSplit = new Dictionary<Edge, List<Vertex>>();
-            intersectionVertices = new Set<IntersectionVertex>();
+            intersectionVertices = new HashSet<IntersectionVertex>();
             facesToIntersectionVertices = new Dictionary<DoubleFaceKey, List<IntersectionVertex>>();
             // zuerst die potentiellen Kandidaten sammeln aus den Blättern des OctTrees
             Dictionary<EdgeFaceKey, List<OctTree<BRepItem>.Node<BRepItem>>> edgesToFaces = new Dictionary<EdgeFaceKey, List<OctTree<BRepItem>.Node<BRepItem>>>();
