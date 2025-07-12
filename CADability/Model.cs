@@ -2056,332 +2056,327 @@ namespace CADability
 			if (visibleLayers == null) visibleLayers = new Set<Layer>(); // um nicht immer nach null fragen zu müssen
 			if (octTree == null) InitOctTree();
 
-			List<IGeoObject> octl = new List<IGeoObject>(octTree.GetObjectsFromRect(area, false));
-			for (int i = octl.Count - 1; i >= 0; --i)
-			{   // Unsichtbare ausblenden
-				if (!octl[i].IsVisible) octl.Remove(octl[i]);
-			}
-			IGeoObject[] oct = octl.ToArray();
-			double zmin = double.MaxValue;
-			IGeoObject singleObject = null;
-			switch (pickMode)
-			{
-				case CADability.PickMode.onlyEdges:
-					foreach (IGeoObject go in oct)
-					{
-						if (go.HitTest(area, false))
-						{
-							// looking for edges should only return edges, not curves. If you need curves
-							// use PickMode.normal
-							if (go.Owner is Edge) // was: "|| go is ICurve" before
-							{
-								Layer l = go.Layer;
-								if (l == null && go.Owner is Edge)
-								{
-									if ((go.Owner as Edge).Owner is Face)
-										l = ((go.Owner as Edge).Owner as Face).Layer;
-								}
-								if ((filterList == null || filterList.Accept(go)) &&
-									(visibleLayers.Count == 0 || (l == null || visibleLayers.Contains(l))))
-								{
-									res.AddUnique(go);
-								}
-							}
-						}
-					}
-
-					break;
-				case CADability.PickMode.singleEdge:
-					foreach (IGeoObject go in oct)
-					{
-						if (go.HitTest(area, false))
-						{
-							if (go.Owner is Edge || go is ICurve)
-							{
-								Layer l = go.Layer;
-								if (l == null && go.Owner is Edge)
-								{
-									if ((go.Owner as Edge).Owner is Face)
-										l = ((go.Owner as Edge).Owner as Face).Layer;
-								}
-								if ((filterList == null || filterList.Accept(go)) &&
-									(visibleLayers.Count == 0 || l == null || visibleLayers.Contains(l)))
-								{
-									double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
-									if (z < zmin - Precision.eps)
-									{   // the toAvoid array contains already selected objects. For faces it might be difficult to select overlapping
-										// faces, so we use toAvoid to find the "other" face, which is currently not selected. For curves
-										// there is always a way to pick it on a different position, so we don't use toAvoid here
-										zmin = z;
-										singleObject = go;
-									}
-								}
-							}
-						}
-					}
-					if (singleObject != null) res.Add(singleObject);
-					break;
-				case CADability.PickMode.onlyFaces:
-					foreach (IGeoObject go in oct)
-					{
-						if (go is Face && go.HitTest(area, false))
-						{
-							if ((filterList == null || filterList.Accept(go)) &&
-								(visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer)))
-							{
-								res.AddUnique(go);
-							}
-						}
-					}
-
-					break;
-				case CADability.PickMode.singleFace:
-					foreach (IGeoObject go in oct)
-					{
-						if (go is Face && go.HitTest(area, false))
-						{
-							if ((filterList == null || filterList.Accept(go)) &&
-								(visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer)))
-							{
-								double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
-								if (!toAvoid.Contains(go) && z < zmin - Precision.eps)
-								{   // if nothing else is closest, use the object ignoring toAvoid, if an object has the same distance as objects in toAvoid, but is not in toAvoid, use this object
-									// this helps to get the other object, if two objects overlap
-									zmin = z;
-									singleObject = go;
-								}
-							}
-						}
-					}
-					if (singleObject != null) res.Add(singleObject);
-					break;
-				case CADability.PickMode.normal:
-					{
-						Set<IGeoObject> set = new Set<IGeoObject>(new GeoObjectComparer());
-						foreach (IGeoObject go in oct)
-						{
-							if (go.HitTest(area, false))
-							{
-								IGeoObject toInsert = go;
-								while (toInsert.Owner is IGeoObject) toInsert = (toInsert.Owner as IGeoObject);
-								if (toInsert.Owner is Model)
-								{   // sonst werden auch edges gefunden, was hier bei single click nicht gewünscht
-									if ((filterList == null || filterList.Accept(toInsert) || filterList.Accept(go)) &&
-										(visibleLayers.Count == 0 || toInsert.Layer == null || visibleLayers.Contains(toInsert.Layer)))
-									{
-										set.Add(toInsert);
-									}
-									// der set ist gigantisch viel schneller als die GeoObjectList, wenn es sehr viele
-									// Objekte sind
-									// res.AddUnique(toInsert);
-								}
-							}
-						}
-						res.AddRange(set);
-					}
-					break;
-				case CADability.PickMode.single:
-					foreach (IGeoObject go in oct)
-					{
-						if (go.HitTest(area, false))
-						{
-							double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
-							if (z <= zmin + Precision.eps)
-							{
-								IGeoObject toInsert = go;
-								while (toInsert.Owner is IGeoObject) toInsert = (toInsert.Owner as IGeoObject);
-								// die Frage ist hier: soll das elementare Objekt oder der es enthaltende Block
-								// mit der FilterList überprüft werden. In ERSACAD hat der Block keinen Layer
-								// jedoch die einzelnen Objekte schon. Deshalb wurde in der Abfrage
-								// "|| filterList.Accept(go) " ergänzt
-								if ((filterList == null || filterList.Accept(toInsert) || filterList.Accept(go)) &&
-									(visibleLayers.Count == 0 || toInsert.Layer == null || visibleLayers.Contains(toInsert.Layer) || visibleLayers.Contains(go.Layer)))
-								{
-									if (toInsert.Owner is Model)
-									{   // sonst werden auch edges gefunden, was hier bei single click nicht gewünscht
-										if (!toAvoid.Contains(toInsert) || z < zmin - Precision.eps)
-										{   // if nothing else is closest, use the object ignoring toAvoid, if an object has the same distance as objects in toAvoid, but is not in toAvoid, use this object
-											// this helps to get the other object, if two objects overlap
-											zmin = z;
-											singleObject = toInsert;
-										}
-									}
-								}
-							}
-						}
-					}
-					if (singleObject != null) res.Add(singleObject);
-					break;
-				case CADability.PickMode.singleChild: // wie single, nur wird nicht parent bestimmt
-					foreach (IGeoObject go in oct)
-					{
-						if (!(go.Owner is Edge) && go.HitTest(area, false)) // Kanten gelten nicht
-						{
-							double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
-							if (z <= zmin && !toAvoid.Contains(go))
-							{
-								IGeoObject toInsert = go;
-								if ((filterList == null || filterList.Accept(toInsert) || filterList.Accept(go)) &&
-									(visibleLayers.Count == 0 || toInsert.Layer == null || visibleLayers.Contains(toInsert.Layer) || visibleLayers.Contains(go.Layer)))
-								{   // hier werden auch edges gefunden, es wird aber hinterher ja meist zum Face oder Shell hochgegangen
-									zmin = z;
-									singleObject = toInsert;
-								}
-							}
-						}
-					}
-					if (singleObject != null) res.Add(singleObject);
-					break;
-				case CADability.PickMode.singleFaceAndCurve: // a single edge or curve, but also a face, or a Point object
-					{
-						Face singleFace = null;
-						ICurve singleCurve = null;
-						Point singlePoint = null;
-						double zcurve = double.MaxValue;
-						double zface = double.MaxValue;
-						foreach (IGeoObject go in oct)
-						{
-							if (go.HitTest(area, false))
-							{
-								double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
-								if (z <= zface && go is Face fc)
-								{
-									if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
-										(visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer) || visibleLayers.Contains(go.Layer)))
-									{
-										zface = z;
-										singleFace = fc;
-									}
-								}
-								if (z <= zcurve && go is ICurve crv)
-								{
-									Layer layer = go.Layer;
-									if (layer == null && go.Owner is Edge edg) layer = edg.PrimaryFace.Layer;
-									if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
-										(visibleLayers.Count == 0 || layer == null || visibleLayers.Contains(layer)))
-									{
-										zcurve = z;
-										singleCurve = crv;
-									}
-								}
-								if (z <= zcurve && go is Point point) // point and curve share the same z value
-								{
-									Layer layer = go.Layer;
-									if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
-										(visibleLayers.Count == 0 || layer == null || visibleLayers.Contains(layer)))
-									{
-										zcurve = z;
-										singlePoint = point;
-									}
-								}
-							}
-						}
-						if (singleFace != null && singleCurve != null)
-						{   // accept curve only if not too far behind face
-							if (zcurve <= zface + this.Extent.Size * 1e-3)
-							{
-								res.Add(singleFace);
-								res.Add(singleCurve as IGeoObject);
-							}
-							else
-							{
-								res.Add(singleFace); // the curve is too far behind the face
-							}
-						}
-						else if (singleFace != null)
-						{
-							res.Add(singleFace);
-						}
-						else if (singleCurve != null)
-						{
-							res.Add(singleCurve as IGeoObject);
-						}
-						if (singlePoint != null) res.Add(singlePoint);
-						break;
-					}
-				case CADability.PickMode.multipleFacesAndCurves: // all faces and curves inside the pickarea
-					{
-						// TODO: we would need a visibility test here, maybe with a different mode "visibleFacesAndCurves"
-						foreach (IGeoObject go in oct)
-						{
-							if (go.HitTest(area, true)) // only completely inside
-							{
-								if (go is Face fc)
-								{
-									if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
-										(visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer) || visibleLayers.Contains(go.Layer)))
-									{
-										res.Add(fc);
-									}
-								}
-								if (go is ICurve crv)
-								{
-									if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
-										(visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer) || visibleLayers.Contains(go.Layer)))
-									{
-										res.Add(go);
-									}
-								}
-							}
-						}
-
-						break;
-					}
-				case CADability.PickMode.children:
-					foreach (IGeoObject go in oct)
-					{
-						if (!(go.Owner is Edge) && go.HitTest(area, false))  // Kanten gelten nicht
-						{
-							if ((filterList == null || filterList.Accept(go)) &&
-								(visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer)))
-							{
-								res.AddUnique(go);
-							}
-						}
-					}
-
-					break;
-				case CADability.PickMode.blockchildren:
-					foreach (IGeoObject go in oct)
-					{
-						if (go.HitTest(area, false))
-						{
-							Layer layer = go.Layer;
-							if (layer == null && go.Owner is Edge edg) layer = edg.PrimaryFace.Layer;
-							if ((filterList == null || filterList.Accept(go)) &&
-								(visibleLayers.Count == 0 || layer == null || visibleLayers.Contains(layer)))
-							{
-								if (go.Owner is Block)
-								{   // beim Block die Kinder liefern
-									res.AddUnique(go);
-								}
-								else if (go.Owner is IGeoObject)
-								{   // z.B. beim Pfad, Bemaßung das ganze Objekt
-									res.AddUnique(go.Owner as IGeoObject);
-								}
-								else
-								{   // nicht geblockte Objekte (was ist mit Edges?)
-									res.AddUnique(go);
-								}
-							}
-						}
-					}
-
-					break;
-			}
-			return res;
-		}
-		/// <summary>
-		/// Returns the minimal distance in <paramref name="viewDirection"/> of any visible objects in the model. Returns double.MaxValue when there is nothing in the viewDirection
-		/// </summary>
-		/// <param name="viewDirection"></param>
-		/// <param name="visibleLayers"></param>
-		/// <returns></returns>
-		public double GetPickDistance(Projection.PickArea viewDirection, Set<Layer> visibleLayers)
-		{
-			GeoObjectList res = new GeoObjectList();
-			if (visibleLayers == null) visibleLayers = new Set<Layer>(); // um nicht immer nach null fragen zu müssen
-			if (octTree == null) InitOctTree();
+            List<IGeoObject> octl = new List<IGeoObject>(octTree.GetObjectsFromRect(area, false));
+            for (int i = octl.Count - 1; i >= 0; --i)
+            {   // Unsichtbare ausblenden
+                if (!octl[i].IsVisible) octl.Remove(octl[i]);
+            }
+            IGeoObject[] oct = octl.ToArray();
+            double zmin = double.MaxValue;
+            IGeoObject singleObject = null;
+            switch (pickMode)
+            {
+                case CADability.PickMode.onlyEdges:
+                    foreach (IGeoObject go in oct)
+                    {
+                        if (go.HitTest(area, false))
+                        {
+                            // looking for edges should only return edges, not curves. If you need curves
+                            // use PickMode.normal
+                            if (go.Owner is Edge) // was: "|| go is ICurve" before
+                            {
+                                Layer l = go.Layer;
+                                if (l == null && go.Owner is Edge)
+                                {
+                                    if ((go.Owner as Edge).Owner is Face)
+                                        l = ((go.Owner as Edge).Owner as Face).Layer;
+                                }
+                                if ((filterList == null || filterList.Accept(go)) &&
+                                    (visibleLayers.Count == 0 || (l == null || visibleLayers.Contains(l))))
+                                {
+                                    res.AddUnique(go);
+                                }
+                            }
+                        }
+                    }
+                    return res;
+                case CADability.PickMode.singleEdge:
+                    foreach (IGeoObject go in oct)
+                    {
+                        if (go.HitTest(area, false))
+                        {
+                            if (go.Owner is Edge || go is ICurve)
+                            {
+                                Layer l = go.Layer;
+                                if (l == null && go.Owner is Edge)
+                                {
+                                    if ((go.Owner as Edge).Owner is Face)
+                                        l = ((go.Owner as Edge).Owner as Face).Layer;
+                                }
+                                if ((filterList == null || filterList.Accept(go)) &&
+                                    (visibleLayers.Count == 0 || l == null || visibleLayers.Contains(l)))
+                                {
+                                    double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
+                                    if (z < zmin - Precision.eps)
+                                    {   // the toAvoid array contains already selected objects. For faces it might be difficult to select overlapping
+                                        // faces, so we use toAvoid to find the "other" face, which is currently not selected. For curves
+                                        // there is always a way to pick it on a different position, so we don't use toAvoid here
+                                        zmin = z;
+                                        singleObject = go;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (singleObject != null) res.Add(singleObject);
+                    return res;
+                case CADability.PickMode.onlyFaces:
+                    foreach (IGeoObject go in oct)
+                    {
+                        if (go is Face && go.HitTest(area, false))
+                        {
+                            if ((filterList == null || filterList.Accept(go)) &&
+                                (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer)))
+                            {
+                                res.AddUnique(go);
+                            }
+                        }
+                    }
+                    return res;
+                case CADability.PickMode.singleFace:
+                    foreach (IGeoObject go in oct)
+                    {
+                        if (go is Face && go.HitTest(area, false))
+                        {
+                            if ((filterList == null || filterList.Accept(go)) &&
+                                (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer)))
+                            {
+                                double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
+                                if (!toAvoid.Contains(go) && z < zmin - Precision.eps)
+                                {   // if nothing else is closest, use the object ignoring toAvoid, if an object has the same distance as objects in toAvoid, but is not in toAvoid, use this object
+                                    // this helps to get the other object, if two objects overlap
+                                    zmin = z;
+                                    singleObject = go;
+                                }
+                            }
+                        }
+                    }
+                    if (singleObject != null) res.Add(singleObject);
+                    return res;
+                case CADability.PickMode.normal:
+                    {
+                        Set<IGeoObject> set = new Set<IGeoObject>(new GeoObjectComparer());
+                        foreach (IGeoObject go in oct)
+                        {
+                            if (go.HitTest(area, false))
+                            {
+                                IGeoObject toInsert = go;
+                                while (toInsert.Owner is IGeoObject) toInsert = (toInsert.Owner as IGeoObject);
+                                if (toInsert.Owner is Model)
+                                {   // sonst werden auch edges gefunden, was hier bei single click nicht gewünscht
+                                    if ((filterList == null || filterList.Accept(toInsert) || filterList.Accept(go)) &&
+                                        (visibleLayers.Count == 0 || toInsert.Layer == null || visibleLayers.Contains(toInsert.Layer)))
+                                    {
+                                        set.Add(toInsert);
+                                    }
+                                    // der set ist gigantisch viel schneller als die GeoObjectList, wenn es sehr viele
+                                    // Objekte sind
+                                    // res.AddUnique(toInsert);
+                                }
+                            }
+                        }
+                        res.AddRange(set);
+                    }
+                    return res;
+                case CADability.PickMode.single:
+                    foreach (IGeoObject go in oct)
+                    {
+                        if (go.HitTest(area, false))
+                        {
+                            double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
+                            if (z <= zmin + Precision.eps)
+                            {
+                                IGeoObject toInsert = go;
+                                while (toInsert.Owner is IGeoObject) toInsert = (toInsert.Owner as IGeoObject);
+                                // die Frage ist hier: soll das elementare Objekt oder der es enthaltende Block
+                                // mit der FilterList überprüft werden. In ERSACAD hat der Block keinen Layer
+                                // jedoch die einzelnen Objekte schon. Deshalb wurde in der Abfrage
+                                // "|| filterList.Accept(go) " ergänzt
+                                if ((filterList == null || filterList.Accept(toInsert) || filterList.Accept(go)) &&
+                                    (visibleLayers.Count == 0 || toInsert.Layer == null || visibleLayers.Contains(toInsert.Layer) || visibleLayers.Contains(go.Layer)))
+                                {
+                                    if (toInsert.Owner is Model)
+                                    {   // sonst werden auch edges gefunden, was hier bei single click nicht gewünscht
+                                        if (!toAvoid.Contains(toInsert) || z < zmin - Precision.eps)
+                                        {   // if nothing else is closest, use the object ignoring toAvoid, if an object has the same distance as objects in toAvoid, but is not in toAvoid, use this object
+                                            // this helps to get the other object, if two objects overlap
+                                            zmin = z;
+                                            singleObject = toInsert;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (singleObject != null) res.Add(singleObject);
+                    return res;
+                case CADability.PickMode.singleChild: // wie single, nur wird nicht parent bestimmt
+                    foreach (IGeoObject go in oct)
+                    {
+                        if (!(go.Owner is Edge) && go.HitTest(area, false)) // Kanten gelten nicht
+                        {
+                            double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
+                            if (z <= zmin && !toAvoid.Contains(go))
+                            {
+                                IGeoObject toInsert = go;
+                                if ((filterList == null || filterList.Accept(toInsert) || filterList.Accept(go)) &&
+                                    (visibleLayers.Count == 0 || toInsert.Layer == null || visibleLayers.Contains(toInsert.Layer) || visibleLayers.Contains(go.Layer)))
+                                {   // hier werden auch edges gefunden, es wird aber hinterher ja meist zum Face oder Shell hochgegangen
+                                    zmin = z;
+                                    singleObject = toInsert;
+                                }
+                            }
+                        }
+                    }
+                    if (singleObject != null) res.Add(singleObject);
+                    return res;
+                case CADability.PickMode.singleFaceAndCurve: // a single edge or curve, but also a face, or a Point object
+                    {
+                        Face singleFace = null;
+                        ICurve singleCurve = null;
+                        Point singlePoint = null;
+                        double zcurve = double.MaxValue;
+                        double zface = double.MaxValue;
+                        foreach (IGeoObject go in oct)
+                        {
+                            if (go.HitTest(area, false))
+                            {
+                                double z = go.Position(area.FrontCenter, area.Direction, displayListPrecision);
+                                if (z <= zface && go is Face fc)
+                                {
+                                    if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
+                                        (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer) || visibleLayers.Contains(go.Layer)))
+                                    {
+                                        zface = z;
+                                        singleFace = fc;
+                                    }
+                                }
+                                if (z <= zcurve && go is ICurve crv)
+                                {
+                                    Layer layer = go.Layer;
+                                    if (layer == null && go.Owner is Edge edg) layer = edg.PrimaryFace.Layer;
+                                    if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
+                                        (visibleLayers.Count == 0 || layer == null || visibleLayers.Contains(layer)))
+                                    {
+                                        zcurve = z;
+                                        singleCurve = crv;
+                                    }
+                                }
+                                if (z <= zcurve && go is Point point) // point and curve share the same z value
+                                {
+                                    Layer layer = go.Layer;
+                                    if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
+                                        (visibleLayers.Count == 0 || layer == null || visibleLayers.Contains(layer)))
+                                    {
+                                        zcurve = z;
+                                        singlePoint = point;
+                                    }
+                                }
+                            }
+                        }
+                        if (singleFace != null && singleCurve != null)
+                        {   // accept curve only if not too far behind face
+                            if (zcurve <= zface + this.Extent.Size * 1e-3)
+                            {
+                                res.Add(singleFace);
+                                res.Add(singleCurve as IGeoObject);
+                            }
+                            else
+                            {
+                                res.Add(singleFace); // the curve is too far behind the face
+                            }
+                        }
+                        else if (singleFace != null)
+                        {
+                            res.Add(singleFace);
+                        }
+                        else if (singleCurve != null)
+                        {
+                            res.Add(singleCurve as IGeoObject);
+                        }
+                        if (singlePoint != null) res.Add(singlePoint);
+                        return res;
+                    }
+                case CADability.PickMode.multipleFacesAndCurves: // all faces and curves inside the pickarea
+                    {
+                        // TODO: we would need a visibility test here, maybe with a different mode "visibleFacesAndCurves"
+                        foreach (IGeoObject go in oct)
+                        {
+                            if (go.HitTest(area, true)) // only completely inside
+                            {
+                                if (go is Face fc)
+                                {
+                                    if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
+                                        (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer) || visibleLayers.Contains(go.Layer)))
+                                    {
+                                        res.Add(fc);
+                                    }
+                                }
+                                if (go is ICurve crv)
+                                {
+                                    if ((filterList == null || filterList.Accept(go) || filterList.Accept(go)) &&
+                                        (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer) || visibleLayers.Contains(go.Layer)))
+                                    {
+                                        res.Add(go);
+                                    }
+                                }
+                            }
+                        }
+                        return res;
+                    }
+                case CADability.PickMode.children:
+                    foreach (IGeoObject go in oct)
+                    {
+                        if (!(go.Owner is Edge) && go.HitTest(area, false))  // Kanten gelten nicht
+                        {
+                            if ((filterList == null || filterList.Accept(go)) &&
+                                (visibleLayers.Count == 0 || go.Layer == null || visibleLayers.Contains(go.Layer)))
+                            {
+                                res.AddUnique(go);
+                            }
+                        }
+                    }
+                    return res;
+                case CADability.PickMode.blockchildren:
+                    foreach (IGeoObject go in oct)
+                    {
+                        if (go.HitTest(area, false))
+                        {
+                            Layer layer = go.Layer;
+                            if (layer == null && go.Owner is Edge edg) layer = edg.PrimaryFace.Layer;
+                            if ((filterList == null || filterList.Accept(go)) &&
+                                (visibleLayers.Count == 0 || layer == null || visibleLayers.Contains(layer)))
+                            {
+                                if (go.Owner is Block)
+                                {   // beim Block die Kinder liefern
+                                    res.AddUnique(go);
+                                }
+                                else if (go.Owner is IGeoObject)
+                                {   // z.B. beim Pfad, Bemaßung das ganze Objekt
+                                    res.AddUnique(go.Owner as IGeoObject);
+                                }
+                                else
+                                {   // nicht geblockte Objekte (was ist mit Edges?)
+                                    res.AddUnique(go);
+                                }
+                            }
+                        }
+                    }
+                    return res;
+            }
+            return res;
+        }
+        /// <summary>
+        /// Returns the minimal distance in <paramref name="viewDirection"/> of any visible objects in the model. Returns double.MaxValue when there is nothing in the viewDirection
+        /// </summary>
+        /// <param name="viewDirection"></param>
+        /// <param name="visibleLayers"></param>
+        /// <returns></returns>
+        public double GetPickDistance(Projection.PickArea viewDirection, Set<Layer> visibleLayers)
+        {
+            GeoObjectList res = new GeoObjectList();
+            if (visibleLayers == null) visibleLayers = new Set<Layer>(); // um nicht immer nach null fragen zu müssen
+            if (octTree == null) InitOctTree();
 
 			List<IGeoObject> octl = new List<IGeoObject>(octTree.GetObjectsFromRect(viewDirection, false));
 			for (int i = octl.Count - 1; i >= 0; --i)
