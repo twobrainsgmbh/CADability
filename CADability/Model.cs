@@ -915,7 +915,6 @@ namespace CADability
 		/// <param name="ObjectToAdd">The GeoObject to add</param>
 		public void Add(IGeoObject ObjectToAdd)
 		{
-			if (!ObjectToAdd.HasValidData()) return; // die Objekte überprüfen sich hier selbst
 			bool cancel = false;
 			if (AddingGeoObjectEvent != null) AddingGeoObjectEvent(ObjectToAdd, ref cancel);
 			if (cancel) return; // der Anwender hat was dagegen
