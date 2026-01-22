@@ -1166,6 +1166,22 @@ namespace CADability
                         ActiveView.ZoomToRect(ActiveView.Model.GetExtentForZoomTotal(ActiveView.Projection) * 1.1);
                         return true;
                     }
+                case "MenuId.DrawingPlane.StandardXY":
+                case "MenuId.DrawingPlane.StandardXY.Offset":
+                case "MenuId.DrawingPlane.StandardXZ":
+                case "MenuId.DrawingPlane.StandardXZ.Offset":
+                case "MenuId.DrawingPlane.StandardYZ":
+                case "MenuId.DrawingPlane.StandardYZ.Offset":
+                case "MenuId.DrawingPlane.Tangential":
+                case "MenuId.DrawingPlane.Three.Points":
+                case "MenuId.DrawingPlane.OfCurve":
+                case "MenuId.DrawingPlane.Show":
+                case "MenuId.DrawingPlane.Point.Direction":
+                    {
+                        DrawingPlaneProperty dp = new DrawingPlaneProperty(ActiveView.Projection, this);
+                        (dp as ICommandHandler).OnCommand(MenuId);
+                        break;
+                    }
                 case "MenuId.File.Print":
                     // OnPrint();
                     return true;
@@ -2075,6 +2091,22 @@ namespace CADability
                         CommandState.Checked = Precision.SameNotOppositeDirection((ActiveView as ModelView).Projection.Direction, iso);
                     }
                     return true;
+                case "MenuId.DrawingPlane.StandardXY":
+                case "MenuId.DrawingPlane.StandardXY.Offset":
+                case "MenuId.DrawingPlane.StandardXZ":
+                case "MenuId.DrawingPlane.StandardXZ.Offset":
+                case "MenuId.DrawingPlane.StandardYZ":
+                case "MenuId.DrawingPlane.StandardYZ.Offset":
+                case "MenuId.DrawingPlane.Tangential":
+                case "MenuId.DrawingPlane.Three.Points":
+                case "MenuId.DrawingPlane.OfCurve":
+                case "MenuId.DrawingPlane.Show":
+                case "MenuId.DrawingPlane.Point.Direction":
+                    {   // it was implemented in DrawingPlaneProperty of ModelView
+                        DrawingPlaneProperty dp = new DrawingPlaneProperty(ActiveView.Projection, this);
+                        (dp as ICommandHandler).OnUpdateCommand(MenuId, CommandState);
+                        break;
+                    }
 
                 default: break;
             }
@@ -2317,6 +2349,7 @@ namespace CADability
                     StringTable.GetString("File.Dxf.Filter") + "|" +
                     StringTable.GetString("File.Dwg.Filter") + "|" +
                     StringTable.GetString("File.STEP.Filter");
+                    StringTable.GetString("File.STL.Filter");
                 int filterIndex = lastFileType;
                 if (UIService.ShowOpenFileDlg("MenuId.File.Open", StringTable.GetString("MenuId.File.Open"), filter, ref filterIndex, out fileName) == Substitutes.DialogResult.OK)
                 {
@@ -2476,6 +2509,7 @@ namespace CADability
                 StringTable.GetString("File.Dxf.Filter") + "|" +
                 StringTable.GetString("File.Dwg.Filter") + "|" +
                 StringTable.GetString("File.STEP.Filter") + "|" +
+                StringTable.GetString("File.SVG.Filter") + "|" +
                 StringTable.GetString("File.STL.Filter");
             int filterIndex = lastFileType;
             if (UIService.ShowOpenFileDlg("MenuId.Import", StringTable.GetString("MenuId.Import"), filter, ref filterIndex, out string fileName) == Substitutes.DialogResult.OK)
@@ -2490,6 +2524,18 @@ namespace CADability
                     case 3: newproject = CADability.Project.ReadFromFile(fileName, "dwg"); break;
                     case 4: newproject = CADability.Project.ReadFromFile(fileName, "stp"); break;
                     case 5:
+                        {
+                            ImportSVG importSvg = new ImportSVG();
+                            GeoObjectList svgImport = importSvg.Import(fileName);
+                            if (svgImport!=null)
+                            {
+                                newproject = CADability.Project.CreateSimpleProject();
+                                Model model = newproject.GetModel(0);
+                                model.Add(svgImport);
+                            }
+                            break;
+                        }
+                    case 6:
                         {
                             ImportSTL importSTL = new ImportSTL();
                             Shell[] shells = importSTL.Read(fileName);

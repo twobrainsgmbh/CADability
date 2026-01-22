@@ -47,10 +47,10 @@
             // 
             this.topToolStripContainer.ContentPanel.Controls.Add(this.splitContainer);
             this.topToolStripContainer.ContentPanel.Margin = new System.Windows.Forms.Padding(2);
-            this.topToolStripContainer.ContentPanel.Size = new System.Drawing.Size(1114, 612);
+            this.topToolStripContainer.ContentPanel.Size = new System.Drawing.Size(1114, 607);
             this.topToolStripContainer.Dock = System.Windows.Forms.DockStyle.Fill;
             this.topToolStripContainer.Location = new System.Drawing.Point(0, 0);
-            this.topToolStripContainer.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.topToolStripContainer.Margin = new System.Windows.Forms.Padding(2);
             this.topToolStripContainer.Name = "topToolStripContainer";
             this.topToolStripContainer.Size = new System.Drawing.Size(1114, 632);
             this.topToolStripContainer.TabIndex = 1;
@@ -60,7 +60,7 @@
             // 
             this.splitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
             this.splitContainer.Location = new System.Drawing.Point(0, 0);
-            this.splitContainer.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.splitContainer.Margin = new System.Windows.Forms.Padding(2);
             this.splitContainer.Name = "splitContainer";
             // 
             // splitContainer.Panel1
@@ -70,8 +70,8 @@
             // splitContainer.Panel2
             // 
             this.splitContainer.Panel2.Controls.Add(this.propertiesExplorer);
-            this.splitContainer.Size = new System.Drawing.Size(1114, 612);
-            this.splitContainer.SplitterDistance = 630;
+            this.splitContainer.Size = new System.Drawing.Size(1114, 607);
+            this.splitContainer.SplitterDistance = 830;
             this.splitContainer.SplitterWidth = 3;
             this.splitContainer.TabIndex = 0;
             // 
@@ -81,7 +81,7 @@
             this.cadCanvas.Frame = null;
             this.cadCanvas.Location = new System.Drawing.Point(0, 0);
             this.cadCanvas.Name = "cadCanvas";
-            this.cadCanvas.Size = new System.Drawing.Size(630, 612);
+            this.cadCanvas.Size = new System.Drawing.Size(630, 607);
             this.cadCanvas.TabIndex = 0;
             this.cadCanvas.TabStop = false;
             // 
@@ -91,17 +91,17 @@
             this.propertiesExplorer.Frame = null;
             this.propertiesExplorer.Location = new System.Drawing.Point(0, 0);
             this.propertiesExplorer.Name = "propertiesExplorer";
-            this.propertiesExplorer.Size = new System.Drawing.Size(481, 612);
+            this.propertiesExplorer.Size = new System.Drawing.Size(481, 607);
             this.propertiesExplorer.TabIndex = 0;
             this.propertiesExplorer.TabStop = false;
             // 
-            // MainForm
+            // CadForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1114, 632);
             this.Controls.Add(this.topToolStripContainer);
-            this.Name = "MainForm";
+            this.Name = "CadForm";
             this.Text = "CADability.Forms";
             this.topToolStripContainer.ContentPanel.ResumeLayout(false);
             this.topToolStripContainer.ResumeLayout(false);

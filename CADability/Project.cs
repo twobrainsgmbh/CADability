@@ -407,15 +407,15 @@ namespace CADability
         }
         private void OnGeoObjectDidChange(IGeoObject Sender, GeoObjectChange Change)
         {
-            this.isModified = true;
+            IsModified = true;
         }
         private void OnGeoObjectRemovedFromModel(IGeoObject go)
         {
-            this.isModified = true;
+            IsModified = true;
         }
         private void OnGeoObjectAddedToModel(IGeoObject go)
         {
-            this.isModified = true;
+            IsModified = true;
         }
         /// <summary>
         /// Removes the given <see cref="Model"/> from the project. Fires a
@@ -553,7 +553,7 @@ namespace CADability
         {
             get
             {
-                if (gdiViews== null) { gdiViews= new List<GDI2DView>(); }
+                if (gdiViews == null) { gdiViews = new List<GDI2DView>(); }
                 return gdiViews;
             }
         }
@@ -913,7 +913,14 @@ namespace CADability
         public bool IsModified
         {
             get { return isModified; }
-            set { isModified = value; }
+            set
+            {
+                isModified = value;
+                if (isModified)
+                {
+                    ProjectModifiedEvent?.Invoke(this);
+                }
+            }
         }
         /// <summary>
         /// The name of the file in which this project ist stored. May be null.
@@ -1149,6 +1156,7 @@ namespace CADability
                     WriteToStream(stream);
                 }
                 stream.Close();
+                isModified = false;
             }
             return true;
         }
@@ -1648,6 +1656,7 @@ namespace CADability
             JsonSerialize js = new JsonSerialize();
             Project res = js.FromStream(stream) as Project;
             AttributeListContainer.UpdateLists(res, true);
+            res.isModified = false;
             return res;
         }
         private static Project ReadConvertedFile(string FileName, bool useProgress)
@@ -1789,7 +1798,9 @@ namespace CADability
         {
             using (ConvertToDxfAutoCad2000 converted = new ConvertToDxfAutoCad2000(filename, "dxf"))
             {
-                CADability.DXF.Import import = new DXF.Import(converted.DxfFileName);
+                string fn = converted.DxfFileName;
+                if (string.IsNullOrEmpty(fn)) fn = filename;
+                CADability.DXF.Import import = new DXF.Import(fn); // DEBUGGING! change to fn again
                 return import.Project;
             }
         }
@@ -1961,6 +1972,8 @@ namespace CADability
         public event ViewChangedDelegate ViewChangedEvent;
         public delegate void ModelsChangedDelegate(Project sender, Model model, bool added);
         public event ModelsChangedDelegate ModelsChangedEvent;
+        public delegate void ProjectModifiedDelegate(Project sender);
+        public event ProjectModifiedDelegate ProjectModifiedEvent;
         internal static void InsertDebugLine(GeoPoint sp, GeoPoint ep, Color clr)
         {
             IFrame fr = FrameImpl.MainFrame;

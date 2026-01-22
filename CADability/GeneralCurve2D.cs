@@ -327,6 +327,100 @@ namespace CADability.Curve2D
 		bool TryPointDeriv2At(double position, out GeoPoint2D point, out GeoVector2D deriv1, out GeoVector2D deriv2);
 	}
 
+	/// <summary>
+	/// Nur temporär, später soll alles von TriangulatedCurve2D abgeleitet sein
+	/// </summary>
+	//internal class TempTriangulatedCurve2D : TriangulatedCurve2D
+	//{
+	//    ICurve2D curve;
+	//    public TempTriangulatedCurve2D(ICurve2D curve)
+	//    {
+	//        this.curve = curve;
+	//        MakeTringulation();
+	//    }
+	//    protected override void GetTriangulationBasis(out GeoPoint2D[] points, out GeoVector2D[] directions, out double[] parameters)
+	//    {
+	//        if (curve is GeneralCurve2D)
+	//        {
+	//            (curve as GeneralCurve2D).GetTriangulationPoints(out points, out parameters);
+	//            directions = new GeoVector2D[parameters.Length];
+	//            for (int i = 0; i < parameters.Length; ++i)
+	//            {
+	//                directions[i] = curve.DirectionAt(parameters[i]);
+	//            }
+	//        }
+	//        else if (curve is Path2D)
+	//        {   // Overkill, aber so am schnellsten programmiert
+	//            Path2D p2d = (curve as Path2D);
+	//            Set<double> pars = new Set<double>();
+	//            for (int i = 0; i < p2d.SubCurvesCount; i++)
+	//            {
+	//                TempTriangulatedCurve2D ttc = new TempTriangulatedCurve2D(p2d.SubCurves[i]);
+	//                double[] spars;
+	//                ttc.GetTriangulationBasis(out points, out directions, out spars);
+	//                for (int j = 0; j < spars.Length; j++)
+	//                {
+	//                    pars.Add((i + spars[j]) / p2d.SubCurvesCount);
+	//                }
+	//            }
+	//            parameters = pars.ToArray();
+	//            Array.Sort(parameters);
+	//            directions = new GeoVector2D[parameters.Length];
+	//            points = new GeoPoint2D[parameters.Length];
+	//            for (int i = 0; i < parameters.Length; ++i)
+	//            {
+	//                points[i] = curve.PointAt(parameters[i]);
+	//                directions[i] = curve.DirectionAt(parameters[i]);
+	//            }
+	//        }
+	//        else
+	//        {
+	//            parameters = new double[] { 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 };
+	//            directions = new GeoVector2D[parameters.Length];
+	//            points = new GeoPoint2D[parameters.Length];
+	//            for (int i = 0; i < parameters.Length; ++i)
+	//            {
+	//                points[i] = curve.PointAt(parameters[i]);
+	//                directions[i] = curve.DirectionAt(parameters[i]);
+	//            }
+	//        }
+	//    }
+
+	//    public override GeoVector2D DirectionAt(double Position)
+	//    {
+	//        return curve.DirectionAt(Position);
+	//    }
+
+	//    public override GeoPoint2D PointAt(double Position)
+	//    {
+	//        return curve.PointAt(Position);
+	//    }
+	//    public override void Reverse()
+	//    {
+	//        curve.Reverse();
+	//        base.ClearTriangulation();
+	//    }
+
+	//    public override ICurve2D Clone()
+	//    {
+	//        return new TempTriangulatedCurve2D(curve);
+	//    }
+
+	//    public override void Copy(ICurve2D toCopyFrom)
+	//    {
+	//        TempTriangulatedCurve2D tc = toCopyFrom as TempTriangulatedCurve2D;
+	//        if (tc != null)
+	//        {
+	//            curve = tc.curve;
+	//        }
+	//    }
+
+	//    public override bool TryPointDeriv2At(double position, out GeoPoint2D point, out GeoVector2D deriv, out GeoVector2D deriv2)
+	//    {
+	//        return this.curve.TryPointDeriv2At(position, out point, out deriv, out deriv2);
+	//    }
+	//}
+
 	[Serializable()]
 	public abstract class GeneralCurve2D : ICurve2D, ISerializable
 	{
@@ -1590,12 +1684,12 @@ namespace CADability.Curve2D
 			{
 				if ((fromHere | sp) < Precision.eps)
 				{
-					par = 0.0;
+					par = spar; // was 0.0, but I am pretty sure it should be spar
 					return true;
 				}
 				if ((fromHere | ep) < Precision.eps)
 				{
-					par = 1.0;
+					par = epar; // was 0.0, but I am pretty sure it should be epar
 					return true;
 				}
 			}
