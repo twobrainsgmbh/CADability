@@ -137,6 +137,12 @@ namespace CADability
                 }
             }
 
+            private bool EqualsAt(string value, StringComparison cmp = StringComparison.Ordinal)
+            {
+                if ((uint)actind > (uint)currentline.Length) return false;
+                if (currentline.Length - actind < value.Length) return false;
+                return currentline.AsSpan(actind, value.Length).Equals(value.AsSpan(), cmp);
+            }
             public etoken NextToken(out string line, out int start, out int length)
             {
                 line = null;
@@ -203,8 +209,17 @@ namespace CADability
                     case '7':
                     case '8':
                     case '9':
+                    case 'I':
                         {   // return a number
                             start = actind;
+                            if (EqualsAt("Infinity") || EqualsAt("+Infinity") || EqualsAt("-Infinity"))
+                            {
+                                actind += "Infinity".Length;
+                                if (currentline[start] == '+' || currentline[start] == '-') actind += 1;
+                                length = actind - start;
+                                line = currentline;
+                                return etoken.number;
+                            }
                             ++actind;
                             while (actind < currentline.Length && (char.IsDigit(currentline[actind]) || currentline[actind] == 'E' || currentline[actind] == 'e'
                                 || currentline[actind] == '+' || currentline[actind] == '-' || currentline[actind] == '.')) ++actind;
@@ -405,7 +420,8 @@ namespace CADability
                     for (int i = 0; i < kve.Count; i++)
                     {
 
-                        try { ar.Add(kve[i]); } catch { }; // could fail when kve[i] is a JsonUnknownType
+                        try { ar.Add(kve[i]); } catch { }
+                        ; // could fail when kve[i] is a JsonUnknownType
                     }
                     return ar;
                 }
@@ -494,6 +510,7 @@ namespace CADability
         Dictionary<int, int> typeIndexToVersion;
         Queue<Tuple<IJsonSerialize, JsonDict>> deferred;
         private bool verbose;
+        private string fileVersion;
 
         public JsonSerialize()
         {
@@ -678,7 +695,7 @@ namespace CADability
                 JsonDict cdb = allObjects["CADability"] as JsonDict;
                 if (cdb != null)
                 {
-                    string versionstring = cdb["Version"] as string;
+                    fileVersion = cdb["Version"] as string;
                 }
                 if (!allObjects.ContainsKey("Entities")) return null;
                 List<object> entities = allObjects["Entities"] as List<object>;
@@ -722,8 +739,9 @@ namespace CADability
         }
         public bool IsWriting
         {
-            get { return outStream!=null; }   
+            get { return outStream != null; }
         }
+        public Version FileVersion { get { return new Version(fileVersion); } }
         private SerializationInfo SerializationInfoFromJsonData(JsonDict data, Type tp, List<object> entities, HashSet<ulong> underConstruction)
         {
             SerializationInfo si = new SerializationInfo(tp, new FormatterConverter());
@@ -1113,6 +1131,7 @@ namespace CADability
             objectCount = 0;
             WriteProperty("Entities");
             BeginArray();
+            objectToIndex[toSerialize] = 0;
             while (queue.Count > 0)
             {
                 if (objectCount > 0)
@@ -1274,9 +1293,13 @@ namespace CADability
                             object[] nsa = pi[i].GetCustomAttributes(typeof(NonSerializedAttribute), true);
                             if ((nsa == null || nsa.Length == 0) && pi[i].CanRead && pi[i].CanWrite)
                             {
-                                object pval = pi[i].GetValue(val, new object[0]);
-                                (this as IJsonWriteData).AddProperty(pi[i].Name, pval);
-                                serialized = true; // at least one property can be read and written
+                                try
+                                {
+                                    object pval = pi[i].GetValue(val, new object[0]);
+                                    (this as IJsonWriteData).AddProperty(pi[i].Name, pval);
+                                    serialized = true; // at least one property can be read and written
+                                }
+                                catch (TargetInvocationException t) { }
                             }
                         }
                     }
@@ -1531,7 +1554,8 @@ namespace CADability
             }
             else
             {
-                throw new ApplicationException("Cannot serialize value" + value.ToString());
+                WriteNull(); // no exception here, because this can happen with some properties, e.g. from System.Drawing.Common
+                // throw new ApplicationException("Cannot serialize value" + value.ToString());
             }
         }
 #if DEBUG
@@ -1605,6 +1629,12 @@ namespace CADability
         void IJsonWriteData.RegisterForSerializationDoneCallback(CADability.IJsonSerializeDone toCall)
         {
             SerializationDoneCallback.Add(toCall);
+        }
+
+        public int GetTypeVersion(Type type)
+        {
+            if (typeVersions.TryGetValue(type.FullName, out int v)) return v;
+            return -1;
         }
         #endregion
     }
@@ -1717,7 +1747,7 @@ namespace CADability
             return res;
         }
     }
-    internal class JsonProxyType : Hashtable, IJsonSerialize
+    internal class JsonProxyType : Hashtable, IJsonSerialize, ISerializable
     {
         Dictionary<string, object> dict;
         protected JsonProxyType()
@@ -1748,6 +1778,14 @@ namespace CADability
             }
         }
         public int OriginalTypeVersion => (int)dict["$TypeVersion"];
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            base.GetObjectData(info, context);
+        }
+        protected JsonProxyType(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+        }
+
     }
     internal class JSonSubstitute : IJsonSerialize, IJsonConvert
     {
