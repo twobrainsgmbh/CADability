@@ -1211,18 +1211,23 @@ namespace CADability
         {
             BeginObject();
 
-            if (verbose) (this as IJsonWriteData).AddProperty("$Index(Debug)", objectCount);
+            if (verbose)
+                (this as IJsonWriteData).AddProperty("$Index(Debug)", objectCount);
+
+            Type valType = val.GetType();
+
             if (val is IDictionary ht && !(val is IJsonSerialize))
-            {   // a hashtable or some other kind of dictionary is serialized as 
-                val = new JSonDictionary(ht, val.GetType());
+            {
+                // a hashtable or some other kind of dictionary is serialized as 
+                val = new JSonDictionary(ht, valType);
             }
-            if (val is System.Drawing.Color)
+            else if (val is System.Drawing.Color)
             {
                 val = new JSonSubstitute(val);
             }
-            if (val is IList lst && !(val is IJsonSerialize))
+            else if (valType.IsValueType && valType.Namespace == "System" && valType.Name.StartsWith("ValueTuple"))
             {
-
+                val = new JSonSubstitute(val);
             }
 
             int typeIndex;
@@ -1235,8 +1240,8 @@ namespace CADability
                 {   // if it is an unknown type, we use the typename that was given on deserialisation
 
                     // the following is not correct: if the order of objects has been changed, there is no original typename in the JsonProxyType
-                    // we would need a more global dictionare of proxy types
-                    // but this is only an issue, when saving files, where an object could not be deserialised on read
+                    // we would need a more global dictionary of proxy types
+                    // but this is only an issue, when saving files, where an object could not be deserialized on read
                     (this as IJsonWriteData).AddProperty("$Type", junk.OriginalTypeName);
                     typeIndex = junk.OriginalTypeVersion;
                     string assemblyName = junk.OriginalTypeAssembly;
@@ -1806,28 +1811,141 @@ namespace CADability
         }
         public void GetObjectData(IJsonWriteData data)
         {
-            data.AddProperty("$OriginalType", toSerialize.GetType().FullName);
-            switch (toSerialize.GetType().FullName)
+            typeName = toSerialize.GetType().FullName;
+
+            if (string.IsNullOrEmpty(typeName))
+                return;
+
+            data.AddProperty("$OriginalType", typeName);
+            if (typeName == "System.Drawing.Color")
             {
-                case "System.Drawing.Color":
-                    {
-                        data.AddProperty("Argb", ((System.Drawing.Color)toSerialize).ToArgb());
-                    }
-                    break;
+                data.AddProperty("Argb", ((System.Drawing.Color)toSerialize).ToArgb());
+            }
+            else if (typeName.StartsWith("System.ValueTuple`"))
+            {
+                SerializeValueTuple(data);
             }
         }
 
         public void SetObjectData(IJsonReadData data)
         {
             typeName = data.GetProperty<string>("$OriginalType");
-            switch (typeName)
+
+            if (typeName == "System.Drawing.Color")
             {
-                case "System.Drawing.Color":
-                    {
-                        toSerialize = System.Drawing.Color.FromArgb(data.GetProperty<int>("Argb"));
-                    }
-                    break;
+                toSerialize = System.Drawing.Color.FromArgb(data.GetProperty<int>("Argb"));
             }
+            else if (typeName.StartsWith("System.ValueTuple`"))
+            {
+                DeserializeValueTuple(data);
+            }
+        }
+
+        private void SerializeValueTuple(IJsonWriteData data)
+        {
+            Type type = toSerialize.GetType();
+            // Get all Item fields (Item1, Item2, etc.)
+            FieldInfo[] fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public);
+
+            // Store the generic type arguments for reconstruction
+            Type[] genericArgs = type.GetGenericArguments();
+            string[] typeNames = new string[genericArgs.Length];
+            for (int i = 0; i < genericArgs.Length; i++)
+            {
+                typeNames[i] = genericArgs[i].FullName;
+            }
+            data.AddProperty("$GenericTypes", typeNames);
+
+            // Store each field value
+            object[] values = new object[fields.Length];
+            for (int i = 0; i < fields.Length; i++)
+            {
+                values[i] = fields[i].GetValue(toSerialize);
+            }
+            data.AddProperty("Values", values);
+        }
+
+        private void DeserializeValueTuple(IJsonReadData data)
+        {
+            // Get the generic type arguments
+            string[] typeNames = data.GetProperty<string[]>("$GenericTypes");
+            Type[] genericArgs = new Type[typeNames.Length];
+            for (int i = 0; i < typeNames.Length; i++)
+            {
+                genericArgs[i] = Type.GetType(typeNames[i]);
+
+                if (genericArgs[i] != null) 
+                    continue;
+
+                // Try to find in loaded assemblies
+                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    genericArgs[i] = assembly.GetType(typeNames[i]);
+                    if (genericArgs[i] != null) break;
+                }
+            }
+
+            // Construct the ValueTuple type
+            Type tupleType = Type.GetType(typeName);
+            if (tupleType == null)
+            {
+                // Build the generic type manually
+                string baseTypeName = typeName.Substring(0, typeName.IndexOf('`'));
+                Type genericTypeDef = Type.GetType(baseTypeName + "`" + genericArgs.Length);
+
+                if (genericTypeDef is null)
+                    return;
+
+                tupleType = genericTypeDef.MakeGenericType(genericArgs);
+            }
+
+            // Get the values
+            object[] values = data.GetProperty<object[]>("Values");
+
+            // Convert values to match constructor parameter types
+            for (int i = 0; i < values.Length && i < genericArgs.Length; i++)
+            {
+                if (values[i] == null || genericArgs[i].IsAssignableFrom(values[i].GetType()))
+                    continue;
+
+                // Handle array types - JSON deserializes arrays as List<object>
+                if (genericArgs[i].IsArray && values[i] is List<object> list)
+                {
+                    Type elementType = genericArgs[i].GetElementType();
+
+                    if (elementType == null)
+                        continue;
+
+                    Array array = Array.CreateInstance(elementType, list.Count);
+                    for (int j = 0; j < list.Count; j++)
+                    {
+                        object listItem = list[j];
+                        if (listItem != null && (elementType.IsPrimitive || elementType.IsEnum))
+                        {
+                            array.SetValue(Convert.ChangeType(listItem, elementType), j);
+                        }
+                        else if (listItem != null)
+                        {
+                            array.SetValue(listItem, j);
+                        }
+                    }
+                    values[i] = array;
+                }
+                // Handle primitive type conversions
+                else if (genericArgs[i].IsPrimitive || genericArgs[i].IsEnum)
+                {
+                    values[i] = Convert.ChangeType(values[i], genericArgs[i]);
+                }
+            }
+
+            // Find constructor with matching parameter types
+            ConstructorInfo constructor = tupleType.GetConstructor(genericArgs);
+
+            if (constructor is null)
+                return;
+
+            // Create the tuple instance
+            toSerialize = constructor.Invoke(values);
         }
     }
     //internal class JSonList: List<object>, IJsonSerialize, IJsonConvert
