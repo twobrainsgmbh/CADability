@@ -291,11 +291,19 @@ namespace CADability.Forms
         }
         void IUIService.SetClipboardData(GeoObjectList objects, bool copy)
         {
-            MemoryStream ms = new MemoryStream();
-            JsonSerialize js = new JsonSerialize();
-            js.ToStream(ms, objects);
-            Clipboard.SetDataObject(ms.ToArray(), copy);
-            ms.Dispose();
+            if (objects != null && objects.Count > 0)
+            {
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    JsonSerialize js = new JsonSerialize();
+                    try
+                    {
+                        js.ToStream(ms, objects);
+                        Clipboard.SetDataObject(ms.ToArray(), copy);
+                    }
+                    catch { }
+                }
+            }
         }
         GeoObjectList IUIService.GetClipboardData()
         {
