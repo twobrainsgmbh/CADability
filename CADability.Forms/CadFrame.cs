@@ -135,9 +135,18 @@ namespace CADability.Forms
         {
             if (data is IDataObject idata)
             {
-                if (idata.GetDataPresent(System.Windows.Forms.DataFormats.Serializable))
+                byte[] bytes = idata.GetData(typeof(byte[])) as byte[];
+                if (bytes != null)
                 {
-                    return idata.GetData(System.Windows.Forms.DataFormats.Serializable) as GeoObjectList;
+                    try
+                    {
+                        using (MemoryStream ms = new MemoryStream(bytes))
+                        {
+                            JsonSerialize js = new JsonSerialize();
+                            return js.FromStream(ms) as GeoObjectList;
+                        }
+                    }
+                    catch { }
                 }
             }
             return null;
@@ -307,21 +316,32 @@ namespace CADability.Forms
         }
         GeoObjectList IUIService.GetClipboardData()
         {
-            GeoObjectList objects = null;
-            IDataObject data = Clipboard.GetDataObject();
-            byte[] bytes = data.GetData(typeof(byte[])) as byte[];
-            if (bytes != null)
+            try
             {
-                MemoryStream ms = new MemoryStream(bytes);
-                JsonSerialize js = new JsonSerialize();
-                objects = js.FromStream(ms) as GeoObjectList;
-                ms.Dispose();
+                IDataObject data = Clipboard.GetDataObject();
+                if (data == null) return null;
+                byte[] bytes = data.GetData(typeof(byte[])) as byte[];
+                if (bytes != null)
+                {
+                    using (MemoryStream ms = new MemoryStream(bytes))
+                    {
+                        JsonSerialize js = new JsonSerialize();
+                        return js.FromStream(ms) as GeoObjectList;
+                    }
+                }
             }
-            return objects;
+            catch { }
+            return null;
         }
         bool IUIService.HasClipboardData()
         {
-            return ((IUIService)this).GetClipboardData() != null;
+            try
+            {
+                IDataObject data = Clipboard.GetDataObject();
+                return data != null && data.GetDataPresent(typeof(byte[]));
+            }
+            catch { }
+            return false;
         }
         event EventHandler IUIService.ApplicationIdle
         {
