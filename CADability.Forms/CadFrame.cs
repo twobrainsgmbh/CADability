@@ -135,18 +135,9 @@ namespace CADability.Forms
         {
             if (data is IDataObject idata)
             {
-                byte[] bytes = idata.GetData(typeof(byte[])) as byte[];
-                if (bytes != null)
+                if (idata.GetDataPresent(System.Windows.Forms.DataFormats.Serializable))
                 {
-                    try
-                    {
-                        using (MemoryStream ms = new MemoryStream(bytes))
-                        {
-                            JsonSerialize js = new JsonSerialize();
-                            return js.FromStream(ms) as GeoObjectList;
-                        }
-                    }
-                    catch { }
+                    return idata.GetData(System.Windows.Forms.DataFormats.Serializable) as GeoObjectList;
                 }
             }
             return null;
