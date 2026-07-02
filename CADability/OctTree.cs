@@ -456,7 +456,7 @@ namespace CADability
             {
                 if (ppp == null)
                 {
-                    list.Remove(objectToRemove);
+                    list?.Remove(objectToRemove);
                 }
                 else
                 {
