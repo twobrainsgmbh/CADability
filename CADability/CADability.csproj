@@ -20,6 +20,7 @@
     <AssemblyName>CADability</AssemblyName>
     <Platforms>AnyCPU;x64</Platforms>
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <LangVersion>11.0</LangVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
