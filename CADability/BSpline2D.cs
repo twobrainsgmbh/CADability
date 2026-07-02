@@ -1138,10 +1138,10 @@ namespace CADability.Curve2D
             // turning angle so the resulting triangles stay tight enough to bound the curve.
             const double maxSpanAngle = Math.PI / 4.0; // 45° per sub-span
             List<double> res = new List<double>(tknots.Length);
+            GeoVector2D d0 = DirectionAtParam(tknots[0]);
             for (int i = 0; i < tknots.Length - 1; i++)
             {
                 res.Add(tknots[i]);
-                GeoVector2D d0 = DirectionAtParam(tknots[i]);
                 GeoVector2D d1 = DirectionAtParam(tknots[i + 1]);
                 if (!d0.IsNullVector() && !d1.IsNullVector())
                 {
@@ -1154,6 +1154,7 @@ namespace CADability.Curve2D
                         res.Add(tknots[i] + (tknots[i + 1] - tknots[i]) * j / sub);
                     }
                 }
+                d0 = d1;
             }
             res.Add(tknots[tknots.Length - 1]);
             return res.ToArray();
