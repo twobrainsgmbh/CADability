@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -50,13 +50,13 @@ namespace CADability.Forms
         const int selectBufSize = 1000; // const ist immer auch static
         int[] selectBuf;
         int clientwidth, clientheight;
-        struct state
+        struct RenderState
         {   // der state wird in einem Stack gehalten und wieder restauriert
             // da können noch mehr Dinge dazukommen
             public bool useZBuffer;
             public bool blending;
         }
-        Stack<state> stateStack;
+        Stack<RenderState> stateStack;
         GeoVector projectionDirection;
         bool isPerspective;
         Color backgroundColor; // Die Hintergrundfarbe um sicherzustellen, dass nicht mit dieser farbe
@@ -214,7 +214,7 @@ namespace CADability.Forms
             paintSurfaceEdges = true;
             currentList = null;
             selectColor = Color.Yellow;
-            stateStack = new Stack<state>();
+            stateStack = new Stack<RenderState>();
             selectBuf = new int[selectBufSize]; // statisch für selektion
             lineWidthFactor = 10.0;
             icons = new Dictionary<System.Drawing.Bitmap, IPaintTo3DList>();
@@ -722,14 +722,14 @@ namespace CADability.Forms
         }
         void IPaintTo3D.PushState()
         {
-            state s;
+            RenderState s;
             s.blending = Gl.glIsEnabled(Gl.GL_BLEND) != 0;
             s.useZBuffer = Gl.glIsEnabled(Gl.GL_DEPTH_TEST) != 0;
             stateStack.Push(s);
         }
         void IPaintTo3D.PopState()
         {
-            state s = stateStack.Pop();
+            RenderState s = stateStack.Pop();
             if (s.blending) Gl.glEnable(Gl.GL_BLEND);
             else Gl.glDisable(Gl.GL_BLEND);
             if (s.useZBuffer) Gl.glEnable(Gl.GL_DEPTH_TEST);
@@ -1905,7 +1905,7 @@ namespace CADability.Forms
             }
             catch (System.Exception e)
             {   // stürzt manchmal auf Eckhards Rechner ab
-                if (e is ThreadAbortException) throw (e);
+                if (e is ThreadAbortException) throw;
             }
             CheckError();
             //Wgl.wglMakeCurrent(IntPtr.Zero, IntPtr.Zero);
@@ -2177,7 +2177,7 @@ namespace CADability.Forms
                         }
                         catch (Exception e)
                         {
-                            if (e is System.Threading.ThreadAbortException) throw (e);
+                            if (e is System.Threading.ThreadAbortException) throw;
                         }
                     }
                     toDelete.Clear();

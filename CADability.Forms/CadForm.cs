@@ -14,6 +14,7 @@ namespace CADability.Forms
     {
         private CadFrame cadFrame; // the frame, which knows about the views, the ControlCenter (PropertiesExplorer), the menu
         private ProgressForm progressForm;
+        private MenuStrip mainMenuStrip;
         public CadForm(string[] args)
         {
             InitializeComponent(); // makes the cadCanvas and the propertiesExplorer
@@ -34,8 +35,8 @@ namespace CADability.Forms
                 if (connect != null) mainMenu = connect.Invoke(null, new object[] { cadFrame, mainMenu }) as MenuWithHandler[];
             }
             #endregion DebuggerPlayground
-            Menu = MenuManager.MakeMainMenu(mainMenu);
-            cadFrame.FormMenu = Menu;
+            SetMainMenu(MenuManager.MakeMainMenu(mainMenu));
+            cadFrame.FormMenu = mainMenuStrip;
             // open an existing Project or create a new one
             ToolBars.CreateOrRestoreToolbars(topToolStripContainer, cadFrame);
             Application.Idle += new EventHandler(OnIdle); // update the toolbars (menus are updated when they popup)
@@ -59,10 +60,22 @@ namespace CADability.Forms
                     if (connect != null) mainMenu = connect.Invoke(null, new object[] { cadFrame, mainMenu }) as MenuWithHandler[];
                 }
             }
-            Menu = MenuManager.MakeMainMenu(mainMenu);
-            cadFrame.FormMenu = Menu;
+            SetMainMenu(MenuManager.MakeMainMenu(mainMenu));
+            cadFrame.FormMenu = mainMenuStrip;
         }
-        // Access the components of the MainForm from the CadFrame. 
+        private void SetMainMenu(MenuStrip newMenu)
+        {
+            if (mainMenuStrip != null)
+            {
+                topToolStripContainer.TopToolStripPanel.Controls.Remove(mainMenuStrip);
+                mainMenuStrip.Dispose();
+            }
+            mainMenuStrip = newMenu;
+            topToolStripContainer.TopToolStripPanel.Controls.Add(mainMenuStrip);
+            MainMenuStrip = mainMenuStrip;
+        }
+
+        // Access the components of the MainForm from the CadFrame.
         public ProgressForm ProgressForm
         {
             get
@@ -96,7 +109,7 @@ namespace CADability.Forms
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
             cadFrame.Dispose();
-            Menu.Dispose();
+            mainMenuStrip?.Dispose();
             this.Dispose();
             cadCanvas.Dispose();
             propertiesExplorer.Dispose();
@@ -104,7 +117,7 @@ namespace CADability.Forms
             splitContainer.Dispose();
             if (progressForm != null) progressForm.Dispose();
 
-            Menu = null;
+            mainMenuStrip = null;
             cadFrame = null;
             cadCanvas = null;
             propertiesExplorer = null;
