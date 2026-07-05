@@ -21,20 +21,11 @@ jobs:
         run: dotnet build CADability/CADability.csproj -c Release --no-restore
       - name: Pack
         run: dotnet pack CADability/CADability.csproj -c Release --no-build -o ./nupkgs
-      - name: Get NuGet publish token
-        run: |
-          $tokenRequest = Invoke-RestMethod `
-            -Uri "$env:ACTIONS_ID_TOKEN_REQUEST_URL&audience=nuget.org" `
-            -Headers @{Authorization = "Bearer $env:ACTIONS_ID_TOKEN_REQUEST_TOKEN"}
-          $body = ConvertTo-Json @{oidcToken = $tokenRequest.value}
-          $nugetToken = (Invoke-RestMethod `
-            -Method Post `
-            -Uri "https://www.nuget.org/packages/publish/oidc" `
-            -Body $body `
-            -ContentType "application/json").token
-          Write-Output "::add-mask::$nugetToken"
-          echo "NUGET_TOKEN=$nugetToken" >> $env:GITHUB_ENV
       - name: Push NuGet package
         run: |
+          $oidcToken = (Invoke-RestMethod `
+            -Uri "$env:ACTIONS_ID_TOKEN_REQUEST_URL&audience=nuget.org" `
+            -Headers @{Authorization = "Bearer $env:ACTIONS_ID_TOKEN_REQUEST_TOKEN"}).value
+          Write-Output "::add-mask::$oidcToken"
           $pkg = Get-ChildItem -Path ./nupkgs -Filter "*.nupkg" | Select-Object -First 1
-          dotnet nuget push "$($pkg.FullName)" --api-key "$env:NUGET_TOKEN" --source https://api.nuget.org/v3/index.json --skip-duplicate
+          dotnet nuget push "$($pkg.FullName)" --api-key $oidcToken --source https://api.nuget.org/v3/index.json --skip-duplicate
