@@ -27,7 +27,11 @@ namespace CADability.Forms
             {
                 Items.Add(MenuItemWithHandler.CreateItem(definition[i]));
             }
-            this.Closed += (s, e) => MenuItemWithHandler.HideToolTip();
+            this.Closed += (s, e) =>
+            {
+                MenuItemWithHandler.HideToolTip();
+                Dispose();
+            };
         }
 
         private void RecurseCommandState(MenuItemWithHandler miid)
@@ -203,8 +207,16 @@ namespace CADability.Forms
                 }
             }
             MouseEnter += OnMenuItemMouseEnter;
-            MouseLeave += (s, e) => HideToolTip();
-        }
+            MouseLeave += (s, e) =>
+            {
+                hoverTimer.Stop();
+                HideToolTip();
+                if (ReferenceEquals(currentItem, this))
+                {
+                    currentItem = null;
+                    currentToolTipText = "";
+                }
+            };
 
         private void OnMenuItemMouseEnter(object sender, EventArgs e)
         {

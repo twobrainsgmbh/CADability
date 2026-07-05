@@ -11,6 +11,7 @@
     <GenerateResourceMSBuildRuntime>CurrentRuntime</GenerateResourceMSBuildRuntime>
     <SignAssembly>false</SignAssembly>
     <LangVersion>11.0</LangVersion>
+    <!-- Required for legacy BinaryFormatter-based persistence/compatibility. BinaryFormatter is insecure; only deserialize trusted data and migrate away when possible. -->
     <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
