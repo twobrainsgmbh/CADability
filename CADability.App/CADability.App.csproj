@@ -57,7 +57,7 @@
     <Optimize>true</Optimize>
     <OutputPath>bin\RelWithDoc\</OutputPath>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <LangVersion>7.3</LangVersion>
+    <LangVersion>11.0</LangVersion>
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
 
@@ -68,7 +68,7 @@
     <Optimize>false</Optimize>
     <OutputPath>bin\x64\Debug\</OutputPath>
     <PlatformTarget>x64</PlatformTarget>
-    <LangVersion>7.3</LangVersion>
+    <LangVersion>11.0</LangVersion>
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
 
@@ -78,7 +78,7 @@
     <Optimize>true</Optimize>
     <OutputPath>bin\x64\Release\</OutputPath>
     <PlatformTarget>x64</PlatformTarget>
-    <LangVersion>7.3</LangVersion>
+    <LangVersion>11.0</LangVersion>
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
 
@@ -88,7 +88,7 @@
     <Optimize>true</Optimize>
     <OutputPath>bin\x64\RelWithDoc\</OutputPath>
     <PlatformTarget>x64</PlatformTarget>
-    <LangVersion>7.3</LangVersion>
+    <LangVersion>11.0</LangVersion>
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
 
@@ -110,7 +110,6 @@
   <!-- NuGet Packages -->
   <ItemGroup>
     <PackageReference Include="System.Drawing.Common" Version="6.0.0" />
-    <PackageReference Include="netDXF" Version="2.2.0.1" />
   </ItemGroup>
 
   <!-- Project References -->
@@ -121,7 +120,6 @@
 
   <!-- Additional files -->
   <ItemGroup>
-    <None Include="CADability.App_TemporaryKey.pfx" />
     <None Include="App.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
