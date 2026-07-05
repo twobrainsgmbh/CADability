@@ -31,7 +31,7 @@ namespace CADability.Forms
         /// <summary>
         /// The parent form menu
         /// </summary>
-        public MainMenu FormMenu { set; private get; }
+        public MenuStrip FormMenu { set; private get; }
 
         /// <summary>
         /// Action that delegate the progress.
@@ -81,20 +81,20 @@ namespace CADability.Forms
         {
             if (this.FormMenu != null)
             {
-                foreach (MenuItem mi in this.FormMenu.MenuItems)
+                foreach (ToolStripItem item in this.FormMenu.Items)
                 {
-                    UpdateMRUMenu(mi, mruFiles);
+                    if (item is ToolStripMenuItem mi) UpdateMRUMenu(mi, mruFiles);
                 }
             }
         }
 
-        private void UpdateMRUMenu(MenuItem mi, string[] mruFiles)
+        private void UpdateMRUMenu(ToolStripMenuItem mi, string[] mruFiles)
         {
-            if (mi.IsParent)
+            if (mi.HasDropDownItems)
             {
-                foreach (MenuItem mmi in mi.MenuItems)
+                foreach (ToolStripItem item in mi.DropDownItems)
                 {
-                    UpdateMRUMenu(mmi, mruFiles);
+                    if (item is ToolStripMenuItem mmi) UpdateMRUMenu(mmi, mruFiles);
                 }
             }
             else
