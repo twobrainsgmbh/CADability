@@ -251,6 +251,7 @@ namespace CADability.Forms
             if (definition.Target != null) definition.Target.OnCommand(definition.ID);
 
             // find and dispose the root ContextMenuWithHandler to avoid blank menu text accumulation
+            // defer disposal so WinForms can finish its closing sequence before the object is released
             ToolStrip ts = this.Owner;
             while (ts != null && !(ts is ContextMenuWithHandler))
             {
@@ -258,7 +259,14 @@ namespace CADability.Forms
                     ts = ddm.OwnerItem.Owner;
                 else break;
             }
-            (ts as ContextMenuWithHandler)?.Dispose();
+            if (ts is ContextMenuWithHandler rootMenu && !rootMenu.IsDisposed)
+            {
+                rootMenu.BeginInvoke((Action)(() =>
+                {
+                    if (!rootMenu.IsDisposed)
+                        rootMenu.Dispose();
+                }));
+            }
         }
 
         protected override void OnDropDownShow(EventArgs e)
