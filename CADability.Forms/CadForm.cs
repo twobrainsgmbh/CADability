@@ -108,6 +108,9 @@ namespace CADability.Forms
         }
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
+            // Unsubscribe from the static event first so OnIdle cannot fire after fields
+            // are nulled below (topToolStripContainer would throw NullReferenceException).
+            Application.Idle -= OnIdle;
             // Only dispose non-WinForms objects here. WinForms-managed controls
             // (cadCanvas, propertiesExplorer, topToolStripContainer, splitContainer,
             // mainMenuStrip) are in the Controls hierarchy and are disposed automatically
