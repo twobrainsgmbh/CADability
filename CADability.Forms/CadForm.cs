@@ -108,14 +108,17 @@ namespace CADability.Forms
         }
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            cadFrame.Dispose();
-            mainMenuStrip?.Dispose();
-            this.Dispose();
-            cadCanvas.Dispose();
-            propertiesExplorer.Dispose();
-            topToolStripContainer.Dispose();
-            splitContainer.Dispose();
-            if (progressForm != null) progressForm.Dispose();
+            // Unsubscribe from the static event first so OnIdle cannot fire after fields
+            // are nulled below (topToolStripContainer would throw NullReferenceException).
+            Application.Idle -= OnIdle;
+            // Only dispose non-WinForms objects here. WinForms-managed controls
+            // (cadCanvas, propertiesExplorer, topToolStripContainer, splitContainer,
+            // mainMenuStrip) are in the Controls hierarchy and are disposed automatically
+            // when the Form itself is disposed after this method returns.
+            // Never call this.Dispose() inside OnFormClosed — the form is still in its
+            // closing sequence and WinForms will call Dispose() once teardown is complete.
+            cadFrame?.Dispose();
+            progressForm?.Dispose();
 
             mainMenuStrip = null;
             cadFrame = null;
