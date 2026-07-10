@@ -192,6 +192,7 @@ namespace CADability.Forms
                 ShortcutKeys = ShortcutFromString(definition.Shortcut);
                 ShowShortcutKeys = definition.ShowShortcut;
             }
+
             if (definition.ImageIndex >= 0)
             {
                 int ind = definition.ImageIndex;
@@ -199,6 +200,7 @@ namespace CADability.Forms
                 if (ind < ButtonImages.ButtonImageList.Images.Count)
                     Image = ButtonImages.ButtonImageList.Images[ind];
             }
+
             if (definition.SubMenus != null)
             {
                 for (int i = 0; i < definition.SubMenus.Length; i++)
@@ -206,6 +208,7 @@ namespace CADability.Forms
                     DropDownItems.Add(CreateItem(definition.SubMenus[i]));
                 }
             }
+
             MouseEnter += OnMenuItemMouseEnter;
             MouseLeave += (s, e) =>
             {
@@ -217,6 +220,7 @@ namespace CADability.Forms
                     currentToolTipText = "";
                 }
             };
+        }
 
         private void OnMenuItemMouseEnter(object sender, EventArgs e)
         {
