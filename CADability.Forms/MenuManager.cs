@@ -30,7 +30,7 @@ namespace CADability.Forms
             this.Closed += (s, e) =>
             {
                 MenuItemWithHandler.HideToolTip();
-                Dispose();
+                BeginInvoke(new Action(() => { if (!IsDisposed) Dispose(); }));
             };
         }
 
