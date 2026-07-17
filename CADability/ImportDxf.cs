@@ -317,7 +317,7 @@ namespace CADability.DXF
 
                 go.UserData.Add(name, xdata);
             }
-            go.UserData["DxfImport.Handle"] = new UserInterface.StringProperty(entity.Handle, "DxfImport.Handle");
+
         }
         private GeoObject.Block FindBlock(netDxf.Blocks.Block entity)
         {
