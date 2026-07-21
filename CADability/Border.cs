@@ -2659,8 +2659,6 @@ namespace CADability.Shapes
 							}
 						}
 						BreakSegment[i][point.par1] = point.p;
-						GeoVector2D dir = (1.0 / RawSegments[i].Length) * RawSegments[i].DirectionAt(point.par1);
-						GeoVector2D other = (1.0 / scap.Length) * scap.DirectionAt(point.par2);
 						intersectionDirection[i][point.par1] = 0.0;
 					}
 					pointlist = RawSegments[i].GetIntersectionPoints(ecap);
@@ -2676,8 +2674,6 @@ namespace CADability.Shapes
 							}
 						}
 						BreakSegment[i][point.par1] = point.p;
-						GeoVector2D dir = (1.0 / RawSegments[i].Length) * RawSegments[i].DirectionAt(point.par1);
-						GeoVector2D other = (1.0 / ecap.Length) * ecap.DirectionAt(point.par2);
 						intersectionDirection[i][point.par1] = 0.0;
 					}
 				}
@@ -3986,7 +3982,7 @@ namespace CADability.Shapes
 		/// </summary>
 		/// <param name="info">SerializationInfo</param>
 		/// <param name="context">StreamingContext</param>
-		protected Border(SerializationInfo info, StreamingContext context)
+		protected Border(SerializationInfo info, StreamingContext context) : this()
 		{
 			Segments = (ICurve2D[])InfoReader.Read(info, "Segments", typeof(ICurve2D[]));
 		}
