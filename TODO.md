@@ -47,6 +47,9 @@ reversed and saved (the JSON reader accepts a property written as null), an
 arc without sweep can be approximated, `Project.Export` returns whether it
 wrote the file, and `Shell.OpenEdgesExceptPoles` no longer takes a closed
 curve for a pole (a STEP `CLOSED_SHELL` with a single disc became a solid).
+Two spheres intersect in an exact circle: the general intersection
+approximated it, and the union of two spheres of radius 5 whose centres are
+6 apart did not return.
 
 Fixed in the next pull request: #194 (`Border.UnsplittedOutline` survives
 `CompoundShape.CreateFromList`), #293 (DXF block contents on layer 0 or
@@ -88,10 +91,18 @@ None left: all of them have been fixed.
   the fix). Examples: a box bottom 3e-7 below the tangent plane of a rounded
   edge, gaps of about 1e-5 (between `Precision.eps` and the BRep precision),
   touching boxes (`Intersect` throws), and tools 1e6 times smaller than the
-  other solid. Two more found while checking the pole fix, both on master
-  too: a box minus a sphere of radius 4 centred on its top face throws, and
-  the union of two spheres of radius 5 whose centres are 6 apart does not
-  return within a minute.
+  other solid. A box minus a sphere of radius 4 centred on its top face fails
+  an assertion in Debug builds and returns the box unchanged in Release
+  builds. Two spheres now intersect in an exact circle. Still wrong: a sphere
+  of radius 5 at the origin and one of radius 5 at (6, 0, 0.5), both with
+  their axes along z, give empty results, as before. The edges of both
+  spheres cross exactly on the intersection circle, so every intersection
+  point is found four times, and no intersection edge is made. Unions of
+  spheres with offset axes measure 0.03 to 0.05 % too small or too large,
+  while both differences are exact. In the union, the hole edges of the
+  merged faces have `Path2D` curves, and these faces triangulate to a slightly
+  smaller area than the same faces in the differences; not yet investigated
+  further.
 
 - [ ] `tests/CADability.Tests/Files/CDB/Volumes.cdb.json` cannot be read by
   the JSON reader of this repository: it stores `SphericalSurface`,
