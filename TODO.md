@@ -47,7 +47,12 @@ reversed and saved (the JSON reader accepts a property written as null), an
 arc without sweep can be approximated, `Project.Export` returns whether it
 wrote the file, and `Shell.OpenEdgesExceptPoles` no longer takes a closed
 curve for a pole (a STEP `CLOSED_SHELL` with a single disc became a solid).
-Two spheres intersect in an exact circle: the general intersection
+A sphere and a plane intersect in the parts of a circle that lie on each
+face of the sphere: the whole circle was returned for every face, so a box
+minus a sphere returned the box unchanged. The same holds for a sphere and a
+cone, cylinder or torus on an axis through its centre (a cylinder first
+returned every circle on every face of the sphere, a cone divided by a null
+vector). Two spheres intersect in an exact circle: the general intersection
 approximated it, and the union of two spheres of radius 5 whose centres are
 6 apart did not return.
 
@@ -91,11 +96,10 @@ None left: all of them have been fixed.
   the fix). Examples: a box bottom 3e-7 below the tangent plane of a rounded
   edge, gaps of about 1e-5 (between `Precision.eps` and the BRep precision),
   touching boxes (`Intersect` throws), and tools 1e6 times smaller than the
-  other solid. A box minus a sphere of radius 4 centred on its top face fails
-  an assertion in Debug builds and returns the box unchanged in Release
-  builds. Two spheres now intersect in an exact circle. Still wrong: a sphere
-  of radius 5 at the origin and one of radius 5 at (6, 0, 0.5), both with
-  their axes along z, give empty results, as before. The edges of both
+  other solid. Spheres and planes, and spheres and surfaces of revolution on an
+  axis through the centre, now intersect in exact circles. Two spheres: a sphere of radius 5 at the origin and
+  one of radius 5 at (6, 0, 0.5), both with their axes along z, give empty
+  results, as before. The edges of both
   spheres cross exactly on the intersection circle, so every intersection
   point is found four times, and no intersection edge is made. Unions of
   spheres with offset axes measure 0.03 to 0.05 % too small or too large,
