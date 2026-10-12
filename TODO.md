@@ -190,10 +190,6 @@ None left: all of them have been fixed.
   by index and do not split splines at their corners, so a ruled face can get a
   kink inside.
 
-- [ ] A `Polyline` without vertices still throws in the curve operations
-  that need a point (`StartPoint`, `PointAt`, `PositionOf`, `Length`, ...).
-  Cloning, moving, reversing and saving it work now.
-
 ## Documentation
 
 - [ ] About 440 doc comments have wrong `param` names, `cref`s that resolve to
