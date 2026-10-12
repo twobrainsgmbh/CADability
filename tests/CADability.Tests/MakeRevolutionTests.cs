@@ -94,9 +94,6 @@ namespace CADability.Tests
             Assert.IsNotNull(res, "no result");
             Assert.IsTrue(res is Shell || res is Face, $"result is {res.GetType().Name}");
             AssertOnRotatedCurve(curve, res, sweep);
-            // the triangulation of a SurfaceOfRevolution overestimates its area (0.5 % for half a turn), so the area is
-            // only compared for lines and arcs, which give cylinders, cones, planes, spheres and tori
-            if (curve is BSpline) return;
             double expected = PappusArea(curve, sweep);
             Assert.AreEqual(expected, TriangulatedArea(res), 2e-3 * expected, "area");
         }

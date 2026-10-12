@@ -188,12 +188,13 @@ None left: all of them have been fixed.
 - [ ] `Make3D.MakeRuledShell`/`MakeRuledSolid` pair the curves of the two paths
   by index and do not split splines at their corners, so a ruled face can get a
   kink inside.
-- [ ] The triangulation of a face on a `SurfaceOfRevolution` overestimates its
-  area, the more the larger the angle: a spline rotated by half a turn gives
-  951.5 instead of 946.4 (integral of the surface derivatives and Pappus's
-  theorem agree), by three quarters of a turn 1451.9 instead of 1419.6. Found with
-  `MakeRevolutionTests.Spline`, which therefore checks the points of the
-  triangulation instead of the area.
+- [ ] The triangulation of a ruled surface between two splines
+  (`Make3D.MakeRuledShell`) overestimates its area by up to 3.7 % at a
+  precision of a thousandth of its size: long thin triangles along the rulings
+  overlap their neighbours while their edges stay within the deflection.
+  `Triangulation.FlipToDelaunay` leaves them, because a ruling is exact and the
+  other diagonal is not. A criterion for how well the triangles cover the
+  surface, rather than how far their edges are from it, would catch them.
 
 ## Documentation
 
