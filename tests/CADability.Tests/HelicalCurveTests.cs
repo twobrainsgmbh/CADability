@@ -263,5 +263,22 @@ namespace CADability.Tests
             Assert.IsTrue((h.PointAt(0.33) | restored.PointAt(0.33)) < 1e-9);
             Assert.IsNotNull(restored.ColorDef);
         }
+
+        /// <summary>
+        /// The JSON methods of HelicalCurve hid those of IGeoObjectImpl instead of overriding them and did not call
+        /// them, so a helix lost its layer, style, user data and attributes when it was saved (warning CS0114).
+        /// </summary>
+        [TestMethod]
+        public void JsonSerialization_KeepsLayerAndUserData()
+        {
+            HelicalCurve h = MakeTestHelix();
+            h.Layer = new CADability.Attribute.Layer("helix layer");
+            h.UserData.Add("note", "kept");
+            HelicalCurve restored = JsonSerialize.FromString(JsonSerialize.ToString(h)) as HelicalCurve;
+            Assert.IsNotNull(restored);
+            Assert.AreEqual("helix layer", restored.Layer?.Name);
+            Assert.AreEqual("kept", restored.UserData.GetData("note"));
+            Assert.AreEqual(h.Radius, restored.Radius, 1e-12);
+        }
     }
 }

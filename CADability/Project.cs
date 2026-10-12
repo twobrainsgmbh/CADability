@@ -284,7 +284,6 @@ namespace CADability
         private Hashtable attributeLists;
         private FilterList filterList;
         private string fileName;
-        private bool openedAsJson = false;
         private UndoRedoSystem undoRedoSystem;
         private GeoObjectList symbolList;
         private NamedValuesProperty namedValues;
@@ -1097,39 +1096,26 @@ namespace CADability
         }
 
         /// <summary>
-        /// Saves the project in a file with the given FileName.
-        /// If FileName is null, a SaveFileDialog is presented. Uses WriteToStream.
+        /// Saves the project in a file with the given FileName, in JSON format.
+        /// If FileName is null, a SaveFileDialog is presented.
         /// </summary>
         /// <param name="FileName">The file name</param>
         /// <returns>true, if successful, false if the user pressed escape in the SaveFileDialog</returns>
         public virtual bool WriteToFile(string FileName)
         {
-            // Für die ThumbNail Ansicht braucht man IExtractImage
-            bool writeAsJson = openedAsJson;
-            if (Settings.GlobalSettings.GetBoolValue("SaveMode.SaveAsJson", false)) writeAsJson = true;
-            writeAsJson = true;
+            // the json format is the only format we write, no more writing in binary ISerializable format
             if (FileName == null || FileName.Length == 0)
             {
                 int filterIndex = 0;
-                if (Frame.UIService.ShowSaveFileDlg("Project.WriteToFile", StringTable.GetString("MenuId.File.Save.As"), StringTable.GetString("File.CADability.Filter.json"), ref filterIndex, ref FileName) == Substitutes.DialogResult.OK)
-                {
-                    writeAsJson = true; // the json Format is the only format we accept , no more writing in binary ISerializable format
-                }
-                else return false;
+                if (Frame.UIService.ShowSaveFileDlg("Project.WriteToFile", StringTable.GetString("MenuId.File.Save.As"), StringTable.GetString("File.CADability.Filter.json"), ref filterIndex, ref FileName) != Substitutes.DialogResult.OK)
+                    return false;
             }
             if (FileName != null && FileName.Length > 0)
             {
                 fileName = FileName;
                 Stream stream = File.Open(FileName, FileMode.Create);
-                if (writeAsJson)
-                {
-                    JsonSerialize js = new JsonSerialize();
-                    js.ToStream(stream, this);
-                }
-                else
-                {
-                    WriteToStream(stream);
-                }
+                JsonSerialize js = new JsonSerialize();
+                js.ToStream(stream, this);
                 stream.Close();
                 isModified = false;
             }
@@ -1140,10 +1126,10 @@ namespace CADability
         {
             try
             {
+                // copy the project through JSON: the binary serialization is not available on .NET 5 and later
                 MemoryStream ms = new MemoryStream();
-                WriteToStream(ms);
-                ms.Seek(0, SeekOrigin.Begin);
-                Project pr = Project.ReadFromStream(ms);
+                new JsonSerialize().ToStream(ms, this); // closes the stream
+                Project pr = Project.ReadFromJson(new MemoryStream(ms.ToArray()));
                 pr.UserData.Clear();
                 foreach (Model m in pr)
                 {
@@ -1604,7 +1590,6 @@ namespace CADability
                     if (res != null)
                     {
                         res.fileName = FileName;
-                        res.openedAsJson = true;
                         stream.Close();
                         return res;
                     }
@@ -1625,7 +1610,9 @@ namespace CADability
                 {
                     //if (pf != null) pf.Start();
                     //showProgressDelegate.BeginInvoke(null,null);
+#pragma warning disable CS0618 // reading the legacy binary format is what ReadFromStream is kept for
                     res = ReadFromStream(stream);
+#pragma warning restore CS0618
                     if (res == null)
                     {
                         stream.Close();

@@ -37,6 +37,7 @@ namespace CADability.DXF
         private readonly bool dimensionsAsDimension;
         private double triangulationPrecision = 0.1;
 
+        [CLSCompliant(false)] // ACadVersion comes from ACadSharp, which is not CLS compliant
         public Export(ACadVersion version = ACadVersion.AC1015)
         {
             doc = new CadDocument(version);
