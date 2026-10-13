@@ -3375,7 +3375,7 @@ namespace CADability.Curve2D
         /// <see cref="Shapes.Border.Area"/>, which sums its segments, keeps its meaning.
         /// <para>
         /// This is the route taken whenever <see cref="ExplicitPCurve2D"/> cannot supply the area: for a
-        /// RATIONAL curve, where <see cref="ExplicitPCurve2D.Area"/> has no closed form and returns zero,
+        /// RATIONAL curve, where <see cref="ExplicitPCurve2D.Area()"/> has no closed form and returns zero,
         /// and for a curve whose exact area the plausibility check against the chord polygon rejects.
         /// Both used to fall through to the base class, which takes the area of <c>Approximate(false, 0.0)</c>
         /// - an arc approximation with no defined accuracy. Measured against a reference integration that
@@ -3392,7 +3392,7 @@ namespace CADability.Curve2D
         /// </para>
         /// <para>
         /// This uses <see cref="DirectionAt"/> as the derivative of <see cref="PointAt"/>, which for this
-        /// class it is. That is NOT true of every ICurve2D - <see cref="GeoObject.ProjectedCurve"/> takes its
+        /// class it is. That is NOT true of every ICurve2D - <see cref="CADability.ProjectedCurve"/> takes its
         /// point from an approximating spline and its direction from the exact projection, and the two
         /// disagree by tens of percent - which is why this integration lives here and not in
         /// <see cref="GeneralCurve2D"/>.

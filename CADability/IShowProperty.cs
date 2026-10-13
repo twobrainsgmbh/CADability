@@ -282,7 +282,7 @@ namespace CADability.UserInterface
         /// is loaded from the <see cref="StringTable"/> with the ID resourceId+".Label" the 
         /// tooltip text is loaded with the id resourceId+".ShortInfo" or resourceId+".DetailedInfo".
         /// You may extend the StringTable and ues your own resourceId values according to this scheme. (see
-        /// <see cref="StringTable.AddStrings"/>)
+        /// <see cref="StringTable.AddStrings(System.Xml.XmlDocument)"/>)
         /// </summary>
         protected string resourceIdInternal;
         private bool hidden; // default: false!
@@ -442,7 +442,7 @@ namespace CADability.UserInterface
         }
         /// <summary>
         /// Implementation of <see cref="IShowProperty.LabelText"/>, returns either
-        /// <see cref="labelTextInternal"/> (if not null) or <see cref="StringTable.GetString"/>(resourceId+".Label")
+        /// <see cref="labelTextInternal"/> (if not null) or <see cref="StringTable.GetString(string)"/>(resourceId+".Label")
         /// Whe set, <see cref="labelTextInternal"/> is set.
         /// </summary>
         public virtual string LabelText
@@ -459,8 +459,8 @@ namespace CADability.UserInterface
         }
         /// <summary>
         /// Implementation of <see cref="IShowProperty.InfoText"/>, returns 
-        /// <see cref="StringTable.GetString"/>(resourceId+".DetailedInfo") or 
-        /// <see cref="StringTable.GetString"/>(resourceId+".ShortInfo")
+        /// <see cref="StringTable.GetString(string)"/>(resourceId+".DetailedInfo") or 
+        /// <see cref="StringTable.GetString(string)"/>(resourceId+".ShortInfo")
         /// </summary>
         public virtual string InfoText
         {
@@ -944,15 +944,16 @@ namespace CADability.UserInterface
         /// <param name="ToEdit">Das zu editiernde Objekt</param>
         void StartEditLabel(IShowProperty ToEdit);
         /// <summary>
-        /// Die Untereinträge des im Parameter gegebenen Objektes sollenn (erzeugt und) sichtbar sein.
+        /// The sub entries of the object given in the parameter shall be (created and) visible.
         /// </summary>
-        /// <param name="ToOpen"></param>
+        /// <param name="ToOpen">The object whose sub entries are to be opened or closed</param>
+        /// <param name="open">true to open (show) the sub entries, false to close them</param>
         void OpenSubEntries(IShowProperty ToOpen, bool open);
         /// <summary>
-        /// Die Untereinträge des im Parameter gegebenen Objektes sollenn (erzeugt und) sichtbar sein.
+        /// Moves the focus from the object given in the parameter to the next or previous object in the tab order.
         /// </summary>
-        /// <param name="HasCurrentFocus">Das aktuell fokussierte Objekt</param>	
-        ///<param name="Forward">=wahr setzt den Fukus auf das nächste Objekt der Tab-Reighenfolge, = falsch auf das verhergehende</param>	
+        /// <param name="CurrentProperty">The currently focused object</param>
+        /// <param name="Forward">true sets the focus on the next object in the tab order, false on the previous one</param>
         void SelectNext(IShowProperty CurrentProperty, bool Forward);
         /// <summary>
         /// Determins whether this IPropertyTreeView is on top of all IPropertyTreeView objects.
@@ -1059,12 +1060,10 @@ namespace CADability.UserInterface
      * ein EditControl erzeugen und dem ParentControl zufügen und auch wieder entfernen.
      */
 
-    /// <summary>
-    /// Interface for Objects in the ControlCenter. 
-    /// The ControlCenter is unlimited in the number of controls it may contain in contrast to a Windows.Forms.Control which is limited.
-    /// Objects implementing this interface act like Controls getting only those notifications provided in this interface.
-    /// this interface enables the implementing object to react on mouse and paint messages like a Control does.
-    /// PRELIMINARY! may be extended in future!
-    /// </summary>
+    // Interface for Objects in the ControlCenter. 
+    // The ControlCenter is unlimited in the number of controls it may contain in contrast to a Windows.Forms.Control which is limited.
+    // Objects implementing this interface act like Controls getting only those notifications provided in this interface.
+    // this interface enables the implementing object to react on mouse and paint messages like a Control does.
+    // PRELIMINARY! may be extended in future!
 
 }
