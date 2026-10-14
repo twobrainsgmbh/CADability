@@ -123,10 +123,38 @@ namespace CADability
         void RegisterForSerializationDoneCallback(IJsonSerializeDone toCall);
     }
     /// <summary>
+    /// Receives the progress of <see cref="JsonSerialize.FromStream(Stream, IJsonProgress)"/> and
+    /// <see cref="JsonSerialize.ToStream(Stream, object, IJsonProgress, bool)"/>. The progress runs from 0 to 100 percent in
+    /// phases: each phase sets the size of its steps with <see cref="SetStepIncrement"/> and then reports the steps it has
+    /// done with <see cref="DoStep"/>. Reading parses the text (15 percent, a step per character), calls
+    /// OnDeserialization (5 percent) and SerializationDone (80 percent); writing does a step per <see cref="IGeoObject"/>,
+    /// so the caller sets the step size before writing.
+    /// </summary>
+    public interface IJsonProgress
+    {
+        /// <summary>
+        /// Starts a new phase at the current position, in which each step advances the progress by
+        /// <paramref name="increment"/> percent.
+        /// </summary>
+        /// <param name="increment">percent per step</param>
+        void SetStepIncrement(double increment);
+        /// <summary>
+        /// Reports that <paramref name="doneSteps"/> more steps of the current phase are done.
+        /// </summary>
+        /// <param name="doneSteps">number of steps done since the last call</param>
+        void DoStep(int doneSteps = 1);
+        /// <summary>
+        /// Reading or writing is finished; a progress display can be hidden. <see cref="JsonSerialize"/> does not call it,
+        /// the caller does.
+        /// </summary>
+        void SetCompleted();
+    }
+    /// <summary>
     /// CADability's own JSON serializer, which writes and reads graphs of <see cref="IJsonSerialize"/> objects (a <see cref="Project"/>
-    /// with all its models, objects and attributes) to and from a stream: <see cref="ToStream"/> writes, <see cref="FromStream"/>
-    /// reads. Each object is written once and referenced afterwards, so shared objects and cycles are preserved; types are stored by
-    /// name and resolved when reading, where the <see cref="ResolveType"/> event lets an application map renamed types.
+    /// with all its models, objects and attributes) to and from a stream: <see cref="ToStream(Stream, object, bool)"/> writes,
+    /// <see cref="FromStream(Stream)"/> reads. Each object is written once and referenced afterwards, so shared objects and
+    /// cycles are preserved; types are stored by name and resolved when reading, where the <see cref="ResolveType"/> event lets
+    /// an application map renamed types.
     /// <see cref="Project.ReadFromFile(string)"/> and <see cref="Project.WriteToFile"/> use it for the ".cdb" project files.
     /// </summary>
     public class JsonSerialize : IJsonWriteData
@@ -173,19 +201,15 @@ namespace CADability
             StreamReader sr;
             string currentline;
             int actind;
-            public Tokenizer(Stream stream)
+            int prevactind;
+            IJsonProgress progress; //To keep track of the reading of the file.
+            public Tokenizer(Stream stream, IJsonProgress progress)
             {
+                this.progress = progress;
                 sr = new StreamReader(stream);
-                currentline = sr.ReadLine().Trim();
+                currentline = sr.ReadToEnd().Trim();
+                SetProgressStepIncrement(15.0 / currentline.Length);
                 actind = 0;
-            }
-
-            public bool EndOfFile
-            {
-                get
-                {
-                    return sr.EndOfStream;
-                }
             }
 
             private bool EqualsAt(string value, StringComparison cmp = StringComparison.Ordinal)
@@ -196,22 +220,19 @@ namespace CADability
             }
             public etoken NextToken(out string line, out int start, out int length)
             {
+                DoProgressStep(); //It should be at the end, but it doesn't matter so much, I loose only to feedback the last token read. I put it here because there are many return and I don't want to call it in different places or refactor all the code.
                 line = null;
                 start = length = 0;
-                while (actind >= currentline.Length)
+                if (actind >= currentline.Length)
                 {
-                    if (sr.EndOfStream) return etoken.eof;
-                    currentline = sr.ReadLine().Trim();
-                    actind = 0;
+                    return etoken.eof;
                 }
                 while (char.IsWhiteSpace(currentline[actind]))
                 {   // skip whitespace
                     ++actind;
                     if (actind >= currentline.Length)
                     {
-                        if (sr.EndOfStream) return etoken.eof;
-                        currentline = sr.ReadLine().Trim();
-                        actind = 0;
+                        return etoken.eof;
                     }
                 }
                 switch (currentline[actind])
@@ -220,27 +241,7 @@ namespace CADability
                         {   // return string in quotes
                             int ind = currentline.IndexOf('"', actind + 1);
                             while (ind >= 0 && ind < currentline.Length - 1 && currentline[ind - 1] == '\\') ind = currentline.IndexOf('"', ind + 1); // skip \" in a string
-                            if (ind < 0)
-                            {   // string spans multiple lines
-                                string res = currentline.Substring(actind);
-                                while (ind < 0)
-                                {
-                                    if (sr.EndOfStream) return etoken.eof;
-                                    currentline = sr.ReadLine().Trim();
-                                    ind = currentline.IndexOf('\'');
-                                    while (ind >= 0 && ind < currentline.Length - 1 && currentline[ind - 1] == '\\') ind = currentline.IndexOf('"', ind + 1); // skip \" in a string
-                                    if (ind >= 0)
-                                    {
-                                        res += currentline.Substring(0, ind + 1);
-                                        actind = ind + 1;
-                                        line = res;
-                                        start = 1;
-                                        length = res.Length - 2;
-                                        return etoken.delimited;
-                                    }
-                                    else res += currentline;
-                                }
-                            }
+                            if (ind < 0) return etoken.eof; // the file ends inside the string
                             start = actind + 1;
                             length = ind - start + 1 - 1;
                             line = currentline;
@@ -346,6 +347,25 @@ namespace CADability
                         return etoken.colon;
                 }
                 return etoken.error;
+            }
+
+            private void SetProgressStepIncrement(double increment)
+            {
+                if (progress != null) progress.SetStepIncrement(increment);
+            }
+
+            private void DoProgressStep()
+            {
+                if (progress != null)
+                {
+                    int diff = actind - prevactind;
+                    if (diff > 0)
+                    {
+                        //I report each new token. Who implements IJsonProgress can decide to ingore most of them or not.
+                        progress.DoStep(diff);
+                        prevactind = actind;
+                    }
+                }
             }
 
             #region IDisposable Support
@@ -547,6 +567,7 @@ namespace CADability
 
         }
 
+        IJsonProgress progress; //To keep track of the reading/writing progress.
         // for serialization:
         Queue<object> queue;
         int objectCount;
@@ -733,7 +754,19 @@ namespace CADability
         }
         public object FromStream(Stream stream)
         {
-            tk = new Tokenizer(stream);
+            return FromStream(stream, null);
+        }
+        /// <summary>
+        /// Reads the objects from <paramref name="stream"/> like <see cref="FromStream(Stream)"/> and reports the progress to
+        /// <paramref name="progress"/>.
+        /// </summary>
+        /// <param name="stream">the stream to read</param>
+        /// <param name="progress">receives the progress, may be null</param>
+        /// <returns>the first object of the stream</returns>
+        public object FromStream(Stream stream, IJsonProgress progress)
+        {
+            this.progress = progress;
+            tk = new Tokenizer(stream, progress);
             string line;
             int start, length;
             createEntity = new List<EntityCreationDelegate>();
@@ -760,17 +793,21 @@ namespace CADability
                     }
 #endif
                     CreateEntities(entities);
+                    SetProgressStepIncrement(5.0 / entities.Count);
                     for (int i = 0; i < entities.Count; i++)
                     {
                         if (entities[i] != null && !(entities[i] is JsonDict) && !(entities[i] is JsonArray) && entities[i] is IDeserializationCallback && typeVersions.TryGetValue(entities[i].GetType().FullName, out int typeVersion))
                             if (typeVersion == -1) (entities[i] as IDeserializationCallback).OnDeserialization(this);
+                        DoProgressStep();
                     }
                     IJsonSerializeDone item = SerializationDoneCallback.FirstOrDefault();
+                    SetProgressStepIncrement(80.0 / SerializationDoneCallback.Count);
                     while (item != null)
                     {
                         SerializationDoneCallback.Remove(item);
                         item.SerializationDone(this);
                         item = SerializationDoneCallback.FirstOrDefault();
+                        DoProgressStep();
                     }
                     //foreach (IJsonSerializeDone item in SerializationDoneCallback)
                     //{
@@ -1155,6 +1192,20 @@ namespace CADability
 
         public bool ToStream(Stream stream, object toSerialize, bool closeStream = true)
         {
+            return ToStream(stream, toSerialize, null, closeStream);
+        }
+        /// <summary>
+        /// Writes <paramref name="toSerialize"/> and all objects it refers to like <see cref="ToStream(Stream, object, bool)"/>
+        /// and does a step of <paramref name="progress"/> for every <see cref="IGeoObject"/> written.
+        /// </summary>
+        /// <param name="stream">the stream to write to</param>
+        /// <param name="toSerialize">the root object</param>
+        /// <param name="progress">receives the progress, may be null</param>
+        /// <param name="closeStream">true: close <paramref name="stream"/> when done</param>
+        /// <returns>true</returns>
+        public bool ToStream(Stream stream, object toSerialize, IJsonProgress progress, bool closeStream = true)
+        {
+            this.progress = progress;
             verbose = Settings.GlobalSettings.GetBoolValue("Json.Verbose", false);
 #if DEBUG
             verbose = true;
@@ -1191,7 +1242,9 @@ namespace CADability
                     Seperator();
                     // outStream.Write("\n"); // only very small difference in size, but much better readable
                 }
-                WriteObject(queue.Dequeue());
+                object obj = queue.Dequeue();
+                if (obj is IGeoObject) DoProgressStep();
+                WriteObject(obj);
                 ++objectCount;
             }
             EndArray();
@@ -1679,6 +1732,15 @@ namespace CADability
                 stream.Close();
                 return res;
             }
+        }
+        private void SetProgressStepIncrement(double increment)
+        {
+            if (progress != null) progress.SetStepIncrement(increment);
+        }
+
+        private void DoProgressStep(int doneSteps = 1)
+        {
+            if (progress != null) progress.DoStep(doneSteps);
         }
 
         #region IJsonWriteData implementation

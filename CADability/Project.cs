@@ -1253,14 +1253,67 @@ namespace CADability
             }
             if (FileName != null && FileName.Length > 0)
             {
-                fileName = FileName;
-                Stream stream = File.Open(FileName, FileMode.Create);
-                JsonSerialize js = new JsonSerialize();
-                js.ToStream(stream, this);
-                stream.Close();
-                isModified = false;
+                UIProgressBar progress = new UIProgressBar("saving cdb file");
+                try
+                {
+                    // JsonSerialize.ToStream does a step for every IGeoObject it writes
+                    progress.SetStepIncrement(100.0 / Math.Max(1, CountSerializedGeoObjects()));
+                    fileName = FileName;
+                    using (Stream stream = File.Open(FileName, FileMode.Create))
+                    {
+                        JsonSerialize js = new JsonSerialize();
+                        js.ToStream(stream, this, progress, false);
+                    }
+                    isModified = false;
+                }
+                finally
+                {
+                    progress.SetCompleted();
+                }
             }
             return true;
+        }
+
+        /// <summary>
+        /// Counts the <see cref="IGeoObject"/>s which <see cref="JsonSerialize.ToStream(Stream, object, IJsonProgress, bool)"/>
+        /// writes for this project: the objects of all models and of the symbol list together with the objects they contain.
+        /// Every object is counted once, as it is written once.
+        /// </summary>
+        internal int CountSerializedGeoObjects()
+        {
+            HashSet<IGeoObject> counted = new HashSet<IGeoObject>();
+            for (int i = 0; i < GetModelCount(); ++i)
+            {
+                foreach (IGeoObject geo in GetModel(i)) CountGeoObjects(geo, counted);
+            }
+            foreach (IGeoObject geo in symbolList) CountGeoObjects(geo, counted);
+            return counted.Count;
+        }
+
+        private static void CountGeoObjects(IGeoObject geo, HashSet<IGeoObject> counted)
+        {
+            if (geo == null || !counted.Add(geo)) return;
+            switch (geo)
+            {
+                case Block block: // also Hatch
+                    foreach (IGeoObject child in block.Children) CountGeoObjects(child, counted);
+                    break;
+                case BlockRef blockRef:
+                    CountGeoObjects(blockRef.ReferencedBlock, counted);
+                    break;
+                case GeoObject.Path path:
+                    foreach (ICurve curve in path.Curves) CountGeoObjects(curve as IGeoObject, counted);
+                    break;
+                case Solid solid:
+                    foreach (Shell shell in solid.Shells) CountGeoObjects(shell, counted);
+                    break;
+                case Shell shell:
+                    foreach (Face face in shell.Faces) CountGeoObjects(face, counted);
+                    break;
+                case Face face:
+                    foreach (Edge edge in face.AllEdges) CountGeoObjects(edge.Curve3D as IGeoObject, counted);
+                    break;
+            }
         }
 
         /// <summary>
@@ -1604,7 +1657,7 @@ namespace CADability
         /// <summary>
         /// Creates a new project reading the data from the given stream using binary deserialization.
         /// This method is obsolete but kept for backward compatibility to read legacy binary format files.
-        /// Use <see cref="ReadFromJson"/> for new code.
+        /// Use <see cref="ReadFromJson(Stream)"/> for new code.
         /// </summary>
         /// <param name="stream">Stream to read from</param>
         /// <returns>The deserialized Project or null if deserialization fails</returns>
@@ -1747,6 +1800,19 @@ namespace CADability
                 //if (dlg.ShowDialog()!=DialogResult.OK) return null;
                 //FileName = dlg.FileName;
             }
+            UIProgressBar progress = useProgress ? new UIProgressBar("reading cdb file") : null;
+            try
+            {
+                return ReadCdbFile(FileName, useProgress, progress);
+            }
+            finally
+            {
+                if (progress != null) progress.SetCompleted();
+            }
+        }
+
+        private static Project ReadCdbFile(string FileName, bool useProgress, IJsonProgress progress)
+        {
             Project res = null;
             using (FileStream stream = File.Open(FileName, FileMode.Open, System.IO.FileAccess.Read, FileShare.Read))
             {
@@ -1754,82 +1820,56 @@ namespace CADability
                 stream.Seek(0, SeekOrigin.Begin);
                 if (firstByte == 123)
                 {
-                    res = ReadFromJson(stream);
-                    if (res != null)
-                    {
-                        res.fileName = FileName;
-                        stream.Close();
-                        return res;
-                    }
+                    res = ReadFromJson(stream, progress);
                 }
-                //Form.ActiveForm.Update();
-                //ReadProgress progress = new ReadProgress(stream);
-                //ProgressFeedBack pf = null;
-                //if (useProgress)
-                //{
-                //    pf = new ProgressFeedBack();
-                //    pf.Title = StringTable.GetFormattedString("ReadFile.Progress", FileName);
-                //    pf.StreamPosition(50, stream);
-                //    pf.Float(100);
-                //}
-                //ReadProgress.ShowProgressDelegate showProgressDelegate = new ReadProgress.ShowProgressDelegate(progress.ShowProgress);
-                // ReadProgress funktioniert noch nicht perfekt. 
-                try
+                else
                 {
-                    //if (pf != null) pf.Start();
-                    //showProgressDelegate.BeginInvoke(null,null);
+                    try
+                    {
 #pragma warning disable CS0618 // reading the legacy binary format is what ReadFromStream is kept for
-                    res = ReadFromStream(stream);
+                        res = ReadFromStream(stream);
 #pragma warning restore CS0618
-                    if (res == null)
+                    }
+                    catch (ProjectOldVersionException)
                     {
                         stream.Close();
-
-                        return null;
+                        stream.Dispose();
+                        if (cdbFixFw2 == null)
+                        {
+                            Assembly ThisAssembly = Assembly.GetExecutingAssembly();
+                            int lastSlash = ThisAssembly.Location.LastIndexOf('\\');
+                            if (lastSlash >= 0)
+                            {
+                                string path = ThisAssembly.Location.Substring(0, lastSlash);
+                                lastSlash = path.LastIndexOf('\\');
+                                //if (lastSlash >= 0) // das geht noch ein level zurück, wir erwarten die Anwendung im selben Verzeichnis wie CADability 
+                                //{
+                                //    path = path.Substring(0, lastSlash);
+                                //}
+                                string[] files = Directory.GetFiles(path, "cdbFixFw2.exe", SearchOption.AllDirectories);
+                                if (files.Length > 0)
+                                {
+                                    cdbFixFw2 = files[0];
+                                }
+                            }
+                        }
+                        if (cdbFixFw2 != null)
+                        {
+                            Process process = Process.Start(cdbFixFw2, "\"" + FileName + "\"");
+                            if (process != null)
+                            {
+                                process.WaitForExit();
+                                if (process.ExitCode == 0) // d.h. OK
+                                {
+                                    res = ReadConvertedFile(FileName, useProgress);
+                                }
+                            }
+                        }
                     }
+                }
+                if (res != null)
+                {
                     res.fileName = FileName;
-                }
-                catch (ProjectOldVersionException)
-                {
-                    stream.Close();
-                    stream.Dispose();
-                    if (cdbFixFw2 == null)
-                    {
-                        Assembly ThisAssembly = Assembly.GetExecutingAssembly();
-                        int lastSlash = ThisAssembly.Location.LastIndexOf('\\');
-                        if (lastSlash >= 0)
-                        {
-                            string path = ThisAssembly.Location.Substring(0, lastSlash);
-                            lastSlash = path.LastIndexOf('\\');
-                            //if (lastSlash >= 0) // das geht noch ein level zurück, wir erwarten die Anwendung im selben Verzeichnis wie CADability 
-                            //{
-                            //    path = path.Substring(0, lastSlash);
-                            //}
-                            string[] files = Directory.GetFiles(path, "cdbFixFw2.exe", SearchOption.AllDirectories);
-                            if (files.Length > 0)
-                            {
-                                cdbFixFw2 = files[0];
-                            }
-                        }
-                    }
-                    if (cdbFixFw2 != null)
-                    {
-                        Process process = Process.Start(cdbFixFw2, "\"" + FileName + "\"");
-                        if (process != null)
-                        {
-                            process.WaitForExit();
-                            if (process.ExitCode == 0) // d.h. OK
-                            {
-                                return ReadConvertedFile(FileName, useProgress);
-                            }
-                        }
-                    }
-                }
-                finally
-                {
-                    //if (pf != null) pf.Stop();
-                    //progress.Finished();
-                    stream.Close();
                 }
                 return res;
             }
@@ -1842,11 +1882,23 @@ namespace CADability
         /// <returns>The deserialized Project or null if deserialization fails</returns>
         public static Project ReadFromJson(Stream stream)
         {
+            return ReadFromJson(stream, null);
+        }
+
+        /// <summary>
+        /// Reads a Project from a JSON formatted stream like <see cref="ReadFromJson(Stream)"/> and reports the progress of
+        /// reading to <paramref name="progress"/>.
+        /// </summary>
+        /// <param name="stream">The Stream containing JSON serialized project data</param>
+        /// <param name="progress">receives the progress, may be null</param>
+        /// <returns>The deserialized Project or null if deserialization fails</returns>
+        public static Project ReadFromJson(Stream stream, IJsonProgress progress)
+        {
             // Create a new JsonSerialize instance to handle deserialization
             JsonSerialize js = new JsonSerialize();
 
             // Attempt to deserialize the stream into a Project object
-            if (!(js.FromStream(stream) is Project res))
+            if (!(js.FromStream(stream, progress) is Project res))
                 return null;
 
             // Update all attribute lists to ensure they are synchronized with the project's attributes
@@ -1887,23 +1939,17 @@ namespace CADability
             if (res != null) res.WriteToFile(FileName); // und gleich wieder rausschreiben, denn an den konvertierten Objekten hängt die falsche DLL
             return res;
         }
-        private static Project ImportDXF(string filename)
+        private static Project ImportDXF(string filename, bool useProgress)
         {
-            CADability.DXF.Import import = new DXF.Import(filename);
+            CADability.DXF.Import import = new DXF.Import(filename, useProgress ? new UIProgressBar("import dxf") : null);
             return import.Project;
         }
 
-        private static Project ImportDWG(string filename)
+        private static Project ImportDWG(string filename, bool useProgress)
         {
             try
             {
-                // the reader keeps the file open until it is disposed
-                ACadSharp.CadDocument cadDoc;
-                using (var reader = new DwgReader(filename, null))
-                {
-                    cadDoc = reader.Read();
-                }
-                CADability.DXF.Import import = new DXF.Import(cadDoc);
+                CADability.DXF.Import import = new DXF.Import(filename, useProgress ? new UIProgressBar("import dwg") : null);
                 return import.Project;
             }
             catch (Exception ex)
@@ -1948,8 +1994,8 @@ namespace CADability
             switch (Format)
             {
                 case "cdb": return ReadFromFile(FileName, useProgress);
-                case "dxf": return ImportDXF(FileName);
-                case "dwg": return ImportDWG(FileName);
+                case "dxf": return ImportDXF(FileName, useProgress);
+                case "dwg": return ImportDWG(FileName, useProgress);
                 case "step":
                 case "stp":
                     ImportStep importStep = new ImportStep();
@@ -3066,5 +3112,48 @@ namespace CADability
         }
 
         #endregion
+
+        /// <summary>
+        /// It shows the progress bar during reading/writing a drawing file.
+        /// </summary>
+        private class UIProgressBar : DXF.IDxfProgress, IJsonProgress
+        {
+            string _text = null; //Text in the progress bar.
+            double _increment = 1; //Increment value of the progress bar for each executed step. When all steps are completed it is 100.
+            double _offset = 0; //Progress bar offset value >=0 <100. Used if reading/writing is done in more than one phase.
+            int _step = 0; //Current step value.
+            double _currentPercentualPosition = 0; //Current position of the progress bar.
+
+
+            public UIProgressBar(string text)
+            {
+                _text = text;
+            }
+
+            public void SetStepIncrement(double increment)
+            {
+                _step = 0;
+                _increment = increment;
+                _offset = _currentPercentualPosition;
+            }
+
+            public void DoStep(int doneSteps = 1)
+            {
+                _step += doneSteps;
+                double percentual = Math.Min(100, Math.Round(_offset + _increment * _step, 1));
+                if (percentual > _currentPercentualPosition) //Without this import will be slower.
+                {
+                    FrameImpl.MainFrame?.UIService.ShowProgressBar(true, percentual, _text);
+                    //Debug.WriteLine($"ProgressStatus={percentual}");
+                }
+                _currentPercentualPosition = percentual;
+            }
+
+            public void SetCompleted()
+            {
+                FrameImpl.MainFrame?.UIService.ShowProgressBar(false);
+                //Debug.WriteLine($"ProgressStatus=completed");
+            }
+        }
     }
 }

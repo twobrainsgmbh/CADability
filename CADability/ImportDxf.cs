@@ -34,6 +34,7 @@ namespace CADability.DXF
         private Dictionary<string, GeoObject.Block> blockTable;
         private Dictionary<string, ColorDef> layerColorTable;
         private Dictionary<string, Attribute.Layer> layerTable;
+        private IDxfProgress progress;
         /// <summary>
         /// Greater than zero while the entities of a block definition are converted. A ByBlock
         /// color only has a meaning there: it is the color of the INSERT (or DIMENSION) that places
@@ -72,26 +73,59 @@ namespace CADability.DXF
         /// <summary>
         /// Reads the DXF file <paramref name="fileName"/> with ACadSharp. The file is read into memory first; when its OBJECTS
         /// section, which holds no geometry, is malformed, the file is read again without that section. Nothing is converted yet:
-        /// get <see cref="Project"/> to convert the drawing. Reading errors propagate as the exceptions of ACadSharp. DWG files are
-        /// read by <see cref="CADability.Project.ReadFromFile(string, string)"/> with the format "dwg".
+        /// get <see cref="Project"/> to convert the drawing. Reading errors propagate as the exceptions of ACadSharp. A DWG file
+        /// is recognized by its content and read with the DWG reader, whatever the extension of the file name.
         /// </summary>
-        /// <param name="fileName">path of the DXF file</param>
+        /// <param name="fileName">path of the DXF or DWG file</param>
         public Import(string fileName)
+            : this(fileName, null)
         {
+        }
+        /// <summary>
+        /// Reads the DXF or DWG file <paramref name="fileName"/> like <see cref="Import(string)"/> and reports the progress of
+        /// reading the file here and of converting it later in <see cref="Project"/> to <paramref name="progress"/>. Reading
+        /// takes the first 60 percent, converting the model space and the paper space 20 percent each.
+        /// <see cref="IDxfProgress.SetCompleted"/> is called when the conversion is done or when reading or converting fails.
+        /// </summary>
+        /// <param name="fileName">path of the DXF or DWG file</param>
+        /// <param name="progress">receives the progress, may be null</param>
+        public Import(string fileName, IDxfProgress progress)
+        {
+            this.progress = progress;
+            try
+            {
+                Read(fileName);
+            }
+            catch
+            {
+                SetProcessCompleted();
+                throw;
+            }
+        }
+
+        private void Read(string fileName)
+        {
+            SetProgressStepIncrement(30);
+            ACadVersion version = GetDrawingVersion(fileName, out bool isDwg);
             byte[] raw;
             using (var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 raw = new byte[fs.Length];
                 fs.Read(raw, 0, raw.Length);
             }
+            DoProgressStep();
             using (var stream = new MemoryStream(raw))
             {
                 try
                 {
-                    doc = new DxfReader(stream).Read();
+                    using (ICadReader reader = isDwg ? new DwgReader(stream) : new DxfReader(stream))
+                    {
+                        doc = reader.Read();
+                    }
                 }
                 catch (Exception)
                 {
+                    if (isDwg) throw; // the OBJECTS fallback below only makes sense for DXF
                     // The OBJECTS section is the last DXF section and contains non-geometric
                     // data (dictionaries, layouts, xrecords). Geometry lives in HEADERS,
                     // TABLES, BLOCKS, and ENTITIES — all read before OBJECTS.
@@ -101,6 +135,22 @@ namespace CADability.DXF
                     if (doc == null) throw; // OBJECTS was not the problem — re-throw
                 }
             }
+            DoProgressStep();
+        }
+
+        private void SetProgressStepIncrement(double increment)
+        {
+            if (progress != null) progress.SetStepIncrement(increment);
+        }
+
+        private void DoProgressStep(int doneSteps = 1)
+        {
+            if (progress != null) progress.DoStep(doneSteps);
+        }
+
+        private void SetProcessCompleted()
+        {
+            if (progress != null) progress.SetCompleted();
         }
 
         // Retries reading by presenting the file content only up to (but not including)
@@ -148,11 +198,6 @@ namespace CADability.DXF
                 if (match) return i;
             }
             return -1;
-        }
-
-        internal Import(CadDocument document)
-        {
-            doc = document;
         }
 
         // The drawing versions ACadSharp can read. DXF reaches back to R11/R12, DWG to R13;
@@ -350,9 +395,11 @@ namespace CADability.DXF
             if (doc.BlockRecords.TryGetValue("*Model_Space", out BlockRecord modelSpace)
                 && modelSpace.Entities.Count > 0)
             {
+                SetProgressStepIncrement(20.0 / modelSpace.Entities.Count);
                 foreach (Entity item in modelSpace.Entities)
                 {
                     ConvertAndAdd(item, model, ref converted, ref empty, ref failed);
+                    DoProgressStep();
                 }
             }
             else
@@ -360,6 +407,7 @@ namespace CADability.DXF
                 // Fallback for non-standard R12 files: *Model_Space absent or empty.
                 // doc.Entities is ACadSharp's flat view of all drawing entities; take only
                 // those whose owner is a space block (or unowned, which is model-space in R12).
+                SetProgressStepIncrement(20.0 / doc.Entities.Count);
                 foreach (var obj in doc.Entities)
                 {
                     if (!(obj is Entity item)) continue;
@@ -367,6 +415,7 @@ namespace CADability.DXF
                     if (ownerName != null && !ownerName.StartsWith("*"))
                         continue;
                     ConvertAndAdd(item, model, ref converted, ref empty, ref failed);
+                    DoProgressStep();
                 }
             }
             System.Diagnostics.Trace.WriteLine("dxf: *Model_Space: " + converted + " entities imported, " + empty + " without geometry, " + failed + " failed");
@@ -376,10 +425,12 @@ namespace CADability.DXF
         private void FillPaperSpace(Model model)
         {
             if (!doc.BlockRecords.TryGetValue("*Paper_Space", out BlockRecord paperSpace)) return;
+            SetProgressStepIncrement(20.0 / paperSpace.Entities.Count);
             int converted = 0, empty = 0, failed = 0;
             foreach (Entity item in paperSpace.Entities)
             {
                 ConvertAndAdd(item, model, ref converted, ref empty, ref failed);
+                DoProgressStep();
             }
             if (converted + empty + failed > 0)
                 System.Diagnostics.Trace.WriteLine("dxf: *Paper_Space: " + converted + " entities imported, " + empty + " without geometry, " + failed + " failed");
@@ -397,6 +448,18 @@ namespace CADability.DXF
         private Project CreateProject()
         {
             if (doc == null) return null;
+            try
+            {
+                return ConvertDocument();
+            }
+            finally
+            {
+                SetProcessCompleted();
+            }
+        }
+
+        private Project ConvertDocument()
+        {
             project = Project.CreateSimpleProject();
             blockTable = new Dictionary<string, GeoObject.Block>();
             layerColorTable = new Dictionary<string, ColorDef>();
@@ -2692,5 +2755,29 @@ namespace CADability.DXF
             }
             catch { return null; }
         }
+    }
+
+    /// <summary>
+    /// Receives the progress of a DXF or DWG import, see <see cref="Import(string, IDxfProgress)"/>. The progress runs
+    /// from 0 to 100 percent in phases: each phase sets the size of its steps with <see cref="SetStepIncrement"/> and
+    /// then reports the steps it has done with <see cref="DoStep"/>.
+    /// </summary>
+    public interface IDxfProgress
+    {
+        /// <summary>
+        /// Starts a new phase at the current position, in which each step advances the progress by
+        /// <paramref name="increment"/> percent.
+        /// </summary>
+        /// <param name="increment">percent per step</param>
+        void SetStepIncrement(double increment);
+        /// <summary>
+        /// Reports that <paramref name="doneSteps"/> more steps of the current phase are done.
+        /// </summary>
+        /// <param name="doneSteps">number of steps done since the last call</param>
+        void DoStep(int doneSteps = 1);
+        /// <summary>
+        /// The import is finished or has failed; a progress display can be hidden.
+        /// </summary>
+        void SetCompleted();
     }
 }
